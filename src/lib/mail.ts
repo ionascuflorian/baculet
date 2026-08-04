@@ -1,50 +1,66 @@
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const MAIL_FROM = process.env.MAIL_FROM || "Baculet <onboarding@resend.dev>";
+// Trimitere emailuri prin EmailJS (temporar, cât construim site-ul).
+// Se folosește REST API-ul EmailJS din server (Vercel): cheile stau în variabile
+// de mediu, nu în cod. Cât timp variabilele nu sunt setate, codul (OTP) se
+// afișează în aplicație + se printează în consolă (fallback de dezvoltare).
 
-export async function sendOtpEmail(email: string, code: string) {
-  if (RESEND_API_KEY) {
-    try {
-      const res = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${RESEND_API_KEY}`,
-        },
-        body: JSON.stringify({
-          from: MAIL_FROM,
-          to: email,
-          subject: "Codul tău de conectare Baculet",
-          html: `
-            <div style="font-family:Arial,Helvetica,sans-serif;max-width:480px;margin:0 auto;padding:24px;background:#f4f7f4;border-radius:24px">
-              <h1 style="color:#3c3c3c;margin:0 0 8px">Bun venit la Baculet! 🎉</h1>
-              <p style="color:#3c3c3c;font-size:15px">Codul tău de conectare este:</p>
-              <div style="font-size:32px;font-weight:800;letter-spacing:8px;color:#58cc02;background:#ffffff;padding:16px;text-align:center;border-radius:16px;margin:16px 0">${code}</div>
-              <p style="color:#777777;font-size:13px">Codul expiră în 10 minute. Dacă nu ai cerut tu acest cod, poți ignora acest email.</p>
-            </div>
-          `,
-        }),
-      });
-      if (!res.ok) {
-        throw new Error(`Resend error ${res.status}`);
-      }
-      return;
-    } catch (error) {
-      console.error("Eroare la trimiterea emailului:", error);
-      // fallthrough to console fallback so dev still works
-    }
-  }
-  // Dev fallback: printează codul în consolă
-  console.log(`\n[📧 Baculet OTP] Cod pentru ${email}: ${code}\n`);
+const EMAILJS_SERVICE_ID = process.env.EMAILJS_SERVICE_ID;
+const EMAILJS_PUBLIC_KEY = process.env.EMAILJS_PUBLIC_KEY;
+const EMAILJS_PRIVATE_KEY = process.env.EMAILJS_PRIVATE_KEY;
+const EMAILJS_OTP_TEMPLATE_ID = process.env.EMAILJS_TEMPLATE_ID;
+const EMAILJS_SUPPORT_TEMPLATE_ID = process.env.EMAILJS_SUPPORT_TEMPLATE_ID;
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || "support@baculet.ro";
+
+function emailjsConfigured() {
+  return Boolean(
+    EMAILJS_SERVICE_ID &&
+      EMAILJS_PUBLIC_KEY &&
+      EMAILJS_OTP_TEMPLATE_ID &&
+      EMAILJS_SUPPORT_TEMPLATE_ID
+  );
 }
 
 export function isMailConfigured() {
-  return Boolean(RESEND_API_KEY);
+  return emailjsConfigured();
 }
 
-// Cât timp nu există un furnizor de email configurat, afișăm codul direct
-// în aplicație, ca să poți folosi toate fluxurile (activare, logare, reset).
+// Cât timp EmailJS nu e configurat, afișăm codul direct în aplicație.
 export function showInAppCode() {
-  return !isMailConfigured();
+  return !emailjsConfigured();
+}
+
+async function sendEmailJs(templateId: string | undefined, params: Record<string, unknown>) {
+  const res = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      service_id: EMAILJS_SERVICE_ID,
+      template_id: templateId,
+      user_id: EMAILJS_PUBLIC_KEY,
+      ...(EMAILJS_PRIVATE_KEY ? { accessToken: EMAILJS_PRIVATE_KEY } : {}),
+      template_params: params,
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`EmailJS error ${res.status}: ${text}`);
+  }
+}
+
+export async function sendOtpEmail(email: string, code: string) {
+  if (!emailjsConfigured()) {
+    console.log(`\n[📧 Baculet OTP] Cod pentru ${email}: ${code}\n`);
+    return;
+  }
+  try {
+    await sendEmailJs(EMAILJS_OTP_TEMPLATE_ID, {
+      to_email: email,
+      from_name: "Baculet",
+      code,
+    });
+  } catch (error) {
+    console.error("Eroare la trimiterea emailului EmailJS:", error);
+  }
 }
 
 export async function sendSupportEmail(input: {
@@ -53,51 +69,23 @@ export async function sendSupportEmail(input: {
   topic: string;
   message: string;
 }) {
-  if (RESEND_API_KEY) {
-    try {
-      const res = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${RESEND_API_KEY}`,
-        },
-        body: JSON.stringify({
-          from: MAIL_FROM,
-          to: process.env.SUPPORT_EMAIL || "support@baculet.ro",
-          replyTo: input.email,
-          subject: `Ajutor: ${input.topic} (${input.email})`,
-          html: `
-            <div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;padding:24px;background:#f4f7f4;border-radius:24px">
-              <h1 style="color:#3c3c3c;margin:0 0 12px">Cerere de ajutor</h1>
-              <p style="color:#777777;font-size:13px;margin:0 0 16px">Trimisă din pagina de Ajutor Baculet.</p>
-              <div style="background:#ffffff;padding:16px;borderradius:16px;font-size:14px;color:#3c3c3c">
-                <p><strong>Nume:</strong> ${escapeHtml(input.name)}</p>
-                <p><strong>Email:</strong> ${escapeHtml(input.email)}</p>
-                <p><strong>Subiect:</strong> ${escapeHtml(input.topic)}</p>
-                <p style="white-space:pre-wrap;margin-top:12px">${escapeHtml(input.message)}</p>
-              </div>
-            </div>
-          `,
-        }),
-      });
-      if (!res.ok) throw new Error(`Resend error ${res.status}`);
-      return;
-    } catch (error) {
-      console.error("Eroare la trimiterea emailului de suport:", error);
-    }
+  if (!emailjsConfigured()) {
+    console.log(
+      `\n[📬 Baculet Ajutor]\nDe la: ${input.name} <${input.email}>\nSubiect: ${input.topic}\n${input.message}\n`
+    );
+    return;
   }
-  // Dev/fallback
-  console.log(
-    `\n[📬 Baculet Ajutor]\nDe la: ${input.name} <${input.email}>\nSubiect: ${input.topic}\n${input.message}\n`
-  );
-}
-
-function escapeHtml(value: string) {
-  return String(value).replace(
-    /[&<>"']/g,
-    (c) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
-        c
-      ]!
-  );
+  try {
+    await sendEmailJs(EMAILJS_SUPPORT_TEMPLATE_ID, {
+      to_email: SUPPORT_EMAIL,
+      reply_to: input.email,
+      from_name: input.name,
+      name: input.name,
+      email: input.email,
+      topic: input.topic,
+      message: input.message,
+    });
+  } catch (error) {
+    console.error("Eroare la trimiterea emailului de suport EmailJS:", error);
+  }
 }
