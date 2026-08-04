@@ -83,43 +83,52 @@ export default async function LessonPage({
         </CardContent>
       </Card>
 
-      <div className="flex flex-col items-center gap-4">
-        <form action={toggleLessonComplete.bind(null, lesson.id, path)}>
-          <Button
-            type="submit"
-            variant={isDone ? "outline" : "default"}
-            size="lg"
-          >
-            {isDone ? (
-              <>
-                <Circle className="h-5 w-5" /> Marchează ca neparcursă
-              </>
-            ) : (
-              <>
-                <CheckCircle2 className="h-5 w-5" /> Marchează ca parcursă
-              </>
-            )}
-          </Button>
-        </form>
-
-        <div className="flex w-full items-center justify-between">
-          {prev ? (
+      <div className="space-y-3">
+        {prev && (
+          <div className="flex justify-start">
             <Button asChild variant="ghost" size="sm">
               <Link href={`/materii/${slug}/${chapterSlug}/${prev.slug}`}>
                 <ArrowLeft className="h-4 w-4" /> {prev.title}
               </Link>
             </Button>
-          ) : (
-            <span />
-          )}
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          <form
+            action={toggleLessonComplete.bind(null, lesson.id, path)}
+            className="min-w-0"
+          >
+            <Button
+              type="submit"
+              variant={isDone ? "outline" : "default"}
+              size="lg"
+              className="w-full"
+            >
+              {isDone ? (
+                <>
+                  <Circle className="h-5 w-5" /> Marchează ca neparcursă
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-5 w-5" /> Marchează ca parcursă
+                </>
+              )}
+            </Button>
+          </form>
+
           {next ? (
-            <Button asChild size="sm">
-              <Link href={`/materii/${slug}/${chapterSlug}/${next.slug}`}>
-                {next.title} <ArrowRight className="h-4 w-4" />
+            <Button asChild variant="secondary" size="lg" className="w-full min-w-0">
+              <Link
+                href={`/materii/${slug}/${chapterSlug}/${next.slug}`}
+                className="flex items-center justify-center gap-2"
+              >
+                <span className="truncate">{next.title}</span>
+                <ArrowRight className="h-5 w-5 shrink-0" />
               </Link>
             </Button>
           ) : (
-            <Button asChild size="sm">
+            <Button asChild variant="secondary" size="lg" className="w-full">
               <Link href={`/materii/${slug}`}>Gata capitolul</Link>
             </Button>
           )}

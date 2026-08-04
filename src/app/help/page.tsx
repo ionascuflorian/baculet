@@ -47,7 +47,10 @@ export default async function HelpPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <header className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-2 px-4">
-        <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-subtle transition-colors hover:text-ink">
+        <Link
+          href={session?.user ? "/dashboard" : "/"}
+          className="flex items-center gap-2 text-sm font-semibold text-subtle transition-colors hover:text-ink"
+        >
           <ArrowLeft className="h-4 w-4" />
           Înapoi
         </Link>

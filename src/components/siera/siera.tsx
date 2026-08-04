@@ -33,7 +33,13 @@ const SUGGESTIONS = [
   "Explică-mi un concept",
 ];
 
-function SieraMarkdown({ content }: { content: string }) {
+function SieraMarkdown({
+  content,
+  onNavigate,
+}: {
+  content: string;
+  onNavigate: () => void;
+}) {
   return (
     <div className="text-sm leading-relaxed text-ink">
       <ReactMarkdown
@@ -42,13 +48,23 @@ function SieraMarkdown({ content }: { content: string }) {
           a: ({ href, children }) => {
             if (href?.startsWith("/")) {
               return (
-                <Link href={href} className="text-accent underline">
+                <Link
+                  href={href}
+                  onClick={onNavigate}
+                  className="text-accent underline"
+                >
                   {children}
                 </Link>
               );
             }
             return (
-              <a href={href} target="_blank" rel="noreferrer" className="text-accent underline">
+              <a
+                href={href}
+                target="_blank"
+                rel="noreferrer"
+                onClick={onNavigate}
+                className="text-accent underline"
+              >
                 {children}
               </a>
             );
@@ -167,18 +183,6 @@ export function Siera() {
                 Bună! Sunt Siera. Pot să caut prin site, să rezum pagina curentă, să explic concepte sau să generez
                 teste personalizate. Cu ce te ajut?
               </p>
-              <div className="flex flex-wrap gap-2">
-                {SUGGESTIONS.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => submit(s)}
-                    disabled={busy}
-                    className="rounded-full border border-feather bg-background px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
             </div>
           )}
 
@@ -195,7 +199,7 @@ export function Siera() {
                     : "mr-6 rounded-2xl rounded-tl-sm bg-background px-3 py-2"
                 }
               >
-                {m.role === "user" ? extractText(m) : <SieraMarkdown content={extractText(m)} />}
+                {m.role === "user" ? extractText(m) : <SieraMarkdown content={extractText(m)} onNavigate={() => setOpen(false)} />}
               </div>
             </div>
           ))}
@@ -224,13 +228,26 @@ export function Siera() {
           )}
         </div>
 
-        <form
-          className="flex items-center gap-2 border-t border-feather p-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            submit(input);
-          }}
-        >
+        <div className="flex flex-wrap gap-2 px-3 pb-1">
+            {SUGGESTIONS.map((s) => (
+              <button
+                key={s}
+                onClick={() => submit(s)}
+                disabled={busy}
+                className="rounded-full border border-feather bg-background px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+
+          <form
+            className="flex items-center gap-2 border-t border-feather p-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              submit(input);
+            }}
+          >
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}

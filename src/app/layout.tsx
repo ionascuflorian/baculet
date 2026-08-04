@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeStyles } from "@/components/themes/theme-styles";
@@ -23,6 +23,13 @@ export const metadata: Metadata = {
   },
   description:
     "Toate resursele de care ai nevoie ca să treci Bacalaureatul din România: materii, lecții, teste grilă și subiecte oficiale.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default async function RootLayout({
