@@ -11,6 +11,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { BottomNav } from "@/components/bottom-nav";
 import { StreakTimer } from "@/components/streak-timer";
 import { Siera } from "@/components/siera/siera";
+import { APP_VERSION } from "@/lib/version";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
@@ -142,7 +143,8 @@ export function AppShell({
 
       <footer className="hidden border-t border-feather py-6 md:block">
         <div className="mx-auto max-w-6xl px-4 text-center text-sm text-subtle">
-          Baculet · Învață pentru BAC cu ritm, nu cu panică.
+          Baculet · Învață pentru BAC cu ritm, nu cu panică.{" "}
+          <span className="text-xs opacity-70">{APP_VERSION}</span>
         </div>
       </footer>
 

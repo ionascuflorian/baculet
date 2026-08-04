@@ -16,6 +16,7 @@ import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { auth } from "@/lib/auth";
+import { APP_VERSION } from "@/lib/version";
 
 const features = [
   {
@@ -254,7 +255,8 @@ export default async function Home() {
             </nav>
           </div>
           <p className="mt-6 border-t border-feather/60 pt-6 text-center text-sm text-subtle">
-            Baculet · Învață pentru BAC cu ritm, nu cu panică.
+            Baculet · Învață pentru BAC cu ritm, nu cu panică.{" "}
+            <span className="text-xs opacity-70">{APP_VERSION}</span>
           </p>
         </div>
       </footer>
