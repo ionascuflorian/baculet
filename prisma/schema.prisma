@@ -1,0 +1,240 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Profile {
+  REAL
+  HUMAN
+  TECH
+}
+
+enum ExamSession {
+  SUMMER
+  AUTUMN
+  SPECIAL
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  name          String
+  image         String?
+  emailVerified DateTime?
+  role          Role     @default(USER)
+  streakCount   Int      @default(0)
+  lastActiveAt  DateTime?
+  timezone      String?
+  dashboardWidgets Json?
+  weatherLocation Json?
+  themeSlug     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+    lessonProgress   LessonProgress[]
+    quizAttempts     QuizAttempt[]
+    pushSubscriptions PushSubscription[]
+    calendarEvents   CalendarEvent[]
+    quizzes          Quiz[]
+  }
+
+model Theme {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  enabled     Boolean  @default(true)
+  order       Int      @default(0)
+  light       Json
+  dark        Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum EventKind {
+  USER
+  ACHIEVEMENT
+  EXAM
+}
+
+model CalendarEvent {
+  id        String    @id @default(cuid())
+  userId    String
+  title     String
+  date      DateTime
+color     String?
+    kind      EventKind @default(USER)
+    key       String?
+    createdAt DateTime  @default(now())
+  
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+    @@unique([userId, key])
+    @@index([userId, date])
+}
+
+model Subject {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  icon        String?
+  color       String?
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+
+  chapters      Chapter[]
+  quizzes       Quiz[]
+  exams         OfficialExam[]
+  subjectProfiles SubjectProfile[]
+}
+
+model SubjectProfile {
+  id        String   @id @default(cuid())
+  subjectId String
+  profile   Profile
+
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([subjectId, profile])
+}
+
+model Chapter {
+  id          String  @id @default(cuid())
+  subjectId   String
+  title       String
+  slug        String
+  description String?
+  order       Int     @default(0)
+
+  subject Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+  quizzes Quiz[]
+
+  @@unique([subjectId, slug])
+}
+
+model Lesson {
+  id        String  @id @default(cuid())
+  chapterId String
+  title     String
+  slug      String
+  content   String
+  videoUrl  String?
+  pdfUrl    String?
+  order     Int     @default(0)
+
+  chapter  Chapter          @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  progress LessonProgress[]
+
+  @@unique([chapterId, slug])
+}
+
+model LessonProgress {
+  id          String   @id @default(cuid())
+  userId      String
+  lessonId    String
+  completedAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+}
+
+model Quiz {
+    id          String   @id @default(cuid())
+    subjectId   String
+    chapterId   String?
+    userId      String?
+    title       String
+    slug        String
+    description String?
+    difficulty  Int      @default(1)
+    published   Boolean  @default(true)
+    order       Int      @default(0)
+    createdAt   DateTime @default(now())
+  
+    subject   Subject       @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+    chapter   Chapter?      @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+    user      User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+    questions Question[]
+    attempts  QuizAttempt[]
+  
+    @@index([userId])
+    @@unique([subjectId, slug])
+  }
+
+model Question {
+  id           String  @id @default(cuid())
+  quizId       String
+  text         String
+  options      Json
+  correctIndex Int
+  explanation  String?
+  order        Int     @default(0)
+
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+}
+
+model QuizAttempt {
+  id        String   @id @default(cuid())
+  userId    String
+  quizId    String
+  score     Int
+  maxScore  Int
+  answers   Json
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+}
+
+model OfficialExam {
+  id           String       @id @default(cuid())
+  subjectId    String
+  year         Int
+  session      ExamSession
+  profile      Profile
+  title        String
+  pdfUrl       String
+  solutionUrl  String?
+  order        Int          @default(0)
+
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([subjectId, year, session, title])
+}
+
+model PushSubscription {
+  id           String   @id @default(cuid())
+  userId       String
+  endpoint     String   @unique
+  keys         Json
+  reminderTime String?
+  timezone     String?
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String
+  expires   DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}

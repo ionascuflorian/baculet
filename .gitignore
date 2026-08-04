@@ -24,6 +24,17 @@
 .DS_Store
 *.pem
 
+# baze locale + loguri
+*.db
+*.db-journal
+*.log
+
+# tooling local (agent skills)
+/.agents/
+/.claude/
+/.windsurf/
+skills-lock.json
+
 # debug
 npm-debug.log*
 yarn-debug.log*
@@ -39,3 +50,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/src/generated/prisma

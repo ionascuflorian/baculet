@@ -1,0 +1,214 @@
+import Link from "next/link";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import {
+  normalizePrefs,
+  visibleWidgets,
+  widgetSize,
+  SIZE_SPAN,
+} from "@/lib/dashboard-widgets";
+import { GreetingWidget } from "@/components/dashboard/widget-greeting";
+import { WeatherWidget } from "@/components/dashboard/widget-weather";
+import { isWeatherLocation } from "@/lib/weather-location";
+import { CalendarWidget } from "@/components/dashboard/widget-calendar";
+import { BacCountdownWidget } from "@/components/dashboard/widget-bac-countdown";
+import { ResumeWidget } from "@/components/dashboard/widget-resume";
+import { WidgetSettings } from "@/components/dashboard/widget-settings";
+import { DashboardGrid } from "@/components/dashboard/dashboard-grid";
+import { syncCalendarEvents } from "@/lib/calendar-sync";
+
+export default async function DashboardPage() {
+  const session = await auth();
+  const userId = session!.user.id;
+
+  const [user, subjects, completedLessons, recentAttempts, quizCount] =
+    await Promise.all([
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          name: true,
+          streakCount: true,
+          dashboardWidgets: true,
+          lastActiveAt: true,
+          weatherLocation: true,
+        },
+      }),
+      prisma.subject.findMany({
+        orderBy: { order: "asc" },
+        include: {
+          chapters: {
+            orderBy: { order: "asc" },
+            include: { lessons: { orderBy: { order: "asc" } } },
+          },
+        },
+      }),
+      prisma.lessonProgress.findMany({
+        where: { userId },
+        select: { lessonId: true, completedAt: true },
+      }),
+      prisma.quizAttempt.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        take: 4,
+        include: { quiz: { include: { subject: true } } },
+      }),
+      prisma.quizAttempt.count({ where: { userId } }),
+    ]);
+
+  const prefs = normalizePrefs(user?.dashboardWidgets);
+  const visible = visibleWidgets(prefs);
+
+  await syncCalendarEvents(userId, {
+    streakCount: user?.streakCount ?? 0,
+    lessonsDone: completedLessons.length,
+    quizCount,
+  });
+
+  const calendarEvents = await prisma.calendarEvent.findMany({
+    where: { userId },
+    orderBy: { date: "asc" },
+    select: { id: true, date: true, title: true, color: true, kind: true },
+  });
+
+  const completedIds = new Set(completedLessons.map((l) => l.lessonId));
+  const allLessons = subjects.flatMap((s) =>
+    s.chapters.flatMap((c) =>
+      c.lessons.map((l) => ({
+        ...l,
+        subject: s,
+        chapter: { slug: c.slug, title: c.title },
+      }))
+    )
+  );
+  const totalLessons = allLessons.length;
+  const doneCount = completedLessons.length;
+  const totalChapters = subjects.reduce((n, s) => n + s.chapters.length, 0);
+  const chaptersDone = subjects.reduce(
+    (n, s) =>
+      n +
+      s.chapters.filter((c) => c.lessons.every((l) => completedIds.has(l.id)))
+        .length,
+    0
+  );
+
+  const nextLesson = allLessons.find((l) => !completedIds.has(l.id));
+  const firstName = user?.name?.split(" ")[0] ?? "";
+  const streak = user?.streakCount ?? 0;
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
+            Dashboard
+          </h1>
+          <p className="text-sm text-subtle">
+            Tot ce contează azi, dintr-o privire.
+          </p>
+        </div>
+        <WidgetSettings prefs={prefs} />
+      </div>
+
+      <DashboardGrid>
+        {visible.map((id) => {
+          const span = SIZE_SPAN[widgetSize(prefs, id)];
+          switch (id) {
+            case "greeting":
+              return (
+                <div key={id} className={span}>
+                  <GreetingWidget
+                    firstName={firstName}
+                    streakCount={streak}
+                    lastActiveAt={
+                      user?.lastActiveAt ? user.lastActiveAt.toISOString() : null
+                    }
+                  />
+                </div>
+              );
+            case "bac":
+              return (
+                <div key={id} className={span}>
+                  <BacCountdownWidget />
+                </div>
+              );
+            case "weather":
+              const weatherLocation = isWeatherLocation(user?.weatherLocation)
+                ? user.weatherLocation
+                : null;
+              return (
+                <div key={id} className={span}>
+                  <WeatherWidget initialLocation={weatherLocation} />
+                </div>
+              );
+            case "calendar":
+              return (
+                <div key={id} className={span}>
+                  <CalendarWidget
+                    events={calendarEvents.map((e) => ({
+                      ...e,
+                      date: e.date.toISOString(),
+                    }))}
+                  />
+                </div>
+              );
+            case "resume":
+              return (
+                <div key={id} className={span}>
+                  <ResumeWidget
+                    nextLesson={nextLesson}
+                    doneCount={doneCount}
+                    totalLessons={totalLessons}
+                    totalChapters={totalChapters}
+                    chaptersDone={chaptersDone}
+                  />
+                </div>
+              );
+            default:
+              return null;
+          }
+        })}
+      </DashboardGrid>
+
+      {recentAttempts.length > 0 && (
+        <section className="surface rounded-[1.25rem] p-5">
+          <header className="mb-3 flex items-center justify-between">
+            <h2 className="text-base font-bold tracking-tight text-ink">
+              Teste recente
+            </h2>
+            <Link
+              href="/progres"
+              className="rounded-full px-3 py-1.5 text-xs font-bold text-accent hover:text-accent-dark"
+            >
+              Vezi tot progresul
+            </Link>
+          </header>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {recentAttempts.map((a) => (
+              <div
+                key={a.id}
+                className="inset flex items-center justify-between rounded-xl p-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-ink">
+                    {a.quiz.title}
+                  </p>
+                  <p className="text-xs text-subtle">{a.quiz.subject.name}</p>
+                </div>
+                <span
+                  className={
+                    a.score / a.maxScore >= 0.5
+                      ? "ml-3 shrink-0 text-lg font-extrabold text-success"
+                      : "ml-3 shrink-0 text-lg font-extrabold text-danger"
+                  }
+                >
+                  {a.score}/{a.maxScore}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
