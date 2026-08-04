@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Save, Sun, Moon } from "lucide-react";
+import { Loader2, Save, Sun, Moon, Wand2 } from "lucide-react";
 import { saveTheme } from "@/lib/actions/themes";
 import {
   PALETTE_KEYS,
@@ -43,6 +43,33 @@ export function ThemeForm({
   const [light, setLight] = useState<Palette>(initial.light);
   const [dark, setDark] = useState<Palette>(initial.dark);
   const [mode, setMode] = useState<"light" | "dark">("light");
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState("");
+
+  const generateWithAi = async () => {
+    setAiBusy(true);
+    setAiError("");
+    try {
+      const res = await fetch("/api/admin/generate-theme", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: aiPrompt }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Eroare la generarea temei");
+      }
+      const data = (await res.json()) as { light: Palette; dark: Palette };
+      setLight(data.light);
+      setDark(data.dark);
+      setAiPrompt("");
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : "Eroare la generarea temei");
+    } finally {
+      setAiBusy(false);
+    }
+  };
 
   const [state, action, pending] = useActionState(
     async (_prev: { error: string }, formData: FormData) => {
@@ -127,6 +154,41 @@ export function ThemeForm({
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Scurtă descriere a temei"
         />
+      </div>
+
+      <div className="rounded-2xl border border-feather bg-background p-4">
+        <h3 className="mb-2 text-sm font-bold text-ink">
+          Generator cu AI
+        </h3>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Input
+            value={aiPrompt}
+            onChange={(e) => setAiPrompt(e.target.value)}
+            placeholder="Descrie tema dorită (ex: ocean calm, extins, vintage, neon)"
+            className="flex-1"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={generateWithAi}
+            disabled={aiBusy}
+          >
+            {aiBusy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Wand2 className="h-4 w-4" />
+            )}
+            {aiBusy ? "Se generează…" : "Generează"}
+          </Button>
+        </div>
+        {aiError && (
+          <p className="mt-2 rounded-lg bg-danger/10 px-3 py-1.5 text-xs font-semibold text-danger">
+            {aiError}
+          </p>
+        )}
+        <p className="mt-2 text-xs text-subtle">
+          Tema apare în previzualizare. O confirmi apăsând „{themeId ? "Salvează tema" : "Adaugă tema"}” de mai jos.
+        </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

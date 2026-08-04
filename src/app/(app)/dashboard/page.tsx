@@ -16,6 +16,7 @@ import { ResumeWidget } from "@/components/dashboard/widget-resume";
 import { WidgetSettings } from "@/components/dashboard/widget-settings";
 import { DashboardGrid } from "@/components/dashboard/dashboard-grid";
 import { syncCalendarEvents } from "@/lib/calendar-sync";
+import { getBacSchedule } from "@/lib/site-settings";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -95,6 +96,8 @@ export default async function DashboardPage() {
   const firstName = user?.name?.split(" ")[0] ?? "";
   const streak = user?.streakCount ?? 0;
 
+  const bacSchedule = await getBacSchedule();
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
@@ -128,7 +131,11 @@ export default async function DashboardPage() {
             case "bac":
               return (
                 <div key={id} className={span}>
-                  <BacCountdownWidget />
+                  <BacCountdownWidget
+                    startDate={bacSchedule.startDate || null}
+                    endDate={bacSchedule.endDate || null}
+                    nextSessionStartDate={bacSchedule.nextSessionStartDate || null}
+                  />
                 </div>
               );
             case "weather":

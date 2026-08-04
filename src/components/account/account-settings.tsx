@@ -9,6 +9,7 @@ import { EmailForm } from "@/components/account/email-form";
 import { PasswordForm } from "@/components/account/password-form";
 import { DeleteAccount } from "@/components/account/delete-account";
 import { ThemePicker } from "@/components/themes/theme-picker";
+import { APP_VERSION } from "@/lib/version";
 
 type Tab = "cont" | "teme" | "risc";
 
@@ -98,6 +99,10 @@ export function AccountSettings({
               <PasswordForm needsCurrentPassword={needsCurrentPassword} />
             </CardContent>
           </Card>
+
+          <p className="pt-1 text-center text-xs text-subtle/70">
+            Baculet {APP_VERSION}
+          </p>
         </div>
       )}
 

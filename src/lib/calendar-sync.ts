@@ -5,7 +5,7 @@ import {
   EXAM_COLOR,
   type AchievementStats,
 } from "@/lib/achievements";
-import { bacExamsForYear } from "@/lib/exam-dates";
+import { getBacSchedule } from "@/lib/site-settings";
 
 interface PendingEvent {
   key: string;
@@ -23,22 +23,47 @@ export async function syncCalendarEvents(
   userId: string,
   stats: AchievementStats
 ): Promise<void> {
-  const year = new Date().getFullYear();
+  const schedule = await getBacSchedule();
   const pending: PendingEvent[] = [
     ...achievementEvents(stats).map((e) => ({
       ...e,
       date: todayStr(),
       color: ACHIEVEMENT_COLOR,
     })),
-    ...[year, year + 1].flatMap((y) =>
-      bacExamsForYear(y).map((ex) => ({
-        key: `exam:${y}:${ex.title}`,
-        title: ex.title,
-        date: ex.date,
-        kind: "EXAM" as const,
-        color: EXAM_COLOR,
-      }))
-    ),
+    ...(schedule.startDate
+      ? [{
+          key: "bac:start",
+          title: "BAC — începe",
+          date: schedule.startDate,
+          kind: "EXAM" as const,
+          color: EXAM_COLOR,
+        }]
+      : []),
+    ...(schedule.endDate
+      ? [{
+          key: "bac:end",
+          title: "BAC — se termină",
+          date: schedule.endDate,
+          kind: "EXAM" as const,
+          color: EXAM_COLOR,
+        }]
+      : []),
+    ...(schedule.nextSessionStartDate
+      ? [{
+          key: "bac:next",
+          title: "BAC — sesiunea următoare începe",
+          date: schedule.nextSessionStartDate,
+          kind: "EXAM" as const,
+          color: EXAM_COLOR,
+        }]
+      : []),
+    ...(schedule.events ?? []).map((ev, i) => ({
+      key: `bac:event:${i}:${ev.date}`,
+      title: ev.title,
+      date: ev.date,
+      kind: "EXAM" as const,
+      color: EXAM_COLOR,
+    })),
   ];
 
   if (pending.length === 0) return;

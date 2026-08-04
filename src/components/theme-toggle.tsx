@@ -29,22 +29,26 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
 
   const isDark = mounted && resolvedTheme === "dark";
 
+  const mobileMode: (typeof modes)[number] =
+    !mounted || !modes.includes(theme as (typeof modes)[number])
+      ? "system"
+      : (theme as (typeof modes)[number]);
+  const nextMobileMode = modes[(modes.indexOf(mobileMode) + 1) % modes.length];
+
   return (
     <>
-      {/* Mobile: un singur comutator luminos / întunecat */}
+      {/* Mobile: comutator cu ciclu system → luminos → întunecat */}
       <div className={cn("md:hidden", className)}>
         <button
           type="button"
-          role="switch"
-          aria-checked={isDark}
-          aria-label={
-            isDark ? "Comută la modul luminos" : "Comută la modul întunecat"
-          }
-          title={isDark ? "Mod luminos" : "Mod întunecat"}
-          onClick={() => setTheme(isDark ? "light" : "dark")}
+          aria-label={`Temă: ${labels[mobileMode]}. Apasă pentru ${labels[nextMobileMode]}`}
+          title={labels[mobileMode]}
+          onClick={() => setTheme(nextMobileMode)}
           className="flex h-9 w-9 items-center justify-center rounded-full bg-card text-ink shadow-sm transition-all duration-200 hover:scale-105 active:scale-95"
         >
-          {isDark ? (
+          {mobileMode === "system" ? (
+            <Monitor className="h-4 w-4" />
+          ) : isDark ? (
             <Moon className="h-4 w-4" />
           ) : (
             <Sun className="h-4 w-4" />

@@ -50,7 +50,7 @@ export async function POST(req: Request) {
       "Când utilizatorul cere să găsească ceva pe site (materii, capitole, lecții, teste), folosește obligatoriu instrumentul search_site și arată-i linkurile găsite ca listă cu titluri.",
       "Când utilizatorul cere să explici un concept, folosește conținutul paginii curente dacă există în CONTEXT, altfel răspunde din cunoștințele tale.",
       "Când utilizatorul cere un rezumat al paginii curente, rezumează conținutul din CONTEXT în 5-8 rânduri, structurat pe idei.",
-      "Generezi un test EXCLUSIV prin instrumentul create_quiz. Dacă utilizatorul cere orice test, grilă, quiz sau set de întrebări, NU scrie întrebările ca text în chat: întreabă întâi materia dacă nu e clară (slug-uri posibile: matematica, limba-romana, istorie, geografie, fizica), apoi apelezi create_quiz cu întrebări valide (minimum 4 variante, exact un răspuns corect, o scurtă explicație la fiecare) și îi arăți linkul către testul salvat. Nu afișa niciodată conținutul unui test ca text simplu în conversație.",
+      "Generezi un test EXCLUSIV prin instrumentul create_quiz. Dacă utilizatorul cere orice test, grilă, quiz sau set de întrebări, NU scrie întrebările ca text în chat: întreabă întâi materia dacă nu e clară (slug-uri posibile: matematica, limba-romana, istorie, geografie, fizica), apoi apelezi create_quiz cu un set mai mare de întrebări (recomandat între 8 și 15, minimum 5; fiecare cu minimum 4 variante, exact un răspuns corect și o scurtă explicație) și îi arăți linkul către testul salvat. Nu afișa niciodată conținutul unui test ca text simplu în conversație.",
       "LIMITE STRICTE: Nu generezi cod, scripturi sau fișiere de programare și nu propui sau faci modificări asupra site-ului, aplicației, codului sau bazei de date Baculet. Dacă ți se cere cod, să construiești, modifici sau repari un site, să faci 'hack-uri', sau orice altceva în afara scopului tău educativ de pregătire pentru BAC, refuzi politicos și îți reamintești scopul: ajuți la învățat, rezumat, căutare de conținut și teste grilă în interiorul platformei. Nu includem blocuri de cod pentru utilizator.",
       "Când descrii concepte poți folosi exemple și formule matematice într-un limbaj natural, dar nu le prezenta ca blocuri de cod executabil și nu îi oferi utilizatorului cod sursă.",
       pageCtx
@@ -100,8 +100,8 @@ export async function POST(req: Request) {
                     explanation: z.string().optional().describe("Explicația răspunsului"),
                   })
                 )
-                .min(3)
-                .max(12),
+                .min(5)
+                .max(20),
             })
           ),
           execute: async (params) => createQuizForUser(userId, params),

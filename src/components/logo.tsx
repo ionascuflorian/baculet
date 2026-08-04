@@ -11,14 +11,14 @@ export function Logo({ className, href = "/" }: LogoProps) {
     <Link
       href={href}
       className={cn(
-        "flex items-baseline font-extrabold tracking-tight",
+        "flex items-baseline whitespace-nowrap font-extrabold tracking-tight text-ink",
         className
       )}
     >
-      <span className="hidden text-xl text-ink sm:inline">
+      <span className="hidden min-[360px]:inline text-lg sm:text-xl">
         Baculet<span className="text-accent">.</span>
       </span>
-      <span className="text-2xl text-ink sm:hidden">
+      <span className="min-[360px]:hidden text-2xl">
         b<span className="text-accent">.</span>
       </span>
     </Link>

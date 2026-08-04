@@ -9,6 +9,7 @@ import {
   GraduationCap,
   Users,
   Palette,
+  CalendarDays,
   ArrowLeft,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
@@ -19,6 +20,7 @@ const links = [
   { href: "/admin/materii", label: "Materii", icon: BookOpen },
   { href: "/admin/teste", label: "Teste", icon: ListChecks },
   { href: "/admin/subiecte", label: "Subiecte BAC", icon: GraduationCap },
+  { href: "/admin/bac", label: "Calendar BAC", icon: CalendarDays },
   { href: "/admin/teme", label: "Teme", icon: Palette },
   { href: "/admin/utilizatori", label: "Utilizatori", icon: Users },
 ];

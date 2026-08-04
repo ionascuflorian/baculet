@@ -46,7 +46,7 @@ export function paletteToInlineStyle(palette: Palette): React.CSSProperties {
   const style: Record<string, string> = {};
   PALETTE_KEYS.forEach((key) => {
     const value = palette[key];
-    if (value) style[PALETTE_VARS[key]] = value;
+    if (value) style[`--${PALETTE_VARS[key]}`] = value;
   });
   return style;
 }

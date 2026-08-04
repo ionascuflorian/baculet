@@ -61,6 +61,13 @@ model Theme {
   updatedAt   DateTime @updatedAt
 }
 
+model SiteSetting {
+  key       String   @id
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 enum EventKind {
   USER
   ACHIEVEMENT
