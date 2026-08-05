@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   DragDropProvider,
   DragOverlay,
@@ -17,7 +17,7 @@ import {
   PointerSensor,
   type Sensors,
 } from "@dnd-kit/dom";
-import { GripVertical } from "lucide-react";
+import { GripVertical, Move, X, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   WIDGET_WEIGHT,
@@ -141,34 +141,31 @@ function SortableWidget({
   id,
   index,
   children,
+  editMode,
+  onEnterEditMode,
 }: {
   id: WidgetId;
   index: number;
   children: ReactNode;
+  editMode: boolean;
+  onEnterEditMode: () => void;
 }) {
   const handleRef = useRef<HTMLDivElement>(null);
   const coarse = useCoarsePointer();
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pressStart = useRef<{ x: number; y: number } | null>(null);
 
-  const { ref, isDragging } = useSortable({
-    id,
-    index,
-    handle: coarse ? undefined : handleRef,
-    sensors: coarse
-      ? ([
-          {
-            plugin: PointerSensor,
-            options: {
-              activationConstraints: [
-                new PointerActivationConstraints.Delay({
-                  value: 220,
-                  tolerance: 10,
-                }),
-              ],
-            },
-          },
-          { plugin: KeyboardSensor },
-        ] satisfies Sensors)
-      : ([
+  const clearPressTimer = useCallback(() => {
+    if (pressTimer.current !== null) {
+      clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+    }
+  }, []);
+
+  const sensors = useMemo<Sensors>(
+    () => {
+      if (!coarse) {
+        return [
           {
             plugin: PointerSensor,
             options: {
@@ -178,13 +175,101 @@ function SortableWidget({
             },
           },
           { plugin: KeyboardSensor },
-        ] satisfies Sensors),
+        ];
+      }
+      if (editMode) {
+        return [
+          {
+            plugin: PointerSensor,
+            options: {
+              activationConstraints: [
+                new PointerActivationConstraints.Delay({
+                  value: 250,
+                  tolerance: 10,
+                }),
+              ],
+            },
+          },
+          { plugin: KeyboardSensor },
+        ];
+      }
+      return [{ plugin: KeyboardSensor }];
+    },
+    [coarse, editMode]
+  );
+
+  const { ref, isDragging } = useSortable({
+    id,
+    index,
+    handle: coarse ? undefined : handleRef,
+    sensors,
     plugins: [SortableKeyboardPlugin],
     transition: null,
   });
 
+  useEffect(() => {
+    if (editMode) clearPressTimer();
+  }, [editMode, clearPressTimer]);
+
+  useEffect(
+    () => () => {
+      if (pressTimer.current !== null) clearTimeout(pressTimer.current);
+    },
+    []
+  );
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!coarse || editMode || e.pointerType !== "touch") return;
+    const target = e.target as HTMLElement;
+    if (
+      target.closest("button, a, input, textarea, select, label, [role='button']")
+    ) {
+      return;
+    }
+    clearPressTimer();
+    pressStart.current = { x: e.clientX, y: e.clientY };
+    pressTimer.current = setTimeout(() => {
+      pressTimer.current = null;
+      onEnterEditMode();
+    }, 3000);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!pressStart.current) return;
+    const dx = e.clientX - pressStart.current.x;
+    const dy = e.clientY - pressStart.current.y;
+    if (Math.hypot(dx, dy) > 12) clearPressTimer();
+  };
+
+  const handlePointerEnd = () => {
+    pressStart.current = null;
+    clearPressTimer();
+  };
+
   return (
-    <div ref={ref} className={cn("group relative", isDragging && "opacity-60")}>
+    <div
+      ref={ref}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerEnd}
+      onPointerCancel={handlePointerEnd}
+      onPointerLeave={handlePointerEnd}
+      onContextMenu={coarse ? (e) => e.preventDefault() : undefined}
+      className={cn(
+        "group relative",
+        coarse && "select-none [&_input]:select-text [&_textarea]:select-text",
+        isDragging && "opacity-60",
+        coarse && editMode && "rounded-[1.25rem] ring-2 ring-accent/60"
+      )}
+    >
+      {coarse && editMode && (
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex h-6 items-center justify-center rounded-t-[1.25rem] text-accent">
+          <span className="flex items-center gap-0.5 rounded-full bg-background/90 px-2 py-0.5 shadow-sm ring-1 ring-accent/40">
+            <GripVertical className="h-3.5 w-3.5" />
+            <GripVertical className="h-3.5 w-3.5" />
+          </span>
+        </div>
+      )}
       {!coarse && (
         <div
           ref={handleRef}
@@ -228,6 +313,9 @@ export function DashboardGrid({
   children: DashboardWidgetNode[];
 }) {
   const columns = useColumns();
+  const coarse = useCoarsePointer();
+  const [editMode, setEditMode] = useState(false);
+  const editSnapshot = useRef<Record<string, WidgetId[]> | null>(null);
 
   const idSetKey = useMemo(
     () => children.map((c) => c.id).sort().join(","),
@@ -266,6 +354,32 @@ export function DashboardGrid({
     });
   }
 
+  const enterEditMode = useCallback(() => {
+    editSnapshot.current = colState;
+    setEditMode(true);
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      navigator.vibrate(50);
+    }
+  }, [colState]);
+
+  const exitEditMode = useCallback(
+    (save: boolean) => {
+      if (save) {
+        const order = flattenRecord(colState);
+        const hidden = prefs.order.filter((id) => !visibleSet.has(id));
+        void saveDashboardWidgets({
+          order: [...order, ...hidden],
+          hidden: prefs.hidden,
+        });
+      } else if (editSnapshot.current !== null) {
+        setColState(editSnapshot.current);
+      }
+      editSnapshot.current = null;
+      setEditMode(false);
+    },
+    [colState, prefs, visibleSet]
+  );
+
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.operation.source?.id as WidgetId | undefined ?? null);
   };
@@ -290,12 +404,15 @@ export function DashboardGrid({
     const next = applyTarget(colState, sourceId, String(target.id));
     if (next !== colState) {
       setColState(next);
-      const order = flattenRecord(next);
-      const hidden = prefs.order.filter((id) => !visibleSet.has(id));
-      void saveDashboardWidgets({
-        order: [...order, ...hidden],
-        hidden: prefs.hidden,
-      });
+      // Pe mobil salvăm doar la „Salvează" (după confirmare), nu la drop.
+      if (!(coarse && editMode)) {
+        const order = flattenRecord(next);
+        const hidden = prefs.order.filter((id) => !visibleSet.has(id));
+        void saveDashboardWidgets({
+          order: [...order, ...hidden],
+          hidden: prefs.hidden,
+        });
+      }
     }
   };
 
@@ -305,6 +422,29 @@ export function DashboardGrid({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
+      {coarse && editMode && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-accent/40 bg-accent/5 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm font-bold text-accent">
+            <Move className="size-4" />
+            Mod editare — trage widgeturile în poziția dorită
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => exitEditMode(false)}
+              className="flex items-center gap-1.5 rounded-full bg-ink/5 px-4 py-2 text-sm font-bold text-subtle transition hover:bg-ink/10 hover:text-ink"
+            >
+              <X className="size-4" /> Anulează
+            </button>
+            <button
+              onClick={() => exitEditMode(true)}
+              className="flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-bold text-white transition hover:bg-accent-dark"
+            >
+              <Check className="size-4" /> Salvează
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col gap-5 md:flex-row md:items-start">
         {Object.keys(colState)
           .sort()
@@ -314,7 +454,13 @@ export function DashboardGrid({
                 <EmptyColumnTarget columnKey={key} />
               ) : (
                 colState[key].map((id, index) => (
-                  <SortableWidget key={id} id={id} index={index}>
+                  <SortableWidget
+                    key={id}
+                    id={id}
+                    index={index}
+                    editMode={editMode}
+                    onEnterEditMode={enterEditMode}
+                  >
                     {nodeById.get(id)}
                   </SortableWidget>
                 ))
