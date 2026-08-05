@@ -1,18 +1,15 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import {
-  normalizePrefs,
-  visibleWidgets,
-  widgetSize,
-  SIZE_SPAN,
-} from "@/lib/dashboard-widgets";
+import { normalizePrefs, visibleWidgets } from "@/lib/dashboard-widgets";
 import { GreetingWidget } from "@/components/dashboard/widget-greeting";
 import { WeatherWidget } from "@/components/dashboard/widget-weather";
 import { isWeatherLocation } from "@/lib/weather-location";
 import { CalendarWidget } from "@/components/dashboard/widget-calendar";
 import { BacCountdownWidget } from "@/components/dashboard/widget-bac-countdown";
 import { ResumeWidget } from "@/components/dashboard/widget-resume";
+import { PomodoroWidget } from "@/components/dashboard/widget-pomodoro";
+import { TodoWidget } from "@/components/dashboard/widget-todo";
 import { WidgetSettings } from "@/components/dashboard/widget-settings";
 import { DashboardGrid } from "@/components/dashboard/dashboard-grid";
 import { syncCalendarEvents } from "@/lib/calendar-sync";
@@ -22,7 +19,7 @@ export default async function DashboardPage() {
   const session = await auth();
   const userId = session!.user.id;
 
-  const [user, subjects, completedLessons, recentAttempts, quizCount] =
+  const [user, subjects, completedLessons, recentAttempts, quizCount, todoItems] =
     await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
@@ -54,6 +51,11 @@ export default async function DashboardPage() {
         include: { quiz: { include: { subject: true } } },
       }),
       prisma.quizAttempt.count({ where: { userId } }),
+      prisma.todoItem.findMany({
+        where: { userId },
+        orderBy: { order: "asc" },
+        select: { id: true, text: true, done: true, order: true },
+      }),
     ]);
 
   const prefs = normalizePrefs(user?.dashboardWidgets);
@@ -112,13 +114,13 @@ export default async function DashboardPage() {
         <WidgetSettings prefs={prefs} />
       </div>
 
-      <DashboardGrid>
-        {visible.map((id) => {
-          const span = SIZE_SPAN[widgetSize(prefs, id)];
+      <DashboardGrid prefs={prefs}>
+        {visible.flatMap((id) => {
           switch (id) {
             case "greeting":
-              return (
-                <div key={id} className={span}>
+              return {
+                id,
+                node: (
                   <GreetingWidget
                     firstName={firstName}
                     streakCount={streak}
@@ -126,41 +128,44 @@ export default async function DashboardPage() {
                       user?.lastActiveAt ? user.lastActiveAt.toISOString() : null
                     }
                   />
-                </div>
-              );
+                ),
+              };
             case "bac":
-              return (
-                <div key={id} className={span}>
+              return {
+                id,
+                node: (
                   <BacCountdownWidget
                     startDate={bacSchedule.startDate || null}
                     endDate={bacSchedule.endDate || null}
                     nextSessionStartDate={bacSchedule.nextSessionStartDate || null}
                   />
-                </div>
-              );
-            case "weather":
+                ),
+              };
+            case "weather": {
               const weatherLocation = isWeatherLocation(user?.weatherLocation)
                 ? user.weatherLocation
                 : null;
-              return (
-                <div key={id} className={span}>
-                  <WeatherWidget initialLocation={weatherLocation} />
-                </div>
-              );
+              return {
+                id,
+                node: <WeatherWidget initialLocation={weatherLocation} />,
+              };
+            }
             case "calendar":
-              return (
-                <div key={id} className={span}>
+              return {
+                id,
+                node: (
                   <CalendarWidget
                     events={calendarEvents.map((e) => ({
                       ...e,
                       date: e.date.toISOString(),
                     }))}
                   />
-                </div>
-              );
+                ),
+              };
             case "resume":
-              return (
-                <div key={id} className={span}>
+              return {
+                id,
+                node: (
                   <ResumeWidget
                     nextLesson={nextLesson}
                     doneCount={doneCount}
@@ -168,10 +173,14 @@ export default async function DashboardPage() {
                     totalChapters={totalChapters}
                     chaptersDone={chaptersDone}
                   />
-                </div>
-              );
+                ),
+              };
+            case "pomodoro":
+              return { id, node: <PomodoroWidget /> };
+            case "todo":
+              return { id, node: <TodoWidget items={todoItems} /> };
             default:
-              return null;
+              return [];
           }
         })}
       </DashboardGrid>
