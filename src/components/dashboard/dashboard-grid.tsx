@@ -15,6 +15,7 @@ import {
   KeyboardSensor,
   PointerActivationConstraints,
   PointerSensor,
+  type PointerSensorOptions,
   type Sensors,
 } from "@dnd-kit/dom";
 import { GripVertical, Move, X, Check } from "lucide-react";
@@ -179,47 +180,15 @@ function SortableWidget({
     }
   }, []);
 
-  const sensors = useMemo<Sensors>(
-    () => {
-      if (!isTouch) {
-        return [
-          {
-            plugin: PointerSensor,
-            options: {
-              activationConstraints: [
-                new PointerActivationConstraints.Distance({ value: 5 }),
-              ],
-            },
-          },
-          { plugin: KeyboardSensor },
-        ];
-      }
-      if (editMode) {
-        return [
-          {
-            plugin: PointerSensor,
-            options: {
-              activationConstraints: [
-                new PointerActivationConstraints.Delay({
-                  value: 250,
-                  tolerance: 10,
-                }),
-              ],
-            },
-          },
-          { plugin: KeyboardSensor },
-        ];
-      }
-      return [{ plugin: KeyboardSensor }];
-    },
-    [isTouch, editMode]
-  );
-
+  // NOTĂ: opțiunea `sensors` a lui useSortable e IGNORATĂ în dnd-kit v0.5.0
+  // (valoarea inițială e aruncată în constructorul Sortable, iar schimbările
+  // nu sunt reactive). Senzorii reali se setează la nivel de DragDropProvider
+  // printr-un array STABIL, iar modul (touch/desktop/editare) se aplică dinamic
+  // prin constrângerile de activare din DashboardGrid.
   const { ref, isDragging } = useSortable({
     id,
     index,
     handle: isTouch ? undefined : handleRef,
-    sensors,
     plugins: [SortableKeyboardPlugin],
     transition: null,
   });
@@ -238,9 +207,12 @@ function SortableWidget({
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isTouch || editMode) return;
     const target = e.target as HTMLElement;
-    if (
-      target.closest("button, a, input, textarea, select, label, [role='button']")
-    ) {
+    // dnd-kit pune role="button" pe wrapper-ul draggable; ignorăm doar
+    // elementele interactive aflate STRICT în interiorul cardului.
+    const interactive = target.closest(
+      "button, a, input, textarea, select, label, [role='button']"
+    );
+    if (interactive && interactive !== e.currentTarget) {
       return;
     }
     clearPressTimer();
@@ -368,6 +340,50 @@ export function DashboardGrid({
 
   const [activeId, setActiveId] = useState<WidgetId | null>(null);
 
+  // În dnd-kit v0.5.0, modificările la `sensors` NU se propagă la draggable-urile
+  // deja legate (nici per-useSortable, nici per-DragDropProvider: registry-ul
+  // nu e reactiv și binding-ul se face o singură dată). De aceea array-ul de
+  // senzori rămâne STABIL, iar constrângerile de activare sunt o FUNCȚIE care
+  // citește modul curent (modeRef) la fiecare pointerdown — astfel scroll-ul pe
+  // touch nu poate declanșa un drag, dar în mod editare drag-ul funcționează.
+  const modeRef = useRef<"desktop" | "touch-edit" | "touch">("desktop");
+
+  useEffect(() => {
+    modeRef.current = isTouch ? (editMode ? "touch-edit" : "touch") : "desktop";
+  }, [isTouch, editMode]);
+
+  const pointerSensorOptions: PointerSensorOptions = {
+    activationConstraints: () => {
+      const mode = modeRef.current;
+      if (mode === "touch") {
+        // Practic niciodată: apăsare 60s cu toleranță uriașă.
+        return [
+          new PointerActivationConstraints.Delay({
+            value: 60_000,
+            tolerance: 1000,
+          }),
+        ];
+      }
+      if (mode === "touch-edit") {
+        return [
+          new PointerActivationConstraints.Delay({
+            value: 250,
+            tolerance: 10,
+          }),
+        ];
+      }
+      return [new PointerActivationConstraints.Distance({ value: 5 })];
+    },
+  };
+
+  const dragSensors: Sensors = [
+    {
+      plugin: PointerSensor,
+      options: pointerSensorOptions,
+    },
+    { plugin: KeyboardSensor },
+  ];
+
   const nodeById = useMemo(() => {
     const map = new Map<WidgetId, ReactNode>();
     for (const c of children) map.set(c.id, c.node);
@@ -458,6 +474,7 @@ export function DashboardGrid({
 
   return (
     <DragDropProvider
+      sensors={dragSensors}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
