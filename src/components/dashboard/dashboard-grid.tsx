@@ -51,9 +51,25 @@ function useColumns(): number {
   return isLg ? 3 : isMd ? 2 : 1;
 }
 
-/** Ecran tactil: long-press pe card pornește drag-ul. */
-function useCoarsePointer(): boolean {
-  return useMediaQuery("(pointer: coarse)");
+/** Detectează interacțiunea tactilă prin mai multe semnale, ca să nu depindem de unul singur. */
+function useIsTouch(): boolean {
+  const coarse = useMediaQuery("(pointer: coarse)");
+  const anyCoarse = useMediaQuery("(any-pointer: coarse)");
+  const noHover = useMediaQuery("(hover: none)");
+  const anyNoHover = useMediaQuery("(any-hover: none)");
+  const [capability, setCapability] = useState(false);
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setCapability(
+        typeof window !== "undefined" &&
+          (navigator.maxTouchPoints > 0 || "ontouchstart" in window)
+      );
+    }, 0);
+    return () => clearTimeout(id);
+  }, []);
+
+  return coarse || anyCoarse || noHover || anyNoHover || capability;
 }
 
 function packColumns(ids: WidgetId[], columns: number): WidgetId[][] {
@@ -151,9 +167,10 @@ function SortableWidget({
   onEnterEditMode: () => void;
 }) {
   const handleRef = useRef<HTMLDivElement>(null);
-  const coarse = useCoarsePointer();
+  const isTouch = useIsTouch();
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pressStart = useRef<{ x: number; y: number } | null>(null);
+  const movedRef = useRef(false);
 
   const clearPressTimer = useCallback(() => {
     if (pressTimer.current !== null) {
@@ -164,7 +181,7 @@ function SortableWidget({
 
   const sensors = useMemo<Sensors>(
     () => {
-      if (!coarse) {
+      if (!isTouch) {
         return [
           {
             plugin: PointerSensor,
@@ -195,13 +212,13 @@ function SortableWidget({
       }
       return [{ plugin: KeyboardSensor }];
     },
-    [coarse, editMode]
+    [isTouch, editMode]
   );
 
   const { ref, isDragging } = useSortable({
     id,
     index,
-    handle: coarse ? undefined : handleRef,
+    handle: isTouch ? undefined : handleRef,
     sensors,
     plugins: [SortableKeyboardPlugin],
     transition: null,
@@ -219,7 +236,7 @@ function SortableWidget({
   );
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!coarse || editMode || e.pointerType !== "touch") return;
+    if (!isTouch || editMode) return;
     const target = e.target as HTMLElement;
     if (
       target.closest("button, a, input, textarea, select, label, [role='button']")
@@ -227,6 +244,7 @@ function SortableWidget({
       return;
     }
     clearPressTimer();
+    movedRef.current = false;
     pressStart.current = { x: e.clientX, y: e.clientY };
     pressTimer.current = setTimeout(() => {
       pressTimer.current = null;
@@ -238,12 +256,22 @@ function SortableWidget({
     if (!pressStart.current) return;
     const dx = e.clientX - pressStart.current.x;
     const dy = e.clientY - pressStart.current.y;
-    if (Math.hypot(dx, dy) > 12) clearPressTimer();
+    if (Math.hypot(dx, dy) > 12) {
+      movedRef.current = true;
+      clearPressTimer();
+    }
   };
 
-  const handlePointerEnd = () => {
+  const handlePointerUp = () => {
     pressStart.current = null;
+    movedRef.current = false;
     clearPressTimer();
+  };
+
+  const handlePointerCancel = () => {
+    // Fără mișcare înainte de cancel (ex. emulare/scroll takeover fără deplasare),
+    // continuăm numărarea — altfel long-press-ul n-ar intra niciodată în editare.
+    if (movedRef.current) handlePointerUp();
   };
 
   return (
@@ -251,18 +279,18 @@ function SortableWidget({
       ref={ref}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerEnd}
-      onPointerCancel={handlePointerEnd}
-      onPointerLeave={handlePointerEnd}
-      onContextMenu={coarse ? (e) => e.preventDefault() : undefined}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
+      onPointerLeave={handlePointerUp}
+      onContextMenu={isTouch ? (e) => e.preventDefault() : undefined}
       className={cn(
         "group relative",
-        coarse && "select-none [&_input]:select-text [&_textarea]:select-text",
+        isTouch && "select-none [&_input]:select-text [&_textarea]:select-text",
         isDragging && "opacity-60",
-        coarse && editMode && "rounded-[1.25rem] ring-2 ring-accent/60"
+        isTouch && editMode && "rounded-[1.25rem] ring-2 ring-accent/60"
       )}
     >
-      {coarse && editMode && (
+      {isTouch && editMode && (
         <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex h-6 items-center justify-center rounded-t-[1.25rem] text-accent">
           <span className="flex items-center gap-0.5 rounded-full bg-background/90 px-2 py-0.5 shadow-sm ring-1 ring-accent/40">
             <GripVertical className="h-3.5 w-3.5" />
@@ -270,7 +298,7 @@ function SortableWidget({
           </span>
         </div>
       )}
-      {!coarse && (
+      {!isTouch && (
         <div
           ref={handleRef}
           role="button"
@@ -313,9 +341,21 @@ export function DashboardGrid({
   children: DashboardWidgetNode[];
 }) {
   const columns = useColumns();
-  const coarse = useCoarsePointer();
+  const isTouch = useIsTouch();
   const [editMode, setEditMode] = useState(false);
   const editSnapshot = useRef<Record<string, WidgetId[]> | null>(null);
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
+
+  // Când intrăm în mod editare, aducem bara Salvează/Anulează pe ecran
+  // (utilizatorul poate ține apăsat pe un widget aflat mai jos în pagină).
+  useEffect(() => {
+    if (isTouch && editMode) {
+      const id = setTimeout(() => {
+        toolbarRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 50);
+      return () => clearTimeout(id);
+    }
+  }, [isTouch, editMode]);
 
   const idSetKey = useMemo(
     () => children.map((c) => c.id).sort().join(","),
@@ -405,7 +445,7 @@ export function DashboardGrid({
     if (next !== colState) {
       setColState(next);
       // Pe mobil salvăm doar la „Salvează" (după confirmare), nu la drop.
-      if (!(coarse && editMode)) {
+      if (!(isTouch && editMode)) {
         const order = flattenRecord(next);
         const hidden = prefs.order.filter((id) => !visibleSet.has(id));
         void saveDashboardWidgets({
@@ -422,8 +462,11 @@ export function DashboardGrid({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      {coarse && editMode && (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-accent/40 bg-accent/5 px-4 py-3">
+      {isTouch && editMode && (
+        <div
+          ref={toolbarRef}
+          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-accent/40 bg-accent/5 px-4 py-3"
+        >
           <div className="flex items-center gap-2 text-sm font-bold text-accent">
             <Move className="size-4" />
             Mod editare — trage widgeturile în poziția dorită
