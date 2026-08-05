@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { nextStreak } from "@/lib/streak";
+import { recordStudyActivity } from "@/lib/study-activity";
 
 export async function toggleLessonComplete(lessonId: string, path: string) {
   const session = await auth();
@@ -36,6 +37,8 @@ export async function toggleLessonComplete(lessonId: string, path: string) {
         },
       });
     }
+
+    await recordStudyActivity(session.user.id);
   }
 
   revalidatePath(path);

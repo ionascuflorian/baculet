@@ -9,6 +9,7 @@ export const PALETTE_KEYS = [
   "feather",
   "accent",
   "accentDark",
+  "onAccent",
 ] as const;
 
 export type PaletteKey = (typeof PALETTE_KEYS)[number];
@@ -22,6 +23,7 @@ export const PALETTE_VARS: Record<PaletteKey, string> = {
   feather: "feather",
   accent: "accent",
   accentDark: "accent-dark",
+  onAccent: "on-accent",
 };
 
 export const PALETTE_LABELS: Record<PaletteKey, string> = {
@@ -33,6 +35,7 @@ export const PALETTE_LABELS: Record<PaletteKey, string> = {
   feather: "Contur",
   accent: "Accent",
   accentDark: "Accent întunecat",
+  onAccent: "Text pe accent",
 };
 
 export function paletteToCssVars(palette: Palette): string {
@@ -57,10 +60,11 @@ export function defaultPalette(): Palette {
     foreground: "#1d1d1f",
     card: "#ffffff",
     ink: "#1d1d1f",
-    subtle: "#6e6e73",
+    subtle: "#56565a",
     feather: "#d2d2d7",
     accent: "#0a7cff",
     accentDark: "#0060df",
+    onAccent: "#ffffff",
   };
 }
 
@@ -70,9 +74,10 @@ export function defaultDarkPalette(): Palette {
     foreground: "#f5f5f7",
     card: "#2c2c2e",
     ink: "#f5f5f7",
-    subtle: "#98989d",
+    subtle: "#acacb2",
     feather: "#3a3a3c",
     accent: "#0a7cff",
-    accentDark: "#0060df",
+    accentDark: "#7bb3ff",
+    onAccent: "#ffffff",
   };
 }

@@ -3,6 +3,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { nextStreak } from "@/lib/streak";
+import { recordStudyActivity } from "@/lib/study-activity";
 
 export async function submitQuiz(
   quizId: string,
@@ -45,6 +46,8 @@ export async function submitQuiz(
       },
     });
   }
+
+  await recordStudyActivity(session.user.id);
 
   return { attemptId: attempt.id };
 }

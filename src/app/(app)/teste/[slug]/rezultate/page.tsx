@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, CheckCircle2, XCircle, RotateCcw, Trophy } from "lucide-react";
+import { ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Confetti } from "@/components/confetti";
+import { ScoreReveal } from "@/components/score-reveal";
 import { cn } from "@/lib/utils";
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
@@ -54,39 +54,12 @@ export default async function QuizResultsPage({
         </Link>
       </Button>
 
-      <Card className="animate-pop-in relative text-center">
-        <CardContent className="flex flex-col items-center gap-3 py-8">
-          {pct >= 50 && <Confetti />}
-          <div
-            className={cn(
-              "flex h-20 w-20 items-center justify-center rounded-2xl",
-              pct >= 50 ? "bg-success/10" : "bg-danger/10"
-            )}
-          >
-            <Trophy
-              className={cn(
-                "h-10 w-10",
-                pct >= 50 ? "text-success" : "text-danger"
-              )}
-            />
-          </div>
-          <h1 className="text-2xl font-extrabold text-ink">
-            Scorul tău: {attempt.score}/{attempt.maxScore}
-          </h1>
-          <p className="text-subtle">
-            {pct >= 80
-              ? "Excelent! Ești pregătit. 🔥"
-              : pct >= 50
-                ? "Bine! Mai exersează puțin."
-                : "Hai, mai încearcă o dată. Vei reuși!"}
-          </p>
-          <Button asChild variant="outline" size="sm">
-            <Link href={`/teste/${slug}`}>
-              <RotateCcw className="h-4 w-4" /> Rezolvă din nou
-            </Link>
-          </Button>
-        </CardContent>
-      </Card>
+      <ScoreReveal
+        score={attempt.score}
+        maxScore={attempt.maxScore}
+        pct={pct}
+        retryHref={`/teste/${slug}`}
+      />
 
       <div className="space-y-4">
         <h2 className="text-xl font-bold text-ink">Detalii</h2>

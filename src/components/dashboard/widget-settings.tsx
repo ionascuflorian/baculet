@@ -20,6 +20,7 @@ const WIDGET_ICONS: Record<string, string> = {
   resume: "▶️",
   pomodoro: "🍅",
   todo: "✅",
+  streaks: "🔥",
 };
 
 export function WidgetSettings({ prefs }: { prefs: DashboardPrefs }) {

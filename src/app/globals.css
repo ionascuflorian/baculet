@@ -5,7 +5,7 @@
   --foreground: #1d1d1f;
   --card: #ffffff;
   --ink: #1d1d1f;
-  --subtle: #6e6e73;
+  --subtle: #56565a;
   --feather: #d2d2d7;
   --accent: #0a7cff;
   --accent-dark: #0060df;
@@ -16,6 +16,7 @@
   --brand: #0a7cff;
   --brand-dark: #0060df;
   --brand-light: #e7f1ff;
+  --on-accent: #ffffff;
 }
 
 .dark {
@@ -23,8 +24,34 @@
   --foreground: #f5f5f7;
   --card: #2c2c2e;
   --ink: #f5f5f7;
-  --subtle: #98989d;
+  --subtle: #acacb2;
   --feather: #3a3a3c;
+  --on-accent: #ffffff;
+}
+
+/* Textul de pe fundaluri accent trebuie să respecte contrastul temei:
+   unele teme au accenturi luminoase (dark mode), unde albul e ilizibil. */
+.bg-accent.text-white {
+  color: var(--on-accent, #ffffff);
+}
+
+/* Tranziție fluidă la schimbarea temei (light/dark). Rezpectăm preferința
+   de mișcare redusă. Doar `background-color` pe `body *`: tranzițiile de
+   `color`/`border-color` pe toate elementele provoacă recalcularea masivă
+   a stilurilor (moștenire în cascadă) și jank pe dashboard. Fundalurile
+   (dominantul vizual) animează fluid; textul/bordurile se schimbă instant. */
+@media (prefers-reduced-motion: no-preference) {
+  html,
+  body {
+    transition:
+      background-color 0.35s ease,
+      color 0.35s ease;
+  }
+  body *,
+  body *::before,
+  body *::after {
+    transition: background-color 0.35s ease;
+  }
 }
 
 @theme inline {
@@ -108,6 +135,38 @@ body {
   .dark .inset {
     border-color: rgba(255, 255, 255, 0.06);
   }
+
+  /* --- Skeleton loader (starea de încărcare) --- */
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background-color: color-mix(in oklab, var(--ink) 8%, transparent);
+    border-radius: 0.5rem;
+  }
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in oklab, var(--ink) 5%, transparent),
+      transparent
+    );
+    animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  }
+  @keyframes skeleton-shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton::after {
+      animation: none;
+    }
+  }
+
   .surface-hover {
     transition:
       transform 0.18s ease,

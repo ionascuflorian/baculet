@@ -10,16 +10,19 @@ import { BacCountdownWidget } from "@/components/dashboard/widget-bac-countdown"
 import { ResumeWidget } from "@/components/dashboard/widget-resume";
 import { PomodoroWidget } from "@/components/dashboard/widget-pomodoro";
 import { TodoWidget } from "@/components/dashboard/widget-todo";
+import { StreakWidget } from "@/components/dashboard/widget-streaks";
 import { WidgetSettings } from "@/components/dashboard/widget-settings";
 import { DashboardGrid } from "@/components/dashboard/dashboard-grid";
 import { syncCalendarEvents } from "@/lib/calendar-sync";
 import { getBacSchedule } from "@/lib/site-settings";
+import { getStudyActivities } from "@/lib/study-activity";
+import { startOfDay } from "@/lib/streak";
 
 export default async function DashboardPage() {
   const session = await auth();
   const userId = session!.user.id;
 
-  const [user, subjects, completedLessons, recentAttempts, quizCount, todoItems] =
+  const [user, subjects, completedLessons, recentAttempts, quizCount, todoItems, studyActivities] =
     await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
@@ -56,6 +59,7 @@ export default async function DashboardPage() {
         orderBy: { order: "asc" },
         select: { id: true, text: true, done: true, order: true },
       }),
+      getStudyActivities(userId),
     ]);
 
   const prefs = normalizePrefs(user?.dashboardWidgets);
@@ -179,6 +183,20 @@ export default async function DashboardPage() {
               return { id, node: <PomodoroWidget /> };
             case "todo":
               return { id, node: <TodoWidget items={todoItems} /> };
+            case "streaks":
+              return {
+                id,
+                node: (
+                  <StreakWidget
+                    streakCount={streak}
+                    lastActiveAt={
+                      user?.lastActiveAt ? user.lastActiveAt.toISOString() : null
+                    }
+                    activities={studyActivities}
+                    today={startOfDay(new Date()).toISOString()}
+                  />
+                ),
+              };
             default:
               return [];
           }

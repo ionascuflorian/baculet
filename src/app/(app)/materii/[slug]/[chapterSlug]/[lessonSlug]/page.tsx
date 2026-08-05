@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowRight, CheckCircle2, Circle, Video, FileText } from "lucide-react";
+import { ArrowLeft, ArrowRight, Video, FileText } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { toggleLessonComplete } from "@/lib/actions/progress";
+import { MarkLessonComplete } from "@/components/mark-lesson-complete";
 
 export default async function LessonPage({
   params,
@@ -36,10 +36,16 @@ export default async function LessonPage({
   const prev = chapter.lessons[idx - 1] ?? null;
   const next = chapter.lessons[idx + 1] ?? null;
 
-  const progress = await prisma.lessonProgress.findUnique({
-    where: { userId_lessonId: { userId, lessonId: lesson.id } },
+  const progress = await prisma.lessonProgress.findMany({
+    where: { userId, lesson: { chapterId: chapter.id } },
+    select: { lessonId: true },
   });
-  const isDone = !!progress;
+  const doneIds = new Set(progress.map((p) => p.lessonId));
+  const isDone = doneIds.has(lesson.id);
+  // Marcarea acestei lecții finalizează capitolul doar dacă restul sunt deja parcure.
+  const completesChapter =
+    !isDone &&
+    chapter.lessons.every((l) => l.id === lesson.id || doneIds.has(l.id));
 
   const path = `/materii/${slug}/${chapterSlug}/${lessonSlug}`;
 
@@ -95,27 +101,14 @@ export default async function LessonPage({
         )}
 
         <div className="grid grid-cols-2 gap-3">
-          <form
-            action={toggleLessonComplete.bind(null, lesson.id, path)}
-            className="min-w-0"
-          >
-            <Button
-              type="submit"
-              variant={isDone ? "outline" : "default"}
-              size="lg"
-              className="w-full"
-            >
-              {isDone ? (
-                <>
-                  <Circle className="h-5 w-5" /> Marchează ca neparcursă
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="h-5 w-5" /> Marchează ca parcursă
-                </>
-              )}
-            </Button>
-          </form>
+          <div className="min-w-0">
+            <MarkLessonComplete
+              lessonId={lesson.id}
+              path={path}
+              isDone={isDone}
+              completesChapter={completesChapter}
+            />
+          </div>
 
           {next ? (
             <Button asChild variant="secondary" size="lg" className="w-full min-w-0">

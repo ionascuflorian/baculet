@@ -5,7 +5,8 @@ export type WidgetId =
   | "calendar"
   | "resume"
   | "pomodoro"
-  | "todo";
+  | "todo"
+  | "streaks";
 
 export interface WidgetMeta {
   id: WidgetId;
@@ -57,6 +58,12 @@ export const WIDGETS: WidgetMeta[] = [
     description: "Listă de sarcini cu checkbox și contor de rămase.",
     defaultVisible: true,
   },
+  {
+    id: "streaks",
+    label: "Seria de studiu",
+    description: "Heatmap cu zilele în care ai învățat și motivație pentru a nu pierde seria.",
+    defaultVisible: true,
+  },
 ];
 
 export const DEFAULT_ORDER: WidgetId[] = WIDGETS.map((w) => w.id);
@@ -73,6 +80,7 @@ export const WIDGET_WEIGHT: Record<WidgetId, number> = {
   resume: 2,
   pomodoro: 2.6,
   todo: 2.4,
+  streaks: 3,
 };
 
 export interface DashboardPrefs {

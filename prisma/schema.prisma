@@ -47,6 +47,7 @@ model User {
     calendarEvents   CalendarEvent[]
     quizzes          Quiz[]
     todoItems        TodoItem[]
+    studyActivities  StudyActivity[]
   }
 
 model Theme {
@@ -257,5 +258,21 @@ model TodoItem {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+}
+
+// Un rând per zi în care utilizatorul a învățat (lecție completată sau test
+// rezolvat). `date` este normalizat la începutul zilei (UTC), iar `count`
+// numără câte acțiuni de studiu au avut loc în ziua respectivă.
+model StudyActivity {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime
+  count     Int      @default(1)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
   @@index([userId])
 }
