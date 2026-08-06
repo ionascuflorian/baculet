@@ -319,49 +319,212 @@ body {
     animation: shimmer 1.6s infinite linear;
   }
 
-  /* Siera orb */
+  /* --- Siera orb: sferă de sticlă cu stare (idle / thinking / happy) --- */
   .siera-orb {
+    position: relative;
+    border-radius: 9999px;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.03) 24%, transparent 42%),
+      radial-gradient(circle at 50% 118%, rgba(255, 255, 255, 0.06) 0%, transparent 45%),
+      linear-gradient(160deg, #2b2b42 0%, #16161f 48%, #0b0b13 100%);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    animation:
+      siera-glow 4.6s ease-in-out infinite,
+      siera-float 5.2s ease-in-out infinite;
+  }
+  .siera-orb::before {
+    content: "";
+    position: absolute;
+    left: 13%;
+    top: 7%;
+    width: 44%;
+    height: 32%;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0));
+    transform: rotate(-20deg);
+    pointer-events: none;
+  }
+  .siera-orb::after {
+    content: "";
+    position: absolute;
+    inset: auto 16% 3% 16%;
+    height: 20%;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0));
+    pointer-events: none;
+  }
+
+  /* Culorile fiecărei stări (implicit: tema deschisă, culori adaptate mai închise) */
+  .siera-orb--idle {
+    --orb-glow: rgba(0, 150, 220, 0.26);
+    --orb-glow-2: rgba(120, 30, 240, 0.14);
+    --orb-screen: rgba(0, 190, 245, 0.3);
+    --orb-eyes: #f2f4ff;
+    --orb-p1: #1fb6e8;
+    --orb-p2: #8a5cff;
+    --orb-p3: #35d8f5;
+    --orb-eye-glow: rgba(0, 190, 245, 0.26);
+    --orb-eye-glow-o: 0.5;
+  }
+  .siera-orb--thinking {
+    --orb-glow: rgba(0, 180, 235, 0.4);
+    --orb-glow-2: rgba(0, 180, 235, 0.14);
+    --orb-screen: rgba(90, 225, 255, 0.45);
+    --orb-eyes: #b8f2ff;
+    --orb-p1: #5fd6ff;
+    --orb-p2: #8a5cff;
+    --orb-p3: #35d8f5;
+    --orb-eye-glow: rgba(120, 235, 255, 0.5);
+    --orb-eye-glow-o: 0.95;
+  }
+  .siera-orb--happy {
+    --orb-glow: rgba(255, 0, 127, 0.36);
+    --orb-glow-2: rgba(255, 60, 165, 0.18);
+    --orb-screen: rgba(255, 0, 127, 0.4);
+    --orb-eyes: #ffffff;
+    --orb-p1: #ff3fa0;
+    --orb-p2: #b44bff;
+    --orb-p3: #ff8fc4;
+    --orb-eye-glow: rgba(255, 0, 127, 0.45);
+    --orb-eye-glow-o: 0.95;
+  }
+  .dark .siera-orb--idle {
+    --orb-glow: rgba(0, 210, 255, 0.34);
+    --orb-glow-2: rgba(150, 60, 255, 0.22);
+    --orb-screen: rgba(0, 210, 255, 0.36);
+    --orb-p1: #3ec7ff;
+    --orb-p2: #9d6bff;
+    --orb-p3: #37e6ff;
+    --orb-eye-glow: rgba(0, 210, 255, 0.3);
+  }
+  .dark .siera-orb--thinking {
+    --orb-glow: rgba(80, 215, 255, 0.46);
+    --orb-glow-2: rgba(80, 215, 255, 0.16);
+    --orb-screen: rgba(120, 235, 255, 0.46);
+    --orb-p1: #7ae0ff;
+    --orb-p2: #b08bff;
+    --orb-p3: #37e6ff;
+    --orb-eye-glow: rgba(150, 240, 255, 0.5);
+  }
+  .dark .siera-orb--happy {
+    --orb-glow: rgba(255, 0, 127, 0.44);
+    --orb-glow-2: rgba(255, 90, 180, 0.26);
+    --orb-screen: rgba(255, 0, 127, 0.44);
+    --orb-p1: #ff4dab;
+    --orb-p2: #c05cff;
+    --orb-p3: #ff9ac9;
+    --orb-eye-glow: rgba(255, 45, 165, 0.5);
+  }
+
+  /* Ecranul interior (pastilă) */
+  .siera-orb__screen {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 60%;
+    height: 47%;
+    transform: translate(-50%, -50%);
+    display: grid;
+    place-items: center;
+    border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    background:
+      radial-gradient(120% 130% at 50% 0%, rgba(255, 255, 255, 0.07), transparent 55%),
+      #0d0d16;
+    box-shadow:
+      inset 0 0 16px var(--orb-screen),
+      inset 0 0 4px rgba(255, 255, 255, 0.18),
+      0 0 20px var(--orb-glow);
+    transition: box-shadow 0.5s ease;
+  }
+  .siera-orb__screen::before {
+    content: "";
+    position: absolute;
+    inset: 4px;
+    border-radius: 9999px;
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.05) 0 1px,
+      transparent 1px 3px
+    );
+    pointer-events: none;
+  }
+  .siera-orb__screen::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    background-image: radial-gradient(rgba(255, 255, 255, 0.055) 1px, transparent 1.4px);
+    background-size: 7px 7px;
+    mask-image: radial-gradient(closest-side, black, transparent 80%);
+    -webkit-mask-image: radial-gradient(closest-side, black, transparent 80%);
+    pointer-events: none;
+  }
+
+  /* Culoarea din spatele ochilor — se schimbă la fiecare stare */
+  .siera-orb__screen-glow {
+    position: absolute;
+    inset: 16% 10%;
+    border-radius: 9999px;
+    background: radial-gradient(closest-side, var(--orb-eye-glow) 0%, transparent 72%);
+    opacity: var(--orb-eye-glow-o);
+    transition:
+      opacity 0.7s ease,
+      --orb-eye-glow 0.7s ease;
+    pointer-events: none;
+  }
+
+  /* Ochi */
+  .siera-orb__eyes {
     position: relative;
     display: grid;
     place-items: center;
-    border-radius: 9999px;
-    background: conic-gradient(
-      from var(--siera-angle),
-      #0a7cff,
-      #7c3aed,
-      #14b8a6,
-      #0a7cff
-    );
-    animation:
-      siera-rotate 7s linear infinite,
-      siera-glow 3.6s ease-in-out infinite,
-      siera-float 4.6s ease-in-out infinite;
+    width: 66%;
+    height: 42%;
+    color: var(--orb-eyes);
   }
-  .siera-orb--active {
-    animation-duration: 1.3s, 1.2s, 2.2s;
+  .siera-orb__eye {
+    fill: currentColor;
   }
-  .siera-orb__core {
-    position: absolute;
-    inset: 14%;
-    display: grid;
-    place-items: center;
-    border-radius: 9999px;
-    background: #0f0f16;
-    color: #fff;
+  .siera-orb--thinking .siera-orb__eyes {
+    filter: drop-shadow(0 0 5px rgba(90, 220, 255, 0.5));
+  }
+  .siera-orb--happy .siera-orb__eyes {
+    filter: drop-shadow(0 0 5px var(--orb-glow));
+  }
+  .siera-orb__eye-pair {
+    transform-origin: 50% 50%;
+  }
+  .siera-orb:not(.siera-orb--happy) .siera-orb__eye-pair {
+    animation: siera-blink 5.6s ease-in-out infinite;
+  }
+  .siera-orb--happy .siera-orb__eye-pair {
+    animation: siera-happy-pulse 2.4s ease-in-out infinite;
   }
 
-  @keyframes siera-rotate {
-    to {
-      --siera-angle: 360deg;
-    }
+  /* Particule (canvas) — în afara sferei, ca pixelii să iasă din ea */
+  .siera-orb-wrap {
+    position: relative;
+    overflow: visible;
   }
+
   @keyframes siera-glow {
     0%,
     100% {
-      box-shadow: 0 0 14px rgba(10, 124, 255, 0.35), 0 0 34px rgba(124, 58, 237, 0.18);
+      box-shadow:
+        inset 0 0 18px rgba(0, 0, 0, 0.55),
+        inset 0 -10px 24px rgba(120, 60, 255, 0.08),
+        0 0 10px var(--orb-glow),
+        0 0 22px var(--orb-glow-2);
     }
     50% {
-      box-shadow: 0 0 26px rgba(10, 124, 255, 0.55), 0 0 54px rgba(124, 58, 237, 0.3);
+      box-shadow:
+        inset 0 0 22px rgba(0, 0, 0, 0.55),
+        inset 0 -10px 24px rgba(120, 60, 255, 0.1),
+        0 0 14px var(--orb-glow),
+        0 0 30px var(--orb-glow-2);
     }
   }
   @keyframes siera-float {
@@ -370,15 +533,334 @@ body {
       transform: translateY(0);
     }
     50% {
-      transform: translateY(-3px);
+      transform: translateY(-4px);
     }
+  }
+  @keyframes siera-blink {
+    0%,
+    95%,
+    100% {
+      transform: scaleY(1);
+    }
+    96.5%,
+    98% {
+      transform: scaleY(0.08);
+    }
+  }
+  @keyframes siera-happy-pulse {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.07);
+    }
+  }
+
+  /* --- Siera: spațiu solid — biroul profesorului AI --- */
+  .siera-sheet {
+    display: flex;
+    flex-direction: column;
+    background: #312224;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 28px 80px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+  }
+  .siera-hero {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 1.9rem 1rem 1.1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  .siera-hero__orb {
+    width: 84px;
+    height: 84px;
+  }
+  .siera-hero__name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 0.7rem;
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    color: #ffffff;
+  }
+  .siera-hero__sub {
+    margin-top: 0.25rem;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.7);
+  }
+  @media (min-width: 768px) {
+    .siera-hero {
+      padding-top: 2.4rem;
+      padding-bottom: 1.3rem;
+    }
+    .siera-hero__orb {
+      width: 92px;
+      height: 92px;
+    }
+    .siera-hero__name {
+      font-size: 18px;
+    }
+  }
+  /* Mesaje: Siera = card solid, elev = roz discret */
+  .siera-msg-ai {
+    max-width: 75%;
+    border-radius: 22px;
+    border-bottom-left-radius: 8px;
+    padding: 16px 20px;
+    font-size: 16px;
+    line-height: 1.8;
+    color: #ffffff;
+    background: #3b2b2e;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+  }
+  .siera-msg-ai > :first-child {
+    margin-top: 0;
+  }
+  .siera-msg-ai > :last-child {
+    margin-bottom: 0;
+  }
+  .siera-msg-user {
+    max-width: 75%;
+    border-radius: 22px;
+    border-bottom-right-radius: 8px;
+    padding: 14px 20px;
+    font-size: 16px;
+    line-height: 1.8;
+    color: #ffd7e3;
+    background: rgba(244, 140, 167, 0.16);
+    border: 1px solid rgba(255, 170, 192, 0.22);
+  }
+  .siera-ai-link {
+    color: #f7a8c0;
+    font-weight: 600;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(247, 168, 192, 0.4);
+    transition:
+      color 0.25s ease,
+      border-color 0.25s ease;
+  }
+  .siera-ai-link:hover {
+    color: #ffc2d4;
+    border-color: rgba(255, 194, 212, 0.7);
+  }
+  /* Indicator "Siera scrie…" */
+  .siera-typing {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: fit-content;
+  }
+  .siera-typing__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: #f48ca7;
+    animation: siera-typing-bounce 1.1s ease-in-out infinite;
+  }
+  .siera-typing__dot:nth-child(2) {
+    animation-delay: 0.14s;
+  }
+  .siera-typing__dot:nth-child(3) {
+    animation-delay: 0.28s;
+  }
+  .siera-typing__label {
+    margin-left: 2px;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.6);
+  }
+  @keyframes siera-typing-bounce {
+    0%,
+    60%,
+    100% {
+      transform: translateY(0);
+      opacity: 0.5;
+    }
+    30% {
+      transform: translateY(-4px);
+      opacity: 1;
+    }
+  }
+  /* Quick actions: butoane solide, importante */
+  .siera-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    height: 44px;
+    padding: 0 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #ffffff;
+    background: #3b2b2e;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+    transition:
+      transform 0.25s ease,
+      background 0.25s ease,
+      border-color 0.25s ease,
+      box-shadow 0.25s ease;
+  }
+  .siera-action:hover {
+    transform: scale(1.02);
+    background: #443338;
+    border-color: rgba(255, 170, 192, 0.35);
+    box-shadow: 0 12px 26px rgba(0, 0, 0, 0.32);
+  }
+  .siera-action:active {
+    transform: scale(0.97);
+  }
+  .siera-action:disabled {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+  .siera-action__icon {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 9px;
+    color: #f48ca7;
+    background: rgba(244, 140, 167, 0.14);
+  }
+  /* Status online */
+  .siera-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    color: #9be3b7;
+    background: rgba(127, 214, 162, 0.12);
+  }
+  .siera-status__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: #4ade80;
+    animation: siera-ping 2.4s ease-out infinite;
+  }
+  @keyframes siera-ping {
+    0% {
+      box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.5);
+    }
+    70% {
+      box-shadow: 0 0 0 5px rgba(74, 222, 128, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
+    }
+  }
+  /* Buton de închidere minimalist */
+  .siera-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 10;
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    color: rgba(255, 255, 255, 0.5);
+    transition:
+      background 0.25s ease,
+      color 0.25s ease;
+  }
+  .siera-close:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+  }
+  /* Bara de input */
+  .siera-input {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px 6px 6px;
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition:
+      border-color 0.25s ease,
+      box-shadow 0.25s ease,
+      background 0.25s ease;
+  }
+  .siera-input:focus-within {
+    border-color: rgba(244, 140, 167, 0.5);
+    background: rgba(255, 255, 255, 0.07);
+    box-shadow: 0 0 0 3px rgba(244, 140, 167, 0.12);
+  }
+  .siera-input__field {
+    min-width: 0;
+    flex: 1;
+    padding: 14px 10px;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 15px;
+    color: #ffffff;
+  }
+  .siera-input__field::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+  }
+  .siera-input__icon {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+    border-radius: 999px;
+    color: rgba(255, 255, 255, 0.55);
+    transition:
+      background 0.25s ease,
+      color 0.25s ease;
+  }
+  .siera-input__icon:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+  }
+  .siera-input__send {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+    border-radius: 999px;
+    color: #26181c;
+    background: #f48ca7;
+    transition:
+      transform 0.25s ease,
+      opacity 0.25s ease,
+      background 0.25s ease;
+  }
+  .siera-input__send:hover {
+    transform: scale(1.02);
+    background: #ffaac0;
+  }
+  .siera-input__send:active {
+    transform: scale(0.95);
+  }
+  .siera-input__send:disabled {
+    opacity: 0.35;
+    transform: none;
   }
 }
 
-@property --siera-angle {
-  syntax: "<angle>";
+@property --orb-eye-glow {
+  syntax: "<color>";
   inherits: false;
-  initial-value: 0deg;
+  initial-value: rgba(0, 190, 245, 0.32);
 }
 
 @media (prefers-reduced-motion: reduce) {

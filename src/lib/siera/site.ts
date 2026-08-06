@@ -114,6 +114,25 @@ export async function getPageContext(pathname: string): Promise<PageContext | nu
     }
   }
 
+  const chapterMatch = pathname.match(/^\/materii\/([^/]+)\/([^/]+)$/);
+  if (chapterMatch) {
+    const chapter = await prisma.chapter.findFirst({
+      where: { slug: chapterMatch[2], subject: { slug: chapterMatch[1] } },
+      include: {
+        subject: true,
+        lessons: { orderBy: { order: "asc" }, select: { title: true, slug: true } },
+      },
+    });
+    if (chapter) {
+      const content = [
+        `Capitolul „${chapter.title}" din materia ${chapter.subject.name}.`,
+        "Lecții:",
+        ...chapter.lessons.map((l) => `- ${l.title}`),
+      ].join("\n");
+      return { title: chapter.title, kind: "capitol", subjectTitle: chapter.subject.name, content };
+    }
+  }
+
   const subjectMatch = pathname.match(/^\/materii\/([^/]+)$/);
   if (subjectMatch) {
     const subject = await prisma.subject.findUnique({
@@ -127,6 +146,28 @@ export async function getPageContext(pathname: string): Promise<PageContext | nu
         .map((c) => `${c.title} (${c._count.lessons} lecții)`)
         .join("\n");
       return { title: subject.name, kind: "materie", content };
+    }
+  }
+
+  const quizMatch = pathname.match(/^\/teste\/([^/]+)/);
+  if (quizMatch) {
+    const quiz = await prisma.quiz.findFirst({
+      where: { slug: quizMatch[1], published: true, userId: null },
+      include: {
+        subject: true,
+        questions: { select: { text: true } },
+      },
+    });
+    if (quiz) {
+      const content = [
+        `Test: „${quiz.title}" (materia ${quiz.subject.name}).`,
+        quiz.description || "",
+        `Întrebări (${quiz.questions.length}):`,
+        ...quiz.questions.map((q, i) => `${i + 1}. ${q.text}`),
+      ]
+        .filter(Boolean)
+        .join("\n");
+      return { title: quiz.title, kind: "test", subjectTitle: quiz.subject.name, content };
     }
   }
 
