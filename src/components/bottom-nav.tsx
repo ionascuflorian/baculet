@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
 import { LayoutDashboard, BookOpen, FileText, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -28,15 +29,23 @@ export function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
+              aria-current={active ? "page" : undefined}
               className="flex flex-1 flex-col items-center gap-1 py-0.5"
             >
-              <span
-                className={cn(
-                  "flex h-8 w-14 items-center justify-center rounded-full transition-all duration-300",
-                  active ? "bg-accent text-white" : "text-subtle"
+              <span className="relative flex h-8 w-14 items-center justify-center rounded-full">
+                {active && (
+                  <motion.span
+                    layoutId="bottom-nav-pill"
+                    className="absolute inset-0 rounded-full bg-accent"
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  />
                 )}
-              >
-                <item.icon className="h-5 w-5" />
+                <item.icon
+                  className={cn(
+                    "relative z-10 h-5 w-5 transition-colors",
+                    active ? "text-white" : "text-subtle"
+                  )}
+                />
               </span>
               <span
                 className={cn(

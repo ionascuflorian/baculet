@@ -221,7 +221,7 @@ function SortableWidget({
     pressTimer.current = setTimeout(() => {
       pressTimer.current = null;
       onEnterEditMode();
-    }, 3000);
+    }, 1500);
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -259,7 +259,10 @@ function SortableWidget({
         "group relative",
         isTouch && "select-none [&_input]:select-text [&_textarea]:select-text",
         isDragging && "opacity-60",
-        isTouch && editMode && "rounded-[1.25rem] ring-2 ring-accent/60"
+        isTouch &&
+          editMode &&
+          !isDragging &&
+          "widget-edit-wiggle rounded-[1.25rem] ring-2 ring-accent/60"
       )}
     >
       {isTouch && editMode && (

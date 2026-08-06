@@ -18,7 +18,7 @@ function SkeletonCard({
     <section
       aria-hidden
       className={cn(
-        "surface flex flex-col rounded-[1.25rem] p-5",
+        "skeleton-card surface flex flex-col rounded-[1.25rem] p-5",
         className
       )}
     >
@@ -175,7 +175,7 @@ export function DashboardSkeleton() {
         <SkeletonCircle className="size-9" />
       </div>
 
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+      <div className="skeleton-stagger grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
         <GreetingSkeleton />
         <BacCountdownSkeleton />
         <ResumeSkeleton />

@@ -161,8 +161,74 @@ body {
       transform: translateX(100%);
     }
   }
+  /* Cardurile de skeleton intră pe scenă treptat, nu apar instant. */
+  @keyframes skeleton-enter {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .skeleton-card {
+    animation: skeleton-enter 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .skeleton-stagger > * {
+    animation: skeleton-enter 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .skeleton-stagger > *:nth-child(2) {
+    animation-delay: 0.05s;
+  }
+  .skeleton-stagger > *:nth-child(3) {
+    animation-delay: 0.1s;
+  }
+  .skeleton-stagger > *:nth-child(4) {
+    animation-delay: 0.15s;
+  }
+  .skeleton-stagger > *:nth-child(5) {
+    animation-delay: 0.2s;
+  }
+  .skeleton-stagger > *:nth-child(6) {
+    animation-delay: 0.25s;
+  }
+  .skeleton-stagger > *:nth-child(n + 7) {
+    animation-delay: 0.3s;
+  }
   @media (prefers-reduced-motion: reduce) {
-    .skeleton::after {
+    .skeleton::after,
+    .skeleton-card,
+    .skeleton-stagger > * {
+      animation: none;
+    }
+  }
+
+  /* Wiggle pentru modul editare pe mobil (dashboard). */
+  @keyframes wiggle {
+    0%,
+    100% {
+      transform: rotate(0deg);
+    }
+    20% {
+      transform: rotate(-1.2deg);
+    }
+    40% {
+      transform: rotate(1.2deg);
+    }
+    60% {
+      transform: rotate(-1.2deg);
+    }
+    80% {
+      transform: rotate(1.2deg);
+    }
+  }
+  .widget-edit-wiggle {
+    animation: wiggle 0.5s ease-in-out infinite;
+    transform-origin: center;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .widget-edit-wiggle {
       animation: none;
     }
   }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
 import { LogOut, LifeBuoy, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
@@ -56,14 +57,24 @@ export function AppShell({
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={cn(
-                      "rounded-full px-3.5 py-2 text-sm font-semibold transition-colors",
-                      active
-                        ? "text-accent"
-                        : "text-subtle hover:text-ink"
-                    )}
+                    aria-current={active ? "page" : undefined}
+                    className="relative rounded-full px-3.5 py-2 text-sm font-semibold"
                   >
-                    {item.label}
+                    {active && (
+                      <motion.span
+                        layoutId="nav-active-pill"
+                        className="absolute inset-0 rounded-full bg-accent/10"
+                        transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                      />
+                    )}
+                    <span
+                      className={cn(
+                        "relative z-10 transition-colors",
+                        active ? "text-accent" : "text-subtle hover:text-ink"
+                      )}
+                    >
+                      {item.label}
+                    </span>
                   </Link>
                 );
               })}
