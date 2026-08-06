@@ -175,12 +175,11 @@ export const authConfig = {
       if (pathname.startsWith("/admin")) {
         return isLoggedIn && isAdmin;
       }
-      if (
-        pathname.startsWith("/dashboard") ||
-        pathname.startsWith("/progres") ||
-        pathname.startsWith("/subiecte-bac") ||
-        pathname.startsWith("/cont")
-      ) {
+      const protectedPaths = ["/dashboard", "/progres", "/subiecte-bac", "/cont"];
+      const isProtected = protectedPaths.some(
+        (p) => pathname === p || pathname.startsWith(p + "/")
+      );
+      if (isProtected) {
         return isLoggedIn;
       }
       return true;

@@ -24,6 +24,7 @@ export default async function AccountPage({
       createdAt: true,
       passwordHash: true,
       themeSlug: true,
+      profile: true,
     },
   });
 
@@ -77,6 +78,7 @@ export default async function AccountPage({
         profile={{ name: user.name, image: user.image ?? "" }}
         email={user.email}
         needsCurrentPassword={hasPassword(user.passwordHash)}
+        studyProfile={user.profile}
         themes={themes.map((t) => ({
           slug: t.slug,
           name: t.name,

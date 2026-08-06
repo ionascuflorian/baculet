@@ -13,10 +13,10 @@ import {
   PenLine,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
+import { SiteFooter } from "@/components/site-footer";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { auth } from "@/lib/auth";
-import { APP_VERSION } from "@/lib/version";
 
 const features = [
   {
@@ -235,30 +235,8 @@ export default async function Home() {
         </section>
       </main>
 
-      <footer className="border-t border-feather/60 py-10">
-        <div className="mx-auto max-w-6xl px-4">
-          <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
-            <Logo />
-            <nav className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-subtle">
-              <Link href="/login" className="transition-colors hover:text-ink">
-                Autentificare
-              </Link>
-              <Link
-                href="/register"
-                className="transition-colors hover:text-ink"
-              >
-                Creează cont
-              </Link>
-              <Link href="/help" className="transition-colors hover:text-ink">
-                Ajutor
-              </Link>
-            </nav>
-          </div>
-          <p className="mt-6 border-t border-feather/60 pt-6 text-center text-sm text-subtle">
-            Baculet · Învață pentru BAC cu ritm, nu cu panică.{" "}
-            <span className="text-xs opacity-70">{APP_VERSION}</span>
-          </p>
-        </div>
+      <footer className="border-t border-feather/60">
+        <SiteFooter />
       </footer>
     </div>
   );

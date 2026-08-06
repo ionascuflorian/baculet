@@ -17,6 +17,7 @@ import { syncCalendarEvents } from "@/lib/calendar-sync";
 import { getBacSchedule } from "@/lib/site-settings";
 import { getStudyActivities } from "@/lib/study-activity";
 import { startOfDay } from "@/lib/streak";
+import { ProfileOnboarding } from "@/components/profile/profile-onboarding";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -32,6 +33,7 @@ export default async function DashboardPage() {
           dashboardWidgets: true,
           lastActiveAt: true,
           weatherLocation: true,
+          profile: true,
         },
       }),
       prisma.subject.findMany({
@@ -117,6 +119,8 @@ export default async function DashboardPage() {
         </div>
         <WidgetSettings prefs={prefs} />
       </div>
+
+      <ProfileOnboarding open={!user?.profile} />
 
       <DashboardGrid prefs={prefs}>
         {visible.flatMap((id) => {

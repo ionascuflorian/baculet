@@ -4,8 +4,8 @@ import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { HelpForm } from "@/components/help/help-form";
 import { Faq } from "@/components/help/faq";
+import { SiteFooter } from "@/components/site-footer";
 import { auth } from "@/lib/auth";
-import { APP_VERSION } from "@/lib/version";
 
 const faqItems = [
   {
@@ -92,12 +92,7 @@ export default async function HelpPage() {
         </section>
       </main>
 
-      <footer className="border-t border-feather/60 py-6">
-        <div className="mx-auto max-w-6xl px-4 text-center text-sm text-subtle">
-          Baculet · Învață pentru BAC cu ritm, nu cu panică.{" "}
-          <span className="text-xs opacity-70">{APP_VERSION}</span>
-        </div>
-      </footer>
+      <SiteFooter homeHref={session?.user ? "/dashboard" : "/"} />
     </div>
   );
 }

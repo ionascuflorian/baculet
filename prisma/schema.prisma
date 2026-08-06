@@ -38,6 +38,7 @@ model User {
   dashboardWidgets Json?
   weatherLocation Json?
   themeSlug     String?
+  profile       Profile?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

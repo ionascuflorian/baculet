@@ -8,6 +8,7 @@ import { ProfileForm } from "@/components/account/profile-form";
 import { EmailForm } from "@/components/account/email-form";
 import { PasswordForm } from "@/components/account/password-form";
 import { DeleteAccount } from "@/components/account/delete-account";
+import { ProfileSettings } from "@/components/account/profile-settings";
 import { ThemePicker } from "@/components/themes/theme-picker";
 import { APP_VERSION } from "@/lib/version";
 
@@ -24,6 +25,7 @@ interface AccountSettingsProps {
   profile: { name: string; image: string };
   email: string;
   needsCurrentPassword: boolean;
+  studyProfile: string | null;
   themes: {
     slug: string;
     name: string;
@@ -38,6 +40,7 @@ export function AccountSettings({
   profile,
   email,
   needsCurrentPassword,
+  studyProfile,
   themes,
   currentTheme,
 }: AccountSettingsProps) {
@@ -83,6 +86,19 @@ export function AccountSettings({
             <CardContent className="p-5">
               <h2 className="mb-4 text-lg font-extrabold text-ink">Profil</h2>
               <ProfileForm initial={profile} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-5">
+              <h2 className="mb-4 text-lg font-extrabold text-ink">
+                Profil de studiu
+              </h2>
+              <p className="mb-4 text-sm text-subtle">
+                Aici alegi profilul de bacalaureat. Materiile din pagina Materii
+                se reordonează automat după alegerea ta.
+              </p>
+              <ProfileSettings current={studyProfile} />
             </CardContent>
           </Card>
 

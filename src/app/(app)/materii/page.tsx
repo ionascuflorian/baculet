@@ -1,21 +1,53 @@
-import Link from "next/link";
-import { ChevronRight } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { Card, CardContent } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { isProfileId } from "@/lib/profile";
+import { SubjectCard, type SubjectCardData } from "@/components/materii/subject-card";
+import { ProfileBanner } from "@/components/materii/profile-banner";
 
-const PROFILE_LABELS: Record<string, string> = {
-  REAL: "Real",
-  HUMAN: "Uman",
-  TECH: "Tehnologic",
+type SubjectWithProgress = {
+  id: string;
+  slug: string;
+  name: string;
+  icon: string | null;
+  description: string | null;
+  chapters: {
+    slug: string;
+    title: string;
+    lessons: { id: string }[];
+  }[];
+  subjectProfiles: { profile: string }[];
 };
+
+function toCardData(
+  subject: SubjectWithProgress,
+  completedIds: Set<string>
+): SubjectCardData {
+  const lessons = subject.chapters.flatMap((c) => c.lessons);
+  const done = lessons.filter((l) => completedIds.has(l.id)).length;
+  const pct = lessons.length ? Math.round((done / lessons.length) * 100) : 0;
+  return {
+    id: subject.id,
+    slug: subject.slug,
+    name: subject.name,
+    icon: subject.icon,
+    description: subject.description,
+    chaptersCount: subject.chapters.length,
+    lessonsCount: lessons.length,
+    done,
+    pct,
+    profiles: subject.subjectProfiles.map((sp) => sp.profile),
+  };
+}
 
 export default async function SubjectsPage() {
   const session = await auth();
   const userId = session!.user.id;
 
-  const [subjects, completedLessons] = await Promise.all([
+  const [user, subjects, completedLessons] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { profile: true },
+    }),
     prisma.subject.findMany({
       orderBy: { order: "asc" },
       include: {
@@ -33,6 +65,23 @@ export default async function SubjectsPage() {
   ]);
 
   const completedIds = new Set(completedLessons.map((l) => l.lessonId));
+  const userProfile = isProfileId(user?.profile) ? user.profile : null;
+
+  const all = subjects.map((s) => toCardData(s, completedIds));
+  const relevant = userProfile
+    ? all.filter((s) => s.profiles.includes(userProfile))
+    : [];
+  const other = userProfile
+    ? all.filter((s) => !s.profiles.includes(userProfile))
+    : [];
+
+  const renderGrid = (list: SubjectCardData[], dimmed = false) => (
+    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {list.map((subject, i) => (
+        <SubjectCard key={subject.id} subject={subject} index={i} dimmed={dimmed} />
+      ))}
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -43,70 +92,50 @@ export default async function SubjectsPage() {
         </p>
       </section>
 
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {subjects.map((subject, i) => {
-          const lessons = subject.chapters.flatMap((c) => c.lessons);
-          const done = lessons.filter((l) => completedIds.has(l.id)).length;
-          const pct = lessons.length
-            ? Math.round((done / lessons.length) * 100)
-            : 0;
+      {!userProfile && <ProfileBanner />}
 
-          return (
-            <Link key={subject.id} href={`/materii/${subject.slug}`}>
-              <Card
-                className={cn(
-                  "animate-slide-up surface-hover h-full rounded-3xl border p-5"
-                )}
-                style={{ animationDelay: `${i * 60}ms` }}
-              >
-                <CardContent>
-                  <div className="mb-4 flex items-start justify-between">
-                    <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10 text-2xl">
-                      {subject.icon}
-                    </span>
-                    <ChevronRight className="h-5 w-5 text-subtle" />
-                  </div>
-                  <h2 className="text-2xl font-bold leading-tight tracking-tight text-ink">
-                    {subject.name}
-                  </h2>
-                  {subject.description && (
-                    <p className="mt-1 line-clamp-2 text-sm text-subtle">
-                      {subject.description}
-                    </p>
-                  )}
-                  <div className="mt-4">
-                    <div className="mb-1.5 flex items-center justify-between text-xs font-bold">
-                      <span className="text-subtle">
-                        {subject.chapters.length} capitole · {lessons.length} lecții
-                      </span>
-                      <span className="text-accent">{pct}%</span>
-                    </div>
-                    <div className="h-3 w-full overflow-hidden rounded-full bg-ink/10">
-                      <div
-                        className="h-full rounded-full bg-accent transition-all duration-500"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                    <p className="mt-2 text-xs font-semibold text-subtle">
-                      {done}/{lessons.length} lecții parcurse
-                    </p>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {subject.subjectProfiles.map((sp) => (
-                      <span
-                        key={sp.profile}
-                        className="rounded-full bg-ink/5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-subtle"
-                      >
-                        {PROFILE_LABELS[sp.profile]}
-                      </span>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          );
-        })}
-      </div>
+      {userProfile && (
+        <section className="space-y-5">
+          <header>
+            <h2 className="text-lg font-extrabold text-ink">Materiile tale</h2>
+            <p className="text-sm text-subtle">
+              Vizibile în funcție de profilul tău de studiu.
+            </p>
+          </header>
+          {relevant.length > 0 ? (
+            renderGrid(relevant)
+          ) : (
+            <p className="surface rounded-3xl border p-6 text-sm text-subtle">
+              Nicio materie disponibilă pentru profilul tău.
+            </p>
+          )}
+
+          {other.length > 0 && (
+            <details className="group rounded-3xl border border-feather bg-card/50 p-5">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl">
+                <span className="flex items-center gap-2 font-extrabold text-ink">
+                  Alte materii
+                  <span className="rounded-full bg-ink/5 px-2 py-0.5 text-xs font-bold text-subtle">
+                    {other.length}
+                  </span>
+                </span>
+                <span className="text-xs font-bold text-subtle transition-transform group-open:rotate-180">
+                  ▾
+                </span>
+              </summary>
+              <div className="mt-4">
+                <p className="mb-4 text-sm text-subtle">
+                  Materii care nu sunt în programa profilului tău, dar le poți
+                  explora dacă vrei.
+                </p>
+                {renderGrid(other, true)}
+              </div>
+            </details>
+          )}
+        </section>
+      )}
+
+      {!userProfile && renderGrid(all)}
     </div>
   );
 }
