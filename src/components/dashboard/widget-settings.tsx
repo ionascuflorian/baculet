@@ -35,12 +35,26 @@ export function WidgetSettings({ prefs }: { prefs: DashboardPrefs }) {
     return () => window.removeEventListener(OPEN_WIDGET_SETTINGS_EVENT, handler);
   }, []);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
   async function save() {
     setSaving(true);
-    await saveDashboardWidgets(normalizePrefs(draft));
-    setSaving(false);
-    setDone(true);
-    setTimeout(() => setDone(false), 1500);
+    try {
+      await saveDashboardWidgets(normalizePrefs(draft));
+      setDone(true);
+      setTimeout(() => setDone(false), 1500);
+    } catch {
+      // eroare de rețea — păstrăm panoul deschis
+    } finally {
+      setSaving(false);
+    }
   }
 
   function toggle(id: WidgetId) {
@@ -66,7 +80,12 @@ export function WidgetSettings({ prefs }: { prefs: DashboardPrefs }) {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="surface absolute right-0 z-50 mt-2 w-80 rounded-2xl p-4 shadow-lg">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Personalizează dashboard-ul"
+            className="surface absolute right-0 z-50 mt-2 w-80 rounded-2xl p-4 shadow-lg"
+          >
             <h3 className="mb-3 font-bold text-ink">
               Personalizează dashboard-ul
             </h3>

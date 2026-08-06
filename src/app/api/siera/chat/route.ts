@@ -28,9 +28,31 @@ export async function POST(req: Request) {
   }
   const userId = session.user.id;
 
-  const body = (await req.json()) as { messages: UIMessage[]; pathname?: string };
-  const messages = body.messages ?? [];
-  const pathname = body.pathname ?? "";
+  const body = (await req.json().catch(() => null)) as {
+    messages?: UIMessage[];
+    pathname?: string;
+  } | null;
+  const messages = Array.isArray(body?.messages)
+    ? body.messages.slice(0, 30)
+    : [];
+  const pathname =
+    typeof body?.pathname === "string" ? body.pathname.slice(0, 200) : "";
+
+  // Limitează dimensiunea conversației trimise de client.
+  const totalChars = messages.reduce(
+    (n, m) =>
+      n +
+      (m.parts ?? [])
+        .filter((p) => p.type === "text")
+        .reduce((k, p) => k + p.text.length, 0),
+    0
+  );
+  if (totalChars > 60_000) {
+    return new Response(
+      JSON.stringify({ error: "Conversația e prea lungă. Începe un chat nou." }),
+      { status: 413 }
+    );
+  }
 
   if (!checkRateLimit(userId)) {
     return new Response(
@@ -116,9 +138,7 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("Siera chat error:", error);
     return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : "Eroare internă Siera",
-      }),
+      JSON.stringify({ error: "Eroare internă Siera. Încearcă din nou." }),
       { status: 500 }
     );
   }

@@ -88,20 +88,26 @@ export async function saveChapter(
   const data = chapterSchema.parse(input);
   const slug = data.slug?.trim() || slugify(data.title);
 
-  const chapter = id
-    ? await prisma.chapter.update({
-        where: { id },
-        data: { title: data.title, description: data.description, order: data.order },
-      })
-    : await prisma.chapter.create({
-        data: {
-          subjectId: data.subjectId,
-          title: data.title,
-          slug,
-          description: data.description,
-          order: data.order,
-        },
-      });
+  const payload = {
+    title: data.title,
+    slug,
+    description: data.description,
+    order: data.order,
+  };
+
+  let chapter;
+  try {
+    chapter = id
+      ? await prisma.chapter.update({ where: { id }, data: payload })
+      : await prisma.chapter.create({
+          data: { ...payload, subjectId: data.subjectId },
+        });
+  } catch (err) {
+    if ((err as { code?: string }).code === "P2002") {
+      throw new Error("Există deja un capitol cu acest slug în materie.");
+    }
+    throw err;
+  }
 
   revalidatePath("/admin/materii/[id]", "page");
   revalidatePath("/materii");
@@ -139,6 +145,7 @@ export async function saveLesson(
         where: { id },
         data: {
           title: data.title,
+          slug,
           content: data.content,
           videoUrl: data.videoUrl || null,
           pdfUrl: data.pdfUrl || null,

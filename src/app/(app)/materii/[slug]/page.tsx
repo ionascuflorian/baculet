@@ -25,10 +25,23 @@ export default async function SubjectPage({
 
   const subject = await prisma.subject.findUnique({
     where: { slug },
-    include: {
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      description: true,
+      icon: true,
       chapters: {
         orderBy: { order: "asc" },
-        include: { lessons: { orderBy: { order: "asc" } } },
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          lessons: {
+            orderBy: { order: "asc" },
+            select: { id: true },
+          },
+        },
       },
       quizzes: {
         where: {
@@ -37,6 +50,7 @@ export default async function SubjectPage({
           OR: [{ userId: null }, { userId }],
         },
         orderBy: { order: "asc" },
+        select: { id: true, slug: true, title: true, difficulty: true },
       },
       subjectProfiles: true,
     },

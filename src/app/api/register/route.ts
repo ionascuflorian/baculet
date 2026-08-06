@@ -31,13 +31,23 @@ export async function POST(request: NextRequest) {
 
   const passwordHash = await bcrypt.hash(parsed.data.password, 10);
 
-  const user = await prisma.user.create({
-    data: {
-      email,
-      name: parsed.data.name.trim(),
-      passwordHash,
-    },
-  });
+  try {
+    const user = await prisma.user.create({
+      data: {
+        email,
+        name: parsed.data.name.trim(),
+        passwordHash,
+      },
+    });
 
-  return NextResponse.json({ id: user.id, email: user.email });
+    return NextResponse.json({ id: user.id, email: user.email });
+  } catch (err) {
+    if ((err as { code?: string }).code === "P2002") {
+      return NextResponse.json(
+        { error: "Există deja un cont cu acest email." },
+        { status: 409 }
+      );
+    }
+    return NextResponse.json({ error: "Eroare internă." }, { status: 500 });
+  }
 }

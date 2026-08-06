@@ -14,9 +14,21 @@ export async function submitQuiz(
 
   const quiz = await prisma.quiz.findUnique({
     where: { id: quizId },
-    include: { questions: { orderBy: { order: "asc" } } },
+    select: {
+      id: true,
+      published: true,
+      userId: true,
+      questions: {
+        orderBy: { order: "asc" },
+        select: { id: true, correctIndex: true },
+      },
+    },
   });
   if (!quiz) throw new Error("Testul nu există");
+  if (!quiz.published) throw new Error("Testul nu este disponibil");
+  if (quiz.userId && quiz.userId !== session.user.id)
+    throw new Error("Neautorizat");
+  if (quiz.questions.length === 0) throw new Error("Testul nu are întrebări");
 
   const score = quiz.questions.filter(
     (q) => answers[q.id] === q.correctIndex

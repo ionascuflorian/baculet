@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { after } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { normalizePrefs, visibleWidgets } from "@/lib/dashboard-widgets";
@@ -38,10 +39,19 @@ export default async function DashboardPage() {
       }),
       prisma.subject.findMany({
         orderBy: { order: "asc" },
-        include: {
+        select: {
+          slug: true,
+          name: true,
           chapters: {
             orderBy: { order: "asc" },
-            include: { lessons: { orderBy: { order: "asc" } } },
+            select: {
+              slug: true,
+              title: true,
+              lessons: {
+                orderBy: { order: "asc" },
+                select: { id: true, slug: true, title: true },
+              },
+            },
           },
         },
       }),
@@ -67,10 +77,14 @@ export default async function DashboardPage() {
   const prefs = normalizePrefs(user?.dashboardWidgets);
   const visible = visibleWidgets(prefs);
 
-  await syncCalendarEvents(userId, {
-    streakCount: user?.streakCount ?? 0,
-    lessonsDone: completedLessons.length,
-    quizCount,
+  // Sincronizarea calendarului (evenimente BAC + realizări) nu blochează
+  // răspunsul; rulează după ce pagina a fost trimisă.
+  after(() => {
+    void syncCalendarEvents(userId, {
+      streakCount: user?.streakCount ?? 0,
+      lessonsDone: completedLessons.length,
+      quizCount,
+    });
   });
 
   const calendarEvents = await prisma.calendarEvent.findMany({

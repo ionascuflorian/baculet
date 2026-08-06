@@ -19,11 +19,18 @@ export default async function QuizPage({
   const quiz = await prisma.quiz.findFirst({
     where: {
       slug,
+      published: true,
       OR: [{ userId: null }, { userId }],
     },
-    include: {
-      subject: true,
-      questions: { orderBy: { order: "asc" } },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      subject: { select: { slug: true, name: true } },
+      questions: {
+        orderBy: { order: "asc" },
+        select: { id: true, text: true, options: true },
+      },
     },
   });
 
@@ -33,6 +40,7 @@ export default async function QuizPage({
     where: { userId, quizId: quiz.id },
     orderBy: { createdAt: "desc" },
     take: 5,
+    select: { score: true, maxScore: true },
   });
 
   const best = recentAttempts.length

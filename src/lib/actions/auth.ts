@@ -27,6 +27,17 @@ export async function login(
   const email = String(formData.get("email") ?? "").toLowerCase();
   const password = String(formData.get("password") ?? "");
 
+  const existing = await prisma.user.findUnique({
+    where: { email },
+    select: { emailVerified: true },
+  });
+  if (existing && !existing.emailVerified) {
+    return {
+      error:
+        "Contul nu este activat încă. Folosește codul de pe email sau tab-ul „Cod pe email”.",
+    };
+  }
+
   try {
     await signIn("credentials", { email, password, redirectTo: "/dashboard" });
     return {};

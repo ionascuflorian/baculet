@@ -57,8 +57,11 @@ export async function POST(req: Request) {
     return Response.json({ light: object.light, dark: object.dark });
   } catch (error) {
     console.error("generate-theme error:", error);
-    const message =
-      error instanceof Error ? error.message : "Eroare la generarea temei";
-    return new Response(JSON.stringify({ error: message }), { status: 500 });
+    return new Response(
+      JSON.stringify({
+        error: "Eroare la generarea temei. Încearcă din nou.",
+      }),
+      { status: 500 }
+    );
   }
 }

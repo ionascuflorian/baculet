@@ -10,13 +10,24 @@ import { Label } from "@/components/ui/label";
 export function DeleteAccount({ email }: { email: string }) {
   const [confirm, setConfirm] = useState("");
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
   const ready = confirm.toLowerCase() === email.toLowerCase();
 
   return (
     <form
       action={async (formData) => {
         setPending(true);
-        await deleteAccount(formData);
+        setError("");
+        try {
+          await deleteAccount(formData);
+        } catch (err) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "A apărut o problemă la ștergerea contului."
+          );
+          setPending(false);
+        }
       }}
       className="space-y-4"
     >
@@ -34,6 +45,11 @@ export function DeleteAccount({ email }: { email: string }) {
           required
         />
       </div>
+      {error && (
+        <p className="rounded-xl bg-danger/10 px-4 py-2.5 text-sm font-semibold text-danger">
+          {error}
+        </p>
+      )}
       <Button type="submit" variant="danger" disabled={!ready || pending}>
         {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Trash2 className="h-5 w-5" />}
         {pending ? "Se șterge…" : "Șterge definitiv contul"}

@@ -16,17 +16,22 @@ export default async function ChapterPage({
   const session = await auth();
   const userId = session!.user.id;
 
-  const subject = await prisma.subject.findUnique({ where: { slug } });
-  if (!subject) notFound();
-
-  const chapter = await prisma.chapter.findUnique({
-    where: { subjectId_slug: { subjectId: subject.id, slug: chapterSlug } },
-    include: {
-      subject: true,
-      lessons: { orderBy: { order: "asc" } },
+  const chapter = await prisma.chapter.findFirst({
+    where: { slug: chapterSlug, subject: { slug } },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      description: true,
+      subject: { select: { slug: true, name: true } },
+      lessons: {
+        orderBy: { order: "asc" },
+        select: { id: true, slug: true, title: true },
+      },
       quizzes: {
         where: { published: true, OR: [{ userId: null }, { userId }] },
         orderBy: { order: "asc" },
+        select: { id: true, slug: true, title: true },
       },
     },
   });

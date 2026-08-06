@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { LogOut, LifeBuoy, ShieldCheck } from "lucide-react";
@@ -11,8 +12,13 @@ import { logout } from "@/lib/actions/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BottomNav } from "@/components/bottom-nav";
 import { StreakTimer } from "@/components/streak-timer";
-import { Siera } from "@/components/siera/siera";
 import { SiteFooter } from "@/components/site-footer";
+
+// Siera (chat AI + markdown) se încarcă la cerere, separat de JS-ul inițial.
+const Siera = dynamic(
+  () => import("@/components/siera/siera").then((m) => m.Siera),
+  { ssr: false }
+);
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },

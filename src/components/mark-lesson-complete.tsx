@@ -27,7 +27,11 @@ export function MarkLessonComplete({
 
   function handleClick() {
     startTransition(async () => {
-      await toggleLessonComplete(lessonId, path);
+      try {
+        await toggleLessonComplete(lessonId, path);
+      } catch {
+        return;
+      }
       if (!isDone && completesChapter) {
         setCelebrate(true);
         window.setTimeout(() => setCelebrate(false), 3400);

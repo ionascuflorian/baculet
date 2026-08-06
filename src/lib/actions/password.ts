@@ -6,6 +6,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { signIn } from "@/lib/auth";
 import { sendOtpEmail, showInAppCode } from "@/lib/mail";
+import { otpRequestRateLimit, otpVerifyRateLimit } from "@/lib/otp-rate-limit";
 
 export type ResetState = {
   error?: string;
@@ -27,6 +28,12 @@ export async function requestPasswordReset(
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) return { error: "Nu există niciun cont cu acest email." };
+
+  if (!(await otpRequestRateLimit(email))) {
+    return {
+      error: "Prea multe cereri. Încearcă din nou în câteva minute.",
+    };
+  }
 
   await prisma.verificationToken.deleteMany({ where: { email } });
 
@@ -69,10 +76,17 @@ export async function resetPassword(
     return { error: "Parolele nu coincid." };
   }
 
-  const token = await prisma.verificationToken.findFirst({
-    where: { email, token: code },
+  if (!(await otpVerifyRateLimit(email, "reset"))) {
+    return {
+      error: "Prea multe încercări. Încearcă din nou în câteva minute.",
+    };
+  }
+
+  // Consumă codul atomic: dacă nu există, e incorect sau a fost deja folosit.
+  const deleted = await prisma.verificationToken.deleteMany({
+    where: { email, token: code, expires: { gt: new Date() } },
   });
-  if (!token || token.expires < new Date()) {
+  if (deleted.count === 0) {
     return { error: "Cod incorect sau expirat." };
   }
 
@@ -82,11 +96,15 @@ export async function resetPassword(
   const passwordHash = await bcrypt.hash(newPassword, 10);
   await prisma.user.update({
     where: { id: user.id },
-    data: { passwordHash },
+    data: { passwordHash, emailVerified: new Date() },
   });
 
   try {
-    await signIn("otp", { email, code, redirectTo: "/dashboard" });
+    await signIn("credentials", {
+      email,
+      password: newPassword,
+      redirectTo: "/dashboard",
+    });
     return {};
   } catch (error) {
     if (error instanceof AuthError) {

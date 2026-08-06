@@ -72,6 +72,22 @@ export function QuizClient({ quizId, quizSlug, title, questions }: QuizClientPro
   }
 
   if (phase === "intro") {
+    if (questions.length === 0) {
+      return (
+        <div className="mx-auto max-w-xl space-y-6 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-accent/10 text-3xl">
+            ✍️
+          </div>
+          <div>
+            <h1 className="text-3xl font-extrabold text-ink">{title}</h1>
+            <p className="mt-2 text-subtle">
+              Acest test nu are încă întrebări. Încearcă mai târziu.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="mx-auto max-w-xl space-y-6 text-center">
         <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-accent/10 text-3xl">

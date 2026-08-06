@@ -10,6 +10,12 @@ export async function toggleLessonComplete(lessonId: string, path: string) {
   const session = await auth();
   if (!session?.user) throw new Error("Neautorizat");
 
+  const lesson = await prisma.lesson.findUnique({
+    where: { id: lessonId },
+    select: { id: true },
+  });
+  if (!lesson) throw new Error("Lecția nu există");
+
   const existing = await prisma.lessonProgress.findUnique({
     where: {
       userId_lessonId: { userId: session.user.id, lessonId },

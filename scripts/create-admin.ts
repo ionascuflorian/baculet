@@ -15,6 +15,7 @@ async function main() {
       name: "Admin Baculet",
       passwordHash,
       role: "ADMIN",
+      emailVerified: new Date(),
     },
   });
   console.log(`Creat: ${u.email} (${u.role})`);

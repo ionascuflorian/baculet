@@ -4,6 +4,10 @@ import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
+import {
+  otpVerifyRateLimit,
+  otpVerifyRateLimitSuccess,
+} from "@/lib/otp-rate-limit";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -47,6 +51,9 @@ export const authConfig = {
         const valid = await bcrypt.compare(parsed.data.password, user.passwordHash);
         if (!valid) return null;
 
+        // Conturile neactivate (email neverificat) nu se pot autentica cu parolă.
+        if (!user.emailVerified) return null;
+
         return {
           id: user.id,
           email: user.email,
@@ -63,31 +70,43 @@ export const authConfig = {
         email: { label: "Email", type: "email" },
         code: { label: "Cod", type: "text" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         const email = String(credentials?.email ?? "").toLowerCase();
         const code = String(credentials?.code ?? "").trim();
         if (!email || !/^\d{6}$/.test(code)) return null;
 
-        const token = await prisma.verificationToken.findFirst({
-          where: { email, token: code },
-          orderBy: { createdAt: "desc" },
-        });
-        if (!token || token.expires < new Date()) return null;
+        const ip =
+          request?.headers?.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+          "unknown";
+        if (!(await otpVerifyRateLimit(email, ip))) return null;
 
-        await prisma.verificationToken.delete({ where: { id: token.id } });
+        // Consumul e atomic (deleteMany): două cereri concurente cu același cod
+        // — doar una câștigă, cealaltă primește count 0.
+        const deleted = await prisma.verificationToken.deleteMany({
+          where: { email, token: code, expires: { gt: new Date() } },
+        });
+        if (deleted.count === 0) return null;
+
+        await otpVerifyRateLimitSuccess(email, ip);
 
         let user = await prisma.user.findUnique({ where: { email } });
         if (!user) {
-          user = await prisma.user.create({
-            data: {
-              email,
-              name:
-                email.split("@")[0].replace(/[._\-+]+/g, " ").trim() ||
-                "Elev",
-              passwordHash: crypto.randomUUID(),
-              emailVerified: new Date(),
-            },
-          });
+          try {
+            user = await prisma.user.create({
+              data: {
+                email,
+                name:
+                  email.split("@")[0].replace(/[._\-+]+/g, " ").trim() ||
+                  "Elev",
+                passwordHash: crypto.randomUUID(),
+                emailVerified: new Date(),
+              },
+            });
+          } catch (err) {
+            // Cursă de creare concurentă (P2002) — reia căutarea.
+            user = await prisma.user.findUnique({ where: { email } });
+            if (!user) throw err;
+          }
         } else if (!user.emailVerified) {
           await prisma.user.update({
             where: { id: user.id },
@@ -108,8 +127,9 @@ export const authConfig = {
   callbacks: {
     async signIn({ user, account }) {
       if (account?.provider === "google" && user.email) {
+        const email = user.email.toLowerCase();
         const existing = await prisma.user.findUnique({
-          where: { email: user.email },
+          where: { email },
         });
         if (existing) {
           if (!existing.image && user.image) {
@@ -121,8 +141,8 @@ export const authConfig = {
         } else {
           await prisma.user.create({
             data: {
-              email: user.email,
-              name: user.name ?? user.email.split("@")[0],
+              email,
+              name: user.name ?? email.split("@")[0],
               image: user.image ?? null,
               passwordHash: crypto.randomUUID(),
               emailVerified: new Date(),
@@ -151,10 +171,11 @@ export const authConfig = {
               : null;
           return token;
         }
-      }
-      if (user) {
-        token.id = user.id;
-        token.role = (user as { role?: string }).role;
+        // Utilizatorul a fost șters din DB — nu mai minta identitate.
+        delete token.id;
+        delete token.role;
+        delete token.name;
+        token.picture = null;
       }
       return token;
     },

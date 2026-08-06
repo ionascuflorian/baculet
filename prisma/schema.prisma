@@ -42,14 +42,14 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-    lessonProgress   LessonProgress[]
-    quizAttempts     QuizAttempt[]
-    pushSubscriptions PushSubscription[]
-    calendarEvents   CalendarEvent[]
-    quizzes          Quiz[]
-    todoItems        TodoItem[]
-    studyActivities  StudyActivity[]
-  }
+  lessonProgress    LessonProgress[]
+  quizAttempts      QuizAttempt[]
+  pushSubscriptions PushSubscription[]
+  calendarEvents    CalendarEvent[]
+  quizzes           Quiz[]
+  todoItems         TodoItem[]
+  studyActivities   StudyActivity[]
+}
 
 model Theme {
   id          String   @id @default(cuid())
@@ -195,6 +195,8 @@ model Question {
   order        Int     @default(0)
 
   quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([quizId])
 }
 
 model QuizAttempt {
@@ -208,6 +210,9 @@ model QuizAttempt {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([quizId])
 }
 
 model OfficialExam {
@@ -237,6 +242,8 @@ model PushSubscription {
   createdAt    DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model VerificationToken {

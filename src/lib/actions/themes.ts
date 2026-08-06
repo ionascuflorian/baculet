@@ -35,7 +35,10 @@ const paletteSchema = z.record(z.string(), hexColor);
 
 const themeSchema = z.object({
   name: z.string().min(2, "Numele trebuie să aibă minim 2 caractere.").max(60),
-  slug: z.string().optional(),
+  slug: z
+    .string()
+    .regex(/^[a-z0-9-]+$/, "Slug invalid (doar litere mici, cifre și liniuțe)")
+    .optional(),
   description: z.string().optional().default(""),
   enabled: z.boolean().default(true),
   order: z.coerce.number().int().default(0),

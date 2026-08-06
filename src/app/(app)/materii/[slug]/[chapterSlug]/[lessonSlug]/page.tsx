@@ -18,18 +18,31 @@ export default async function LessonPage({
   const session = await auth();
   const userId = session!.user.id;
 
-  const subject = await prisma.subject.findUnique({ where: { slug } });
-  if (!subject) notFound();
-
-  const chapter = await prisma.chapter.findUnique({
-    where: { subjectId_slug: { subjectId: subject.id, slug: chapterSlug } },
-    include: {
-      lessons: { orderBy: { order: "asc" } },
+  const chapter = await prisma.chapter.findFirst({
+    where: { slug: chapterSlug, subject: { slug } },
+    select: {
+      id: true,
+      title: true,
+      subject: { select: { name: true } },
+      lessons: {
+        orderBy: { order: "asc" },
+        select: { id: true, slug: true, title: true },
+      },
     },
   });
   if (!chapter) notFound();
 
-  const lesson = chapter.lessons.find((l) => l.slug === lessonSlug);
+  const lesson = await prisma.lesson.findUnique({
+    where: { chapterId_slug: { chapterId: chapter.id, slug: lessonSlug } },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      content: true,
+      videoUrl: true,
+      pdfUrl: true,
+    },
+  });
   if (!lesson) notFound();
 
   const idx = chapter.lessons.findIndex((l) => l.id === lesson.id);
@@ -58,7 +71,7 @@ export default async function LessonPage({
           </Link>
         </Button>
         <div className="flex items-center gap-3">
-          <Badge>{subject.name}</Badge>
+          <Badge>{chapter.subject.name}</Badge>
           {isDone && <Badge>Parcursă</Badge>}
         </div>
         <h1 className="mt-2 text-3xl font-extrabold text-ink">{lesson.title}</h1>

@@ -23,7 +23,7 @@ const profileSchema = z.object({
   image: z.string().max(1_500_000).optional().default(""),
 });
 
-const MAX_IMAGE_BYTES = 400_000;
+const MAX_IMAGE_BYTES = 80_000;
 
 export async function updateProfile(
   _prev: ProfileState,

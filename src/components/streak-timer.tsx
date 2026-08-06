@@ -42,15 +42,18 @@ export function StreakTimer({
 }) {
   const [now, setNow] = useState(() => new Date());
 
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
-
   const deadline = useMemo(
     () => streakDeadline(lastActiveAt ? new Date(lastActiveAt) : null),
     [lastActiveAt]
   );
+
+  // Tick-uri dese doar în „zona de pericol” (sub 2 ore); în rest, o dată la 30s.
+  useEffect(() => {
+    const msLeft = deadline ? deadline.getTime() - Date.now() : null;
+    const delay = msLeft !== null && msLeft < DANGER_MS ? 1000 : 30_000;
+    const id = setInterval(() => setNow(new Date()), delay);
+    return () => clearInterval(id);
+  }, [deadline]);
 
   const msLeft = deadline ? deadline.getTime() - now.getTime() : null;
   const status = statusFor(msLeft);

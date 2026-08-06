@@ -4,6 +4,7 @@ import { AuthError } from "next-auth";
 import { prisma } from "@/lib/db";
 import { signIn } from "@/lib/auth";
 import { sendOtpEmail, showInAppCode } from "@/lib/mail";
+import { otpRequestRateLimit } from "@/lib/otp-rate-limit";
 
 export type OtpState = { error?: string; email?: string; devCode?: string };
 
@@ -21,6 +22,12 @@ export async function requestCode(
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return { error: "Introdu o adresă de email validă." };
+  }
+
+  if (!(await otpRequestRateLimit(email))) {
+    return {
+      error: "Prea multe cereri. Încearcă din nou în câteva minute.",
+    };
   }
 
   // Șterge codurile vechi pentru acest email

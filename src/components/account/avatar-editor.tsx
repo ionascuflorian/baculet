@@ -56,7 +56,7 @@ async function cropAndCompress(
     OUTPUT_SIZE
   );
 
-  return out.toDataURL("image/jpeg", 0.92);
+  return out.toDataURL("image/jpeg", 0.85);
 }
 
 type Area = { x: number; y: number; width: number; height: number };
