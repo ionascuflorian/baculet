@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DeleteButton } from "@/components/admin/delete-button";
+import { PendingLink } from "@/components/admin/pending-link";
 import { deleteSubject } from "@/lib/actions/admin";
 
 const profileLabels: Record<string, string> = {
@@ -61,12 +62,12 @@ export default async function AdminSubjectsPage() {
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <DeleteButton action={deleteSubject} id={subject.id} />
-                  <Link
+                  <PendingLink
                     href={`/admin/materii/${subject.id}`}
                     className="inline-flex items-center gap-1 text-xs font-bold text-accent hover:underline"
                   >
                     Editează <ChevronRight className="h-3.5 w-3.5" />
-                  </Link>
+                  </PendingLink>
                 </div>
               </div>
             </CardContent>

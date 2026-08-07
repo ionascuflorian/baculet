@@ -1,6 +1,6 @@
 "use client";
 
-import { Calculator, BookOpen, Wrench, type LucideIcon } from "lucide-react";
+import { Calculator, BookOpen, Loader2, Wrench, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PROFILE_META, type ProfileId } from "@/lib/profile";
 
@@ -36,7 +36,8 @@ export function ProfilePicker({
               active
                 ? "border-accent bg-accent/10 shadow-sm"
                 : "border-feather bg-card hover:border-accent/40",
-              disabled && "opacity-60"
+              disabled && !active && "opacity-50",
+              disabled && active && "cursor-wait"
             )}
           >
             <span
@@ -45,7 +46,11 @@ export function ProfilePicker({
                 active ? "bg-accent text-white" : "bg-ink/5 text-ink"
               )}
             >
-              <Icon className="h-5 w-5" />
+              {disabled && active ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Icon className="h-5 w-5" />
+              )}
             </span>
             <p className="text-base font-extrabold text-ink">{p.label}</p>
             <p className="text-xs font-bold uppercase tracking-wide text-accent">

@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { SubjectForm } from "@/components/admin/subject-form";
 import { ChapterForm } from "@/components/admin/chapter-form";
 import { DeleteButton } from "@/components/admin/delete-button";
+import { PendingLink } from "@/components/admin/pending-link";
 import { deleteChapter } from "@/lib/actions/admin";
 
 export default async function AdminSubjectDetailPage({
@@ -80,12 +81,12 @@ export default async function AdminSubjectDetailPage({
                 </div>
                 <div className="flex items-center gap-2">
                   <DeleteButton action={deleteChapter} id={chapter.id} />
-                  <Link
+                  <PendingLink
                     href={`/admin/capitole/${chapter.id}`}
                     className="inline-flex items-center gap-1 text-xs font-bold text-accent hover:underline"
                   >
                     Editează <ChevronRight className="h-3.5 w-3.5" />
-                  </Link>
+                  </PendingLink>
                 </div>
               </CardContent>
             </Card>

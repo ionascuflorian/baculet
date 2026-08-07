@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { motion } from "framer-motion";
 import Cropper from "react-easy-crop";
 import { Loader2, RotateCcw, Upload, ZoomIn, ZoomOut, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -78,7 +79,6 @@ export function AvatarEditor({
   const [croppedArea, setCroppedArea] = useState<Area | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [inited, setInited] = useState(false);
   const [closing, setClosing] = useState(false);
   const rafRef = useRef<number>(0);
   const closeTimerRef = useRef<number>(0);
@@ -97,11 +97,9 @@ export function AvatarEditor({
   }, [onClose]);
 
   useEffect(() => {
-    const raf = requestAnimationFrame(() => setInited(true));
     document.body.style.overflow = "hidden";
     document.body.classList.add("crop-editor-open");
     return () => {
-      cancelAnimationFrame(raf);
       document.body.style.overflow = "";
       document.body.classList.remove("crop-editor-open");
       cancelAnimationFrame(rafRef.current);
@@ -117,7 +115,7 @@ export function AvatarEditor({
     return () => window.removeEventListener("keydown", onKey);
   }, [requestClose]);
 
-  const shown = inited && !closing;
+  const shown = !closing;
 
   const handleSave = async () => {
     if (!croppedArea) return;
@@ -142,16 +140,26 @@ export function AvatarEditor({
       }`}
       style={{ zIndex: 2147483000 }}
     >
-      <div
-        className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-200 pointer-events-auto ${
-          shown ? "opacity-100" : "opacity-0"
-        }`}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: closing ? 0 : 1 }}
+        transition={{ duration: closing ? 0.16 : 0.25, ease: "easeOut" }}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm pointer-events-auto"
         onClick={requestClose}
       />
-      <div
-        className={`surface pointer-events-auto relative w-full max-w-md rounded-3xl p-5 transition-all duration-200 ease-out ${
-          shown ? "scale-100 translate-y-0 opacity-100" : "scale-95 translate-y-2 opacity-0"
-        }`}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.92, y: 18 }}
+        animate={
+          closing
+            ? { opacity: 0, scale: 0.95, y: 10 }
+            : { opacity: 1, scale: 1, y: 0 }
+        }
+        transition={
+          closing
+            ? { duration: 0.16, ease: "easeIn" }
+            : { type: "spring", stiffness: 380, damping: 28 }
+        }
+        className="surface pointer-events-auto relative w-full max-w-md rounded-3xl p-5"
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold tracking-tight text-ink">
@@ -269,7 +277,7 @@ export function AvatarEditor({
             {busy ? "Se procesează…" : "Salvează poza"}
           </Button>
         </div>
-      </div>
+      </motion.div>
     </div>,
     document.body
   );

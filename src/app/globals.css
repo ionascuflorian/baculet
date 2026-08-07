@@ -726,7 +726,7 @@ body {
     flex-direction: column;
     align-items: center;
     flex-shrink: 0;
-    padding: 2.1rem 1rem 1.25rem;
+    padding: 1rem 1.25rem 1.2rem;
     border-bottom: 1px solid color-mix(in srgb, var(--feather) 55%, transparent);
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.3) 0%, transparent 100%);
   }
@@ -752,7 +752,7 @@ body {
   }
   @media (min-width: 768px) {
     .siera-hero {
-      padding-top: 2.6rem;
+      padding-top: 1.1rem;
       padding-bottom: 1.4rem;
     }
     .siera-hero__orb {
@@ -762,6 +762,36 @@ body {
     .siera-hero__name {
       font-size: 18px;
     }
+  }
+  /* Mobil: la jumătate de ecran, hero-ul devine un rând compact — orb mic în
+     stânga, nume + status lângă el, X în dreapta — ca să rămână loc de chat */
+  .siera-hero--compact {
+    padding: 0.5rem 0.75rem;
+  }
+  .siera-hero--compact .siera-hero__compact-row {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 12px;
+  }
+  .siera-hero--compact .siera-hero__orb {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+  }
+  .siera-hero--compact .siera-hero__name {
+    margin-top: 0;
+    font-size: 15px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .siera-hero--compact .siera-hero__sub {
+    display: none;
+  }
+  .siera-hero--compact .siera-close {
+    flex-shrink: 0;
   }
   /* Mesaje: Siera = sticlă pe card, elev = accent discret — urmează tema */
   .siera-msg-ai {
@@ -923,12 +953,8 @@ body {
       box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 0%, transparent);
     }
   }
-  /* Buton de închidere minimalist */
+  /* Buton de închidere minimalist (static, în rândul de sus al panoului) */
   .siera-close {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-    z-index: 10;
     display: grid;
     place-items: center;
     width: 36px;
@@ -937,11 +963,43 @@ body {
     color: var(--subtle);
     transition:
       background 0.25s ease,
-      color 0.25s ease;
+      color 0.25s ease,
+      transform 0.25s ease;
   }
   .siera-close:hover {
     background: color-mix(in srgb, var(--ink) 8%, transparent);
     color: var(--ink);
+  }
+  .siera-close:active {
+    transform: scale(0.92);
+  }
+  /* Buton dropdown pentru alegerea modului de afișare */
+  .siera-mode-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--subtle);
+    background: color-mix(in srgb, var(--card) 55%, transparent);
+    border: 1px solid color-mix(in srgb, var(--feather) 75%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition:
+      background 0.25s ease,
+      color 0.25s ease,
+      border-color 0.25s ease,
+      transform 0.25s ease;
+  }
+  .siera-mode-btn:hover {
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+    color: var(--ink);
+  }
+  .siera-mode-btn:active {
+    transform: scale(0.96);
   }
   /* Bara de input — sticlă pe tema, focar accent */
   .siera-input {
@@ -1031,13 +1089,16 @@ body {
   }
 }
 
-/* Siera companion: pe desktop, site-ul cedează 440px și Siera devine o coloană alături */
+/* Siera companion: pe desktop, site-ul cedează lățimea panoului și Siera devine coloană alături */
 @media (min-width: 768px) {
   body.siera-open .app-shell {
-    margin-right: 440px;
+    margin-right: var(--siera-w, 440px);
   }
   .app-shell {
     transition: margin-right 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  body.siera-resizing .app-shell {
+    transition: none;
   }
 }
 

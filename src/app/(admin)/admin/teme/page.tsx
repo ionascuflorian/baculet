@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DeleteButton } from "@/components/admin/delete-button";
+import { PendingLink } from "@/components/admin/pending-link";
 import { ThemeEnabledToggle } from "@/components/admin/theme-toggle";
 import { deleteTheme } from "@/lib/actions/themes";
 import { PALETTE_KEYS, type Palette } from "@/components/themes/palette";
@@ -69,12 +70,12 @@ export default async function AdminThemesPage() {
                 </div>
 
                 <div className="flex items-center justify-between border-t border-feather pt-3">
-                  <Link
+                  <PendingLink
                     href={`/admin/teme/${theme.id}`}
                     className="inline-flex items-center gap-1.5 text-xs font-bold text-accent hover:underline"
                   >
                     <PaletteIcon className="h-3.5 w-3.5" /> Editează
-                  </Link>
+                  </PendingLink>
                   <DeleteButton action={deleteTheme} id={theme.id} label="Șterge" />
                 </div>
               </CardContent>

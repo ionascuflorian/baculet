@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { QuizForm } from "@/components/admin/quiz-form";
 import { QuestionForm } from "@/components/admin/question-form";
 import { DeleteButton } from "@/components/admin/delete-button";
+import { PendingLink } from "@/components/admin/pending-link";
 import { deleteQuestion } from "@/lib/actions/admin";
 
 export default async function AdminQuizDetailPage({
@@ -85,12 +86,12 @@ export default async function AdminQuizDetailPage({
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <DeleteButton action={deleteQuestion} id={q.id} />
-                    <Link
+                    <PendingLink
                       href={`/admin/intrebari/${q.id}`}
                       className="inline-flex items-center gap-1 text-xs font-bold text-accent hover:underline"
                     >
                       Editează <ChevronRight className="h-3.5 w-3.5" />
-                    </Link>
+                    </PendingLink>
                   </div>
                 </div>
               </CardContent>
