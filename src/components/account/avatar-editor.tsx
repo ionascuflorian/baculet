@@ -88,15 +88,25 @@ export function AvatarEditor({
     rafRef.current = requestAnimationFrame(() => setCroppedArea(areaPixels));
   }, []);
 
+  const closingRef = useRef(false);
   const requestClose = useCallback(() => {
-    if (closing) return;
+    if (closingRef.current) return;
+    closingRef.current = true;
     setClosing(true);
     closeTimerRef.current = window.setTimeout(onClose, 220);
-  }, [closing, onClose]);
+  }, [onClose]);
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => setInited(true));
-    return () => cancelAnimationFrame(raf);
+    document.body.style.overflow = "hidden";
+    document.body.classList.add("crop-editor-open");
+    return () => {
+      cancelAnimationFrame(raf);
+      document.body.style.overflow = "";
+      document.body.classList.remove("crop-editor-open");
+      cancelAnimationFrame(rafRef.current);
+      window.clearTimeout(closeTimerRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -104,15 +114,7 @@ export function AvatarEditor({
       if (e.key === "Escape") requestClose();
     };
     window.addEventListener("keydown", onKey);
-    document.body.style.overflow = "hidden";
-    document.body.classList.add("crop-editor-open");
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
-      document.body.classList.remove("crop-editor-open");
-      cancelAnimationFrame(rafRef.current);
-      window.clearTimeout(closeTimerRef.current);
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [requestClose]);
 
   const shown = inited && !closing;
@@ -135,17 +137,19 @@ export function AvatarEditor({
 
   return createPortal(
     <div
-      className="fixed inset-0 flex items-center justify-center p-4"
+      className={`fixed inset-0 flex items-center justify-center p-4 ${
+        closing ? "pointer-events-none" : ""
+      }`}
       style={{ zIndex: 2147483000 }}
     >
       <div
-        className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-200 ${
+        className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-200 pointer-events-auto ${
           shown ? "opacity-100" : "opacity-0"
         }`}
         onClick={requestClose}
       />
       <div
-        className={`surface relative w-full max-w-md rounded-3xl p-5 transition-all duration-200 ease-out ${
+        className={`surface pointer-events-auto relative w-full max-w-md rounded-3xl p-5 transition-all duration-200 ease-out ${
           shown ? "scale-100 translate-y-0 opacity-100" : "scale-95 translate-y-2 opacity-0"
         }`}
       >

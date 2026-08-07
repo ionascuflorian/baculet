@@ -19,7 +19,7 @@ import {
   TrendingUp,
   X,
 } from "lucide-react";
-import { SieraOrb, type SieraMood } from "@/components/siera/siera-orb";
+import { SieraOrb, type SieraGaze, type SieraMood } from "@/components/siera/siera-orb";
 import { getSieraGreeting, type SuggestionIcon } from "@/lib/siera/page-suggestions";
 
 function extractText(message: UIMessage): string {
@@ -96,7 +96,7 @@ function SieraMarkdown({
             <code
               className={
                 ai
-                  ? "rounded bg-white/15 px-1 py-0.5 text-[13px] text-blue-100"
+                  ? "rounded bg-ink/10 px-1 py-0.5 text-[13px] text-ink"
                   : "rounded bg-ink/10 px-1 py-0.5 text-[13px] text-ink"
               }
             >
@@ -107,7 +107,7 @@ function SieraMarkdown({
             <pre
               className={
                 ai
-                  ? "my-1 overflow-x-auto rounded-lg bg-black/35 p-2 text-[13px]"
+                  ? "my-1 overflow-x-auto rounded-lg bg-ink/10 p-2 text-[13px]"
                   : "my-1 overflow-x-auto rounded-lg bg-ink/5 p-2 text-[13px]"
               }
             >
@@ -129,6 +129,7 @@ export function Siera() {
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const [happy, setHappy] = useState(false);
+  const [inputFocused, setInputFocused] = useState(false);
   const [mobile, setMobile] = useState(() =>
     typeof window !== "undefined" ? window.matchMedia("(max-width: 767px)").matches : false
   );
@@ -156,15 +157,15 @@ export function Siera() {
     return () => observer.disconnect();
   }, []);
 
-  // Escape închide chatul.
+  // Escape închide chatul (dar nu când crop-editorul e deschis).
   useEffect(() => {
-    if (!open) return;
+    if (!open || editorOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  }, [open, editorOpen]);
 
   // Starea de bucurie: 2.6s după ce Siera termină de răspuns.
   const prevStatus = useRef(status);
@@ -180,11 +181,25 @@ export function Siera() {
   }, [status]);
 
   const busy = status === "submitted" || status === "streaming";
-  const mood: SieraMood = happy ? "happy" : busy ? "thinking" : "idle";
+  const mood: SieraMood = happy
+    ? "happy"
+    : status === "streaming"
+      ? "speaking"
+      : busy
+        ? "thinking"
+        : "idle";
+  const gaze: SieraGaze = inputFocused ? "input" : mood === "idle" ? "cursor" : "user";
 
   const greeting = getSieraGreeting(pathname);
 
   const shown = open && !editorOpen;
+
+  // Companion pe desktop: site-ul cedează 440px, Siera devine coloană alături.
+  useEffect(() => {
+    if (!mobile && shown) document.body.classList.add("siera-open");
+    else document.body.classList.remove("siera-open");
+    return () => document.body.classList.remove("siera-open");
+  }, [mobile, shown]);
 
   const submit = (text: string) => {
     const trimmed = text.trim();
@@ -196,14 +211,14 @@ export function Siera() {
   return (
     <>
       <AnimatePresence>
-        {shown && (
+        {shown && mobile && (
           <motion.div
             key="backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25, ease: "easeOut" }}
-            className="fixed inset-0 z-[60] bg-black/55"
+            className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-[2px]"
             onClick={() => setOpen(false)}
           />
         )}
@@ -213,22 +228,17 @@ export function Siera() {
         {shown && (
           <motion.div
             key="panel"
-            initial={
+            initial={mobile ? { y: "100%" } : { x: "100%" }}
+            animate={mobile ? { y: 0 } : { x: 0 }}
+            exit={mobile ? { y: "100%" } : { x: "100%" }}
+            transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+            className={
               mobile
-                ? { y: "100%" }
-                : { opacity: 0, scale: 0.96, y: 16 }
+                ? "fixed inset-0 z-[70] flex items-end justify-center"
+                : "fixed inset-y-0 right-0 z-[70] w-[min(440px,100vw)]"
             }
-            animate={mobile ? { y: 0 } : { opacity: 1, scale: 1, y: 0 }}
-            exit={
-              mobile
-                ? { y: "100%" }
-                : { opacity: 0, scale: 0.96, y: 16 }
-            }
-            transition={{ type: "spring", stiffness: 320, damping: 34 }}
-            style={{ transformOrigin: "center bottom" }}
-            className="fixed inset-0 z-[70] flex items-end justify-center md:items-center md:p-6"
           >
-            <div className="siera-sheet h-full w-full md:h-[min(88vh,860px)] md:max-w-[min(880px,94vw)] md:rounded-[22px]">
+            <div className="siera-sheet h-full w-full md:rounded-l-[24px] md:border-r-0">
               <div className="siera-hero">
                 <button
                   onClick={() => setOpen(false)}
@@ -239,7 +249,7 @@ export function Siera() {
                   <X className="h-[17px] w-[17px]" strokeWidth={2.5} />
                 </button>
                 <div className="siera-hero__orb">
-                  <SieraOrb mood={mood} className="h-full w-full" />
+                  <SieraOrb mood={mood} gaze={gaze} className="h-full w-full" />
                 </div>
                 <div className="siera-hero__name">
                   Siera
@@ -355,6 +365,8 @@ export function Siera() {
                   <input
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
+                    onFocus={() => setInputFocused(true)}
+                    onBlur={() => setInputFocused(false)}
                     placeholder="Întreabă orice despre BAC..."
                     className="siera-input__field"
                   />
@@ -391,7 +403,7 @@ export function Siera() {
             className="fixed bottom-24 right-4 z-[70] md:bottom-6 md:right-6"
           >
             <div className="h-20 w-20">
-              <SieraOrb mood={mood} className="h-full w-full" />
+              <SieraOrb mood={mood} gaze={gaze} className="h-full w-full" />
             </div>
           </motion.button>
         )}

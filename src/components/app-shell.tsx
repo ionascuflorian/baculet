@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, LayoutGroup } from "framer-motion";
 import { LogOut, LifeBuoy, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
@@ -49,41 +50,52 @@ export function AppShell({
   const initial = user.name.charAt(0).toUpperCase();
   const firstName = user.name.split(" ")[0];
 
+  // Pill optimist: la apăsare se mută imediat, înainte să se încarce pagina.
+  const [pending, setPending] = useState<string | null>(null);
+  useEffect(() => {
+    setPending(null);
+  }, [pathname]);
+
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="app-shell flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-40 border-b border-feather bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-4">
           <div className="flex items-center gap-3">
             <Logo href="/dashboard" />
             <nav className="hidden items-center gap-1 md:flex">
-              {navItems.map((item) => {
-                const active =
-                  pathname === item.href || pathname.startsWith(item.href + "/");
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    aria-current={active ? "page" : undefined}
-                    className="relative rounded-full px-3.5 py-2 text-sm font-semibold"
-                  >
-                    {active && (
-                      <motion.span
-                        layoutId="nav-active-pill"
-                        className="absolute inset-0 rounded-full bg-accent/10"
-                        transition={{ type: "spring", stiffness: 400, damping: 32 }}
-                      />
-                    )}
-                    <span
-                      className={cn(
-                        "relative z-10 transition-colors",
-                        active ? "text-accent" : "text-subtle hover:text-ink"
-                      )}
+              <LayoutGroup id="header-nav">
+                {navItems.map((item) => {
+                  const active =
+                    pathname === item.href || pathname.startsWith(item.href + "/");
+                  const pillHere = active || pending === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      prefetch
+                      onClick={() => setPending(item.href)}
+                      aria-current={active ? "page" : undefined}
+                      className="relative rounded-full px-3.5 py-2 text-sm font-semibold"
                     >
-                      {item.label}
-                    </span>
-                  </Link>
-                );
-              })}
+                      {pillHere && (
+                        <motion.span
+                          layoutId="nav-active-pill"
+                          className="absolute inset-0 rounded-full bg-accent/10"
+                          transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                        />
+                      )}
+                      <span
+                        className={cn(
+                          "relative z-10 transition-colors",
+                          active ? "text-accent" : "text-subtle hover:text-ink"
+                        )}
+                      >
+                        {item.label}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </LayoutGroup>
             </nav>
           </div>
 

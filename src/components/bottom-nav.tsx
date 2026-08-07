@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { motion, LayoutGroup } from "framer-motion";
 import { LayoutDashboard, BookOpen, FileText, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -16,24 +17,34 @@ const items = [
 export function BottomNav() {
   const pathname = usePathname();
 
+  // Pill optimist: la apăsare se mută imediat, înainte să se încarce pagina.
+  const [pending, setPending] = useState<string | null>(null);
+  useEffect(() => {
+    setPending(null);
+  }, [pathname]);
+
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 px-5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden">
       <nav
         aria-label="Navigare principală"
         className="mx-auto flex max-w-sm items-center justify-around gap-1 rounded-[2.2rem] border border-feather bg-card/70 px-3 py-2 shadow-lg shadow-black/5 backdrop-blur-xl"
       >
+        <LayoutGroup id="bottom-nav">
         {items.map((item) => {
           const active =
             pathname === item.href || pathname.startsWith(item.href + "/");
+          const pillHere = active || pending === item.href;
           return (
             <Link
               key={item.href}
               href={item.href}
+              prefetch
+              onClick={() => setPending(item.href)}
               aria-current={active ? "page" : undefined}
               className="flex flex-1 flex-col items-center gap-1 py-0.5"
             >
               <span className="relative flex h-8 w-14 items-center justify-center rounded-full">
-                {active && (
+                {pillHere && (
                   <motion.span
                     layoutId="bottom-nav-pill"
                     className="absolute inset-0 rounded-full bg-accent"
@@ -58,6 +69,7 @@ export function BottomNav() {
             </Link>
           );
         })}
+        </LayoutGroup>
       </nav>
     </div>
   );

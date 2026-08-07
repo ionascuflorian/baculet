@@ -113,7 +113,7 @@ export default async function LessonPage({
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="min-w-0">
             <MarkLessonComplete
               lessonId={lesson.id}
