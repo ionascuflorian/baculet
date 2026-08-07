@@ -85,6 +85,7 @@ export default async function AdminChapterDetailPage({
             <LessonForm
               chapterId={chapter.id}
               lessonId={null}
+              mathSubject={chapter.subject.name.toLowerCase().includes("matem")}
               initial={{
                 title: "",
                 slug: "",

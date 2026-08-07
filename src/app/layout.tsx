@@ -4,7 +4,11 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeStyles } from "@/components/themes/theme-styles";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import "@blocknote/core/style.css";
+import "@blocknote/mantine/style.css";
+import "@defensestation/blocknote-math/styles.css";
 import "./globals.css";
+import "katex/dist/katex.min.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

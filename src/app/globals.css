@@ -1153,3 +1153,118 @@ body {
 .prose-lesson td {
   @apply px-3 py-2 border border-feather;
 }
+
+/* ─── BlockNote LessonEditor (întotdeauna negru cu text alb, indiferent de temă) ─── */
+.lesson-editor .bn-root[data-color-scheme="dark"] {
+  --bn-colors-editor-background: #000;
+  --bn-colors-editor-text: #f5f5f5;
+  --bn-colors-menu-background: #0d0d0d;
+  --bn-colors-menu-text: #f5f5f5;
+  --bn-colors-tooltip-background: #161616;
+  --bn-colors-tooltip-text: #f5f5f5;
+  --bn-colors-hovered-background: #1a1a1a;
+  --bn-colors-hovered-text: #f5f5f5;
+  --bn-colors-selected-background: #2a2a2a;
+  --bn-colors-selected-text: #ffffff;
+  --bn-colors-disabled-background: #161616;
+  --bn-colors-shadow: #000;
+  --bn-colors-border: #262626;
+  --bn-colors-side-menu: #6b6b6b;
+}
+.lesson-editor .bn-editor {
+  @apply px-4 py-3 min-h-64;
+  color: #f5f5f5;
+}
+.lesson-editor .bn-editor ::selection {
+  background: rgba(255, 255, 255, 0.22);
+}
+.lesson-editor .bn-editor h1,
+.lesson-editor .bn-editor h2,
+.lesson-editor .bn-editor h3 {
+  @apply font-bold mt-4 mb-2;
+  color: #ffffff;
+}
+.lesson-editor .bn-editor h1 {
+  @apply text-2xl;
+}
+.lesson-editor .bn-editor h2 {
+  @apply text-xl;
+}
+.lesson-editor .bn-editor h3 {
+  @apply text-lg;
+}
+.lesson-editor .bn-editor p {
+  @apply my-2 leading-relaxed;
+  color: #f5f5f5;
+}
+.lesson-editor .bn-editor ul {
+  @apply list-disc pl-6 my-2 space-y-1;
+}
+.lesson-editor .bn-editor ol {
+  @apply list-decimal pl-6 my-2 space-y-1;
+}
+.lesson-editor .bn-editor a {
+  @apply underline;
+  color: #7cb3ff;
+}
+.lesson-editor .bn-editor code {
+  @apply rounded px-1.5 py-0.5 font-mono text-sm;
+  background: #1c1c1e;
+  color: #f5f5f5;
+}
+.lesson-editor .bn-editor pre {
+  @apply rounded-xl p-4 my-3 overflow-x-auto text-sm;
+  background: #0f0f0f;
+  color: #ffffff;
+}
+.lesson-editor .bn-editor table {
+  @apply w-full my-3 text-sm border-collapse;
+}
+.lesson-editor .bn-editor th {
+  @apply text-left font-semibold px-3 py-2 border;
+  background: #1a1a1a;
+  color: #ffffff;
+  border-color: #2e2e2e;
+}
+.lesson-editor .bn-editor td {
+  @apply px-3 py-2 border;
+  border-color: #2e2e2e;
+}
+.lesson-editor .bn-editor [data-content-type="quote"] blockquote {
+  border-left-color: #6b6b6b;
+  color: #c9c9c9;
+}
+.lesson-editor .bn-editor [data-content-type="divider"] hr {
+  border-top-color: #3a3a3a;
+}
+.lesson-editor .bn-latex {
+  @apply inline-block align-middle;
+  color: #f5f5f5;
+}
+.lesson-editor .bn-latex-display {
+  @apply my-3 flex justify-center;
+}
+.lesson-editor .bn-block-content[data-content-type="equation"] {
+  @apply my-3;
+}
+.lesson-editor .bn-block-content[data-content-type="equation"] .bn-latex-display {
+  @apply justify-center;
+}
+.lesson-editor .bn-inline-content[data-inline-content-type="latex"] {
+  @apply align-middle;
+}
+.lesson-editor .bn-side-menu {
+  color: #6b6b6b;
+}
+.lesson-editor .bn-toolbar,
+.lesson-editor .bn-slash-menu {
+  border-color: #262626;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+.lesson-editor .bn-color-picker-popover,
+.lesson-editor .bn-color-dropdown {
+  border-color: #262626;
+}
+.lesson-editor .bn-block-content[data-content-type="codeBlock"] {
+  color: #ffffff;
+}

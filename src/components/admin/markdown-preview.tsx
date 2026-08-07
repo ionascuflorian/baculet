@@ -1,6 +1,8 @@
 import { memo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
 
 export const MarkdownPreview = memo(function MarkdownPreview({
   markdown,
@@ -12,8 +14,13 @@ export const MarkdownPreview = memo(function MarkdownPreview({
       <p className="mb-3 text-xs font-bold uppercase tracking-wider text-subtle">
         Previizualizare
       </p>
-      <div className="prose prose-sm prose-neutral max-w-none">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{markdown}</ReactMarkdown>
+      <div className="prose-lesson">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm, remarkMath]}
+          rehypePlugins={[[rehypeKatex, { output: "html" }]]}
+        >
+          {markdown}
+        </ReactMarkdown>
       </div>
     </div>
   );
