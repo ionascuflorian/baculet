@@ -1,11 +1,19 @@
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
 import { paletteToCssVars, type Palette } from "@/components/themes/palette";
 
+const getEnabledThemes = unstable_cache(
+  async () =>
+    prisma.theme.findMany({
+      where: { enabled: true },
+      orderBy: { order: "asc" },
+    }),
+  ["enabled-themes"],
+  { revalidate: 3600, tags: ["themes"] }
+);
+
 export async function ThemeStyles() {
-  const themes = await prisma.theme.findMany({
-    where: { enabled: true },
-    orderBy: { order: "asc" },
-  });
+  const themes = await getEnabledThemes();
 
   const css = themes
     .map((theme) => {

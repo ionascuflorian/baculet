@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { cookies } from "next/headers";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeStyles } from "@/components/themes/theme-styles";
-import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { AppSplash } from "@/components/app-splash";
+import { ThemeSync } from "@/components/theme-sync";
 import "@blocknote/core/style.css";
 import "@blocknote/mantine/style.css";
 import "@defensestation/blocknote-math/styles.css";
@@ -19,6 +20,8 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+const THEME_SLUG = /^[a-z0-9-]+$/;
 
 export const metadata: Metadata = {
   title: {
@@ -43,14 +46,8 @@ export default async function RootLayout({
 }>) {
   let themeSlug = "default";
   try {
-    const session = await auth();
-    if (session?.user?.id) {
-      const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { themeSlug: true },
-      });
-      themeSlug = user?.themeSlug ?? "default";
-    }
+    const value = (await cookies()).get("baculet-theme")?.value;
+    if (value && THEME_SLUG.test(value)) themeSlug = value;
   } catch {
     themeSlug = "default";
   }
@@ -66,6 +63,8 @@ export default async function RootLayout({
         <ThemeStyles />
       </head>
       <body className="min-h-full">
+        <AppSplash />
+        <ThemeSync />
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>

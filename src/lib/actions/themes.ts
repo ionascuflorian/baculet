@@ -1,9 +1,12 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { cookies } from "next/headers";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+
+const THEME_COOKIE = "baculet-theme";
 
 async function requireAdmin() {
   const session = await auth();
@@ -78,6 +81,7 @@ export async function saveTheme(
 
     revalidatePath("/admin/teme");
     revalidatePath("/cont");
+    revalidateTag("themes", "max");
     return { id: theme.id };
   } catch (err) {
     console.error("saveTheme failed:", err);
@@ -90,6 +94,7 @@ export async function deleteTheme(id: string) {
   await prisma.theme.delete({ where: { id } });
   revalidatePath("/admin/teme");
   revalidatePath("/cont");
+  revalidateTag("themes", "max");
 }
 
 export async function setThemeEnabled(id: string, enabled: boolean) {
@@ -97,6 +102,7 @@ export async function setThemeEnabled(id: string, enabled: boolean) {
   await prisma.theme.update({ where: { id }, data: { enabled } });
   revalidatePath("/admin/teme");
   revalidatePath("/cont");
+  revalidateTag("themes", "max");
 }
 
 export async function setUserTheme(slug: string | null) {
@@ -110,5 +116,49 @@ export async function setUserTheme(slug: string | null) {
   }
 
   await prisma.user.update({ where: { id: userId }, data: { themeSlug: slug } });
+
+  const cookieStore = await cookies();
+  if (slug) {
+    cookieStore.set(THEME_COOKIE, slug, {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: "lax",
+    });
+  } else {
+    cookieStore.delete(THEME_COOKIE);
+  }
+
   revalidatePath("/cont");
+}
+
+export async function syncUserThemeCookie(): Promise<string> {
+  const cookieStore = await cookies();
+  const cookieValue = cookieStore.get(THEME_COOKIE)?.value;
+
+  if (cookieValue && /^[a-z0-9-]+$/.test(cookieValue)) {
+    return cookieValue;
+  }
+
+  let slug = "default";
+  try {
+    const session = await auth();
+    if (session?.user?.id) {
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { themeSlug: true },
+      });
+      slug = user?.themeSlug ?? "default";
+      if (slug && slug !== "default") {
+        cookieStore.set(THEME_COOKIE, slug, {
+          path: "/",
+          maxAge: 60 * 60 * 24 * 365,
+          sameSite: "lax",
+        });
+      }
+    }
+  } catch {
+    slug = "default";
+  }
+
+  return slug;
 }
