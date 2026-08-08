@@ -17,7 +17,8 @@ export async function searchUsers(query: string): Promise<FriendUser[]> {
   const session = await auth();
   if (!session?.user?.id) return [];
 
-  const q = query.trim();
+  // Acceptăm și "@username" — pragul "@" se elimină înainte de căutare.
+  const q = query.trim().replace(/^@+/, "");
   if (q.length < 2) return [];
 
   const users = await prisma.user.findMany({

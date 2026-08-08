@@ -47,26 +47,35 @@ export function FriendsPanel({
   const following = friends.filter((f) => f.following);
   const followers = friends.filter((f) => f.followedBy && !f.following);
 
-  const patch = (id: string, partial: Partial<FriendUser>) => {
-    setFriends((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, ...partial } : f))
-    );
-  };
-
   const toggle = async (user: FriendUser) => {
     setBusyId(user.id);
+    const syncResults = (following: boolean) =>
+      setResults((prev) =>
+        prev
+          ? prev.map((r) =>
+              r.id === user.id ? { ...r, following } : r
+            )
+          : prev
+      );
     if (user.following) {
       await unfollowUser(user.id);
-      patch(user.id, { following: false });
-      setResults((prev) =>
-        prev ? prev.map((r) => (r.id === user.id ? { ...r, following: false } : r)) : prev
+      setFriends((prev) =>
+        prev.map((f) =>
+          f.id === user.id ? { ...f, following: false } : f
+        )
       );
+      syncResults(false);
     } else {
       await followUser(user.id);
-      patch(user.id, { following: true });
-      setResults((prev) =>
-        prev ? prev.map((r) => (r.id === user.id ? { ...r, following: true } : r)) : prev
-      );
+      setFriends((prev) => {
+        const exists = prev.some((f) => f.id === user.id);
+        if (exists)
+          return prev.map((f) =>
+            f.id === user.id ? { ...f, following: true } : f
+          );
+        return [...prev, { ...user, following: true }];
+      });
+      syncResults(true);
     }
     setBusyId(null);
   };

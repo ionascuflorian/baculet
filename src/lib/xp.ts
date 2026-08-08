@@ -116,6 +116,8 @@ export async function getLeaderboard(opts: {
   limit?: number;
 }): Promise<BoardRow[]> {
   const { weekStart, friendIds, limit = 100 } = opts;
+  // Fără prieteni nu există clasament de prieteni — nu returna lista globală.
+  if (friendIds && friendIds.length === 0) return [];
   const rows = await prisma.$queryRaw<BoardRow[]>`
     SELECT t.id, t.name, t.username, t.image, t.xp
     FROM ${xpSelectSql(weekStart)} t
