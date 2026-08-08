@@ -7,6 +7,7 @@ import { saveExam } from "@/lib/actions/admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/toast";
 
 export interface ExamFormValues {
   year: number;
@@ -42,6 +43,7 @@ export function ExamForm({
   initial: ExamFormValues;
 }) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [state, action, pending] = useActionState(
     async (_prev: { error: string }, formData: FormData) => {
       const res = await saveExam(examId, {
@@ -55,6 +57,7 @@ export function ExamForm({
         order: Number(formData.get("order") ?? 0),
       });
       if (!res?.id) return { error: "Eroare la salvare" };
+      showToast(examId ? "Subiectul a fost salvat." : "Subiectul a fost adăugat.");
       router.push("/admin/subiecte");
       return { error: "" };
     },

@@ -7,6 +7,7 @@ import { saveBacSchedule } from "@/lib/actions/settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/toast";
 import type { BacExamEvent } from "@/lib/site-settings";
 
 export interface BacScheduleFormValues {
@@ -23,6 +24,7 @@ export function BacScheduleForm({
   initial: BacScheduleFormValues;
 }) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [rows, setRows] = useState<BacExamEvent[]>(
     initial.events.length
       ? initial.events
@@ -46,6 +48,7 @@ export function BacScheduleForm({
         events,
       });
       if (!res.ok) return { error: res.error ?? "Eroare la salvare" };
+      showToast("Orarul BAC a fost salvat.");
       router.refresh();
       return { error: "" };
     },

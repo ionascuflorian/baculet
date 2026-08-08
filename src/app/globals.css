@@ -84,7 +84,10 @@
 
 body {
   background: var(--background);
-  color: var(--foreground);
+  /* --ink ("Text principal") e culoarea canonică a textului; --foreground ("Text")
+     poate fi aleasă greșit de teme (închisă pe fundal închis) și e moștenită
+     de tabele/liste/etc. → text negru invizibil. Folosim --ink ca bază. */
+  color: var(--ink);
   font-family:
     var(--font-sans),
     -apple-system,

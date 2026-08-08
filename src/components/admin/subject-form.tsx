@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/toast";
 
 export interface SubjectFormValues {
   name: string;
@@ -27,6 +28,7 @@ export function SubjectForm({
   initial: SubjectFormValues;
 }) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [state, action, pending] = useActionState(
     async (_prev: { error: string }, formData: FormData) => {
       const res = await saveSubject(subjectId, {
@@ -42,8 +44,10 @@ export function SubjectForm({
           | "TECH"
         )[],
       });
+      if (!res?.id) return { error: "Eroare la salvare" };
+      showToast(subjectId ? "Materia a fost salvată." : "Materia a fost adăugată.");
       router.push("/admin/materii");
-      return { error: res ? "" : "Eroare" };
+      return { error: "" };
     },
     { error: "" }
   );

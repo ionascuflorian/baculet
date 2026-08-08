@@ -15,6 +15,7 @@ import { ThemePreview } from "@/components/themes/theme-preview";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
 export type ThemeFormValues = {
@@ -35,6 +36,7 @@ export function ThemeForm({
   initial: ThemeFormValues;
 }) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [name, setName] = useState(initial.name);
   const [slug, setSlug] = useState(initial.slug);
   const [description, setDescription] = useState(initial.description);
@@ -83,6 +85,7 @@ export function ThemeForm({
         dark,
       });
       if (res.error) return { error: res.error };
+      showToast(themeId ? "Tema a fost salvată." : "Tema a fost adăugată.");
       router.push("/admin/teme");
       router.refresh();
       return { error: "" };

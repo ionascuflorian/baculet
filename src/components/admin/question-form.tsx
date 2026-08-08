@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/toast";
 
 export interface QuestionFormValues {
   text: string;
@@ -27,6 +28,7 @@ export function QuestionForm({
   initial: QuestionFormValues;
 }) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [state, action, pending] = useActionState(
     async (_prev: { error: string }, formData: FormData) => {
       const options = [];
@@ -44,6 +46,7 @@ export function QuestionForm({
         order: Number(formData.get("order") ?? 0),
       });
       if (!res?.id) return { error: "Eroare la salvare" };
+      showToast(questionId ? "Întrebarea a fost salvată." : "Întrebarea a fost adăugată.");
       router.push(`/admin/teste/${quizId}`);
       return { error: "" };
     },

@@ -5,6 +5,10 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import {
+  defaultDarkPalette,
+  defaultPalette,
+} from "@/components/themes/palette";
 
 const THEME_COOKIE = "baculet-theme";
 
@@ -71,8 +75,10 @@ export async function saveTheme(
       description: data.description,
       enabled: data.enabled,
       order: data.order,
-      light: data.light,
-      dark: data.dark,
+      // Compleți cheile lipsă din paletă cu default-urile ca nicio variabilă
+      // de culoare să nu rămână nedefinită (ex. onAccent lipsă → text alb)
+      light: { ...defaultPalette(), ...data.light },
+      dark: { ...defaultDarkPalette(), ...data.dark },
     };
 
     const theme = id

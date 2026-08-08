@@ -7,6 +7,7 @@ import { saveLesson } from "@/lib/actions/admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/toast";
 import { LessonEditor } from "@/components/admin/lesson-editor";
 import { MarkdownPreview } from "@/components/admin/markdown-preview";
 
@@ -31,6 +32,7 @@ export function LessonForm({
   mathSubject?: boolean;
 }) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [content, setContent] = useState(initial.content);
   const [tab, setTab] = useState<"edit" | "preview">("edit");
   const [state, action, pending] = useActionState(
@@ -45,6 +47,7 @@ export function LessonForm({
         order: Number(formData.get("order") ?? 0),
       });
       if (!res?.id) return { error: "Eroare la salvare" };
+      showToast(lessonId ? "Lecția a fost salvată." : "Lecția a fost adăugată.");
       router.push(`/admin/capitole/${chapterId}`);
       return { error: "" };
     },

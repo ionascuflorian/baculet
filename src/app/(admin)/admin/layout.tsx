@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { AdminSidebar } from "@/components/admin-sidebar";
+import { ToastProvider } from "@/components/ui/toast";
 
 export default async function AdminLayout({
   children,
@@ -13,9 +14,11 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <AdminSidebar />
-      <main className="min-w-0 flex-1 px-4 py-6 sm:px-8">{children}</main>
-    </div>
+    <ToastProvider>
+      <div className="flex min-h-screen bg-background">
+        <AdminSidebar />
+        <main className="min-w-0 flex-1 px-4 py-6 sm:px-8">{children}</main>
+      </div>
+    </ToastProvider>
   );
 }
