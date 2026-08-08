@@ -9,6 +9,7 @@ import { EmailForm } from "@/components/account/email-form";
 import { PasswordForm } from "@/components/account/password-form";
 import { DeleteAccount } from "@/components/account/delete-account";
 import { ProfileSettings } from "@/components/account/profile-settings";
+import { UsernameForm } from "@/components/account/username-form";
 import { ThemePicker } from "@/components/themes/theme-picker";
 import { APP_VERSION } from "@/lib/version";
 
@@ -26,6 +27,7 @@ interface AccountSettingsProps {
   email: string;
   needsCurrentPassword: boolean;
   studyProfile: string | null;
+  username: string | null;
   themes: {
     slug: string;
     name: string;
@@ -41,6 +43,7 @@ export function AccountSettings({
   email,
   needsCurrentPassword,
   studyProfile,
+  username,
   themes,
   currentTheme,
 }: AccountSettingsProps) {
@@ -82,6 +85,15 @@ export function AccountSettings({
 
       {tab === "cont" && (
         <div className="animate-slide-up space-y-6">
+          <Card>
+            <CardContent className="p-5">
+              <h2 className="mb-4 text-lg font-extrabold text-ink">
+                Nume de utilizator
+              </h2>
+              <UsernameForm current={username} />
+            </CardContent>
+          </Card>
+
           <Card>
             <CardContent className="p-5">
               <h2 className="mb-4 text-lg font-extrabold text-ink">Profil</h2>

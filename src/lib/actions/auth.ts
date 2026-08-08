@@ -7,6 +7,7 @@ import { z } from "zod";
 import { signIn, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { sendOtpEmail } from "@/lib/mail";
+import { buildUsername, uniqueUsername } from "@/lib/username";
 
 export type AuthState = { error?: string };
 
@@ -68,10 +69,12 @@ export async function register(
   }
 
   const passwordHash = await bcrypt.hash(parsed.data.password, 10);
+  const { username: base } = buildUsername(parsed.data.name, parsed.data.email);
   await prisma.user.create({
     data: {
       email,
       name: parsed.data.name.trim(),
+      username: await uniqueUsername(base),
       passwordHash,
     },
   });

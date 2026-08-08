@@ -12,6 +12,7 @@ import { ResumeWidget } from "@/components/dashboard/widget-resume";
 import { PomodoroWidget } from "@/components/dashboard/widget-pomodoro";
 import { TodoWidget } from "@/components/dashboard/widget-todo";
 import { StreakWidget } from "@/components/dashboard/widget-streaks";
+import { LeaderboardWidget } from "@/components/dashboard/widget-leaderboard";
 import { WidgetSettings } from "@/components/dashboard/widget-settings";
 import { DashboardGrid } from "@/components/dashboard/dashboard-grid";
 import { syncCalendarEvents } from "@/lib/calendar-sync";
@@ -214,6 +215,11 @@ export default async function DashboardPage() {
                     today={startOfDay(new Date()).toISOString()}
                   />
                 ),
+              };
+            case "leaderboard":
+              return {
+                id,
+                node: <LeaderboardWidget userId={userId} />,
               };
             default:
               return [];

@@ -4,13 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion, LayoutGroup } from "framer-motion";
-import { LayoutDashboard, BookOpen, FileText, TrendingUp } from "lucide-react";
+import { LayoutDashboard, BookOpen, FileText, TrendingUp, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/materii", label: "Materii", icon: BookOpen },
   { href: "/subiecte-bac", label: "Subiecte", icon: FileText },
+  { href: "/clasament", label: "Clasament", icon: Trophy },
   { href: "/progres", label: "Progres", icon: TrendingUp },
 ];
 

@@ -8,6 +8,7 @@ import {
   otpVerifyRateLimit,
   otpVerifyRateLimitSuccess,
 } from "@/lib/otp-rate-limit";
+import { buildUsername, uniqueUsername } from "@/lib/username";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -92,12 +93,14 @@ export const authConfig = {
         let user = await prisma.user.findUnique({ where: { email } });
         if (!user) {
           try {
+            const otpName =
+              email.split("@")[0].replace(/[._\-+]+/g, " ").trim() || "Elev";
+            const { username: base } = buildUsername(otpName, email);
             user = await prisma.user.create({
               data: {
                 email,
-                name:
-                  email.split("@")[0].replace(/[._\-+]+/g, " ").trim() ||
-                  "Elev",
+                name: otpName,
+                username: await uniqueUsername(base),
                 passwordHash: crypto.randomUUID(),
                 emailVerified: new Date(),
               },
@@ -139,10 +142,13 @@ export const authConfig = {
             });
           }
         } else {
+          const googleName = user.name ?? email.split("@")[0];
+          const { username: base } = buildUsername(googleName, email);
           await prisma.user.create({
             data: {
               email,
-              name: user.name ?? email.split("@")[0],
+              name: googleName,
+              username: await uniqueUsername(base),
               image: user.image ?? null,
               passwordHash: crypto.randomUUID(),
               emailVerified: new Date(),

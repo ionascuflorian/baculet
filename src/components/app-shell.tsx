@@ -26,6 +26,8 @@ const navItems = [
   { href: "/materii", label: "Materii" },
   { href: "/subiecte-bac", label: "Subiecte BAC" },
   { href: "/progres", label: "Progres" },
+  { href: "/prieteni", label: "Prieteni" },
+  { href: "/clasament", label: "Clasament" },
 ];
 
 interface AppShellProps {

@@ -27,6 +27,7 @@ enum ExamSession {
 model User {
   id            String   @id @default(cuid())
   email         String   @unique
+  username      String?  @unique
   passwordHash  String
   name          String
   image         String?
@@ -49,6 +50,22 @@ model User {
   quizzes           Quiz[]
   todoItems         TodoItem[]
   studyActivities   StudyActivity[]
+  following         Follow[] @relation("Follower")
+  followers         Follow[] @relation("Following")
+}
+
+// Urmărire unidirecțională: `follower` urmărește `following`.
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
 }
 
 model Theme {
@@ -160,6 +177,7 @@ model LessonProgress {
   lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
 
   @@unique([userId, lessonId])
+  @@index([completedAt])
 }
 
 model Quiz {
@@ -213,6 +231,7 @@ model QuizAttempt {
 
   @@index([userId, createdAt])
   @@index([quizId])
+  @@index([createdAt])
 }
 
 model OfficialExam {

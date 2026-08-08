@@ -7,6 +7,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { hasPassword } from "@/lib/user";
+import { RESERVED_USERNAMES } from "@/lib/username";
 
 async function requireUser() {
   const session = await auth();
@@ -60,6 +61,48 @@ export async function updateProfile(
   } catch (err) {
     console.error("updateProfile failed:", err);
     return { error: "A apărut o problemă la salvarea pozei. Încearcă din nou." };
+  }
+}
+
+const USERNAME_PATTERN = /^[a-z0-9]([a-z0-9._-]{1,18}[a-z0-9])?$/;
+
+export async function updateUsername(
+  _prev: ProfileState,
+  formData: FormData
+): Promise<ProfileState> {
+  try {
+    const user = await requireUser();
+    const raw = String(formData.get("username") ?? "").toLowerCase().trim();
+
+    if (!USERNAME_PATTERN.test(raw) || raw.length < 2) {
+      return {
+        error:
+          "Numele de utilizator trebuie să aibă 2–20 de caractere: litere mici, cifre, punct, liniuță sau underscore.",
+      };
+    }
+    if (RESERVED_USERNAMES.has(raw)) {
+      return { error: "Acest nume de utilizator este rezervat." };
+    }
+
+    const taken = await prisma.user.findFirst({
+      where: { username: raw, id: { not: user.id } },
+      select: { id: true },
+    });
+    if (taken) {
+      return { error: "Acest nume de utilizator este deja folosit." };
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { username: raw },
+    });
+
+    revalidatePath("/cont");
+    revalidatePath("/u", "layout");
+    return { ok: true };
+  } catch (err) {
+    console.error("updateUsername failed:", err);
+    return { error: "A apărut o problemă. Încearcă din nou." };
   }
 }
 

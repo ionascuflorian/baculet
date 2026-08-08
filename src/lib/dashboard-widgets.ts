@@ -6,7 +6,8 @@ export type WidgetId =
   | "resume"
   | "pomodoro"
   | "todo"
-  | "streaks";
+  | "streaks"
+  | "leaderboard";
 
 export interface WidgetMeta {
   id: WidgetId;
@@ -61,7 +62,13 @@ export const WIDGETS: WidgetMeta[] = [
   {
     id: "streaks",
     label: "Seria de studiu",
-    description: "Heatmap cu zilele în care ai învățat și motivație pentru a nu pierde seria.",
+    description: "Heatmap cu zilele Arn care ai Arnv��E>at ETi motivaE>ie pentru a nu pierde seria.",
+    defaultVisible: true,
+  },
+  {
+    id: "leaderboard",
+    label: "Clasament",
+    description: "Top 3 prieteni dup�� XP ETi totalul t��u de puncte.",
     defaultVisible: true,
   },
 ];
@@ -81,6 +88,7 @@ export const WIDGET_WEIGHT: Record<WidgetId, number> = {
   pomodoro: 2.6,
   todo: 2.4,
   streaks: 3,
+  leaderboard: 2.8,
 };
 
 export interface DashboardPrefs {

@@ -18,6 +18,7 @@ export default async function AccountPage({
     select: {
       name: true,
       email: true,
+      username: true,
       image: true,
       streakCount: true,
       role: true,
@@ -79,6 +80,7 @@ export default async function AccountPage({
         email={user.email}
         needsCurrentPassword={hasPassword(user.passwordHash)}
         studyProfile={user.profile}
+        username={user.username}
         themes={themes.map((t) => ({
           slug: t.slug,
           name: t.name,
