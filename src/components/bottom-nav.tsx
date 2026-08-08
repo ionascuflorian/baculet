@@ -4,13 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion, LayoutGroup } from "framer-motion";
-import { LayoutDashboard, BookOpen, FileText, TrendingUp, Trophy } from "lucide-react";
+import { LayoutDashboard, BookOpen, FileText, TrendingUp, Trophy, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/materii", label: "Materii", icon: BookOpen },
   { href: "/subiecte-bac", label: "Subiecte", icon: FileText },
+  { href: "/prieteni", label: "Prieteni", icon: Users },
   { href: "/clasament", label: "Clasament", icon: Trophy },
   { href: "/progres", label: "Progres", icon: TrendingUp },
 ];
@@ -44,7 +45,7 @@ export function BottomNav() {
               aria-current={active ? "page" : undefined}
               className="flex flex-1 flex-col items-center gap-1 py-0.5"
             >
-              <span className="relative flex h-8 w-14 items-center justify-center rounded-full">
+              <span className="relative flex h-8 w-12 items-center justify-center rounded-full">
                 {pillHere && (
                   <motion.span
                     layoutId="bottom-nav-pill"
