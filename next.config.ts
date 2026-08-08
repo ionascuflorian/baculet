@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
+import pkg from "./package.json";
 
 const nextConfig: NextConfig = {
+  env: {
+    // Versiunea afișată pe site (footer + Cont) urmează automat package.json.
+    NEXT_PUBLIC_APP_VERSION: pkg.version,
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: "5mb",
