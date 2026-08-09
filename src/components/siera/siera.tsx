@@ -761,7 +761,7 @@ export function Siera() {
             onClick={() => setOpen((v) => !v)}
             title={open ? "Închide Siera" : "Deschide Siera"}
             aria-label={open ? "Închide Siera" : "Deschide Siera"}
-            className="fixed bottom-24 right-4 z-[70] md:bottom-6 md:right-6"
+            className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-4 z-[70] md:bottom-6 md:right-6"
           >
             <div className="h-20 w-20">
               <SieraOrb mood={mood} gaze={gaze} className="h-full w-full" />

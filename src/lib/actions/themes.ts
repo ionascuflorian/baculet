@@ -150,11 +150,6 @@ export async function setUserTheme(slug: string | null) {
 
 export async function syncUserThemeCookie(): Promise<string> {
   const cookieStore = await cookies();
-  const cookieValue = cookieStore.get(THEME_COOKIE)?.value;
-
-  if (cookieValue && /^[a-z0-9-]+$/.test(cookieValue)) {
-    return cookieValue;
-  }
 
   let slug = "default";
   try {
@@ -165,16 +160,22 @@ export async function syncUserThemeCookie(): Promise<string> {
         select: { themeSlug: true },
       });
       slug = user?.themeSlug ?? "default";
-      if (slug && slug !== "default") {
-        cookieStore.set(THEME_COOKIE, slug, {
-          path: "/",
-          maxAge: 60 * 60 * 24 * 365,
-          sameSite: "lax",
-        });
-      }
     }
   } catch {
     slug = "default";
+  }
+
+  const cookieValue = cookieStore.get(THEME_COOKIE)?.value;
+  if (cookieValue !== slug) {
+    if (slug && slug !== "default") {
+      cookieStore.set(THEME_COOKIE, slug, {
+        path: "/",
+        maxAge: 60 * 60 * 24 * 365,
+        sameSite: "lax",
+      });
+    } else {
+      cookieStore.delete(THEME_COOKIE);
+    }
   }
 
   return slug;

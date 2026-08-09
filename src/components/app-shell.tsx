@@ -169,6 +169,7 @@ export function AppShell({
         showSpinner={false}
         shadow={false}
       />
+      <style>{`.app-shell #nprogress .bar{top:calc(4rem + env(safe-area-inset-top))}`}</style>
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-32 pt-6 md:pb-12">
         {children}
