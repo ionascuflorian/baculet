@@ -57,6 +57,7 @@ export async function updateProfile(
     });
 
     revalidatePath("/cont");
+    revalidatePath("/onboarding");
     return { ok: true };
   } catch (err) {
     console.error("updateProfile failed:", err);
@@ -99,6 +100,7 @@ export async function updateUsername(
 
     revalidatePath("/cont");
     revalidatePath("/u", "layout");
+    revalidatePath("/onboarding");
     return { ok: true };
   } catch (err) {
     console.error("updateUsername failed:", err);

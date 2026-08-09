@@ -194,7 +194,7 @@ export function DemoQuiz() {
               >
                 {LETTERS[i]}
               </span>
-              <span className="font-semibold text-ink">{option}</span>
+              <span className="min-w-0 font-semibold text-ink">{option}</span>
               {locked && isCorrect && (
                 <CheckCircle2 className="ml-auto h-5 w-5 shrink-0 text-success" />
               )}

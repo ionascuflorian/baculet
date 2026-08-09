@@ -7,6 +7,7 @@ const registerSchema = z.object({
   name: z.string().min(2).max(80),
   email: z.string().email(),
   password: z.string().min(6).max(100),
+  termsAccepted: z.boolean(),
 });
 
 export async function POST(request: NextRequest) {
@@ -17,7 +18,19 @@ export async function POST(request: NextRequest) {
 
   const parsed = registerSchema.safeParse(body);
   if (!parsed.success) {
+    if ("termsAccepted" in body && !body.termsAccepted) {
+      return NextResponse.json(
+        { error: "Trebuie să accepți Termenii și Condițiile." },
+        { status: 400 }
+      );
+    }
     return NextResponse.json({ error: "Date invalide." }, { status: 400 });
+  }
+  if (!parsed.data.termsAccepted) {
+    return NextResponse.json(
+      { error: "Trebuie să accepți Termenii și Condițiile." },
+      { status: 400 }
+    );
   }
 
   const email = parsed.data.email.toLowerCase();
@@ -37,6 +50,7 @@ export async function POST(request: NextRequest) {
         email,
         name: parsed.data.name.trim(),
         passwordHash,
+        termsAcceptedAt: new Date(),
       },
     });
 

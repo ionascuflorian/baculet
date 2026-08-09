@@ -19,6 +19,7 @@ const registerSchema = z.object({
   name: z.string().min(2).max(80),
   email: z.string().email(),
   password: z.string().min(6).max(100),
+  terms: z.literal("on"),
 });
 
 export async function login(
@@ -57,9 +58,13 @@ export async function register(
   const name = String(formData.get("name") ?? "");
   const email = String(formData.get("email") ?? "").toLowerCase();
   const password = String(formData.get("password") ?? "");
+  const terms = String(formData.get("terms") ?? "");
 
-  const parsed = registerSchema.safeParse({ name, email, password });
+  const parsed = registerSchema.safeParse({ name, email, password, terms });
   if (!parsed.success) {
+    if (parsed.error.issues.some((i) => i.path[0] === "terms")) {
+      return { error: "Trebuie să accepți Termenii și Condițiile." };
+    }
     return { error: "Verifică datele introduse (parolă minim 6 caractere)." };
   }
 
@@ -76,6 +81,7 @@ export async function register(
       name: parsed.data.name.trim(),
       username: await uniqueUsername(base),
       passwordHash,
+      termsAcceptedAt: new Date(),
     },
   });
 

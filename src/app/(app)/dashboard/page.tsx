@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -19,7 +20,7 @@ import { syncCalendarEvents } from "@/lib/calendar-sync";
 import { getBacSchedule } from "@/lib/site-settings";
 import { getStudyActivities } from "@/lib/study-activity";
 import { startOfDay } from "@/lib/streak";
-import { ProfileOnboarding } from "@/components/profile/profile-onboarding";
+import { ProfilePrompt } from "@/components/profile/profile-prompt";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -36,6 +37,7 @@ export default async function DashboardPage() {
           lastActiveAt: true,
           weatherLocation: true,
           profile: true,
+          onboardingDone: true,
         },
       }),
       prisma.subject.findMany({
@@ -121,6 +123,8 @@ export default async function DashboardPage() {
 
   const bacSchedule = await getBacSchedule();
 
+  if (!user?.onboardingDone) redirect("/onboarding");
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
@@ -135,7 +139,7 @@ export default async function DashboardPage() {
         <WidgetSettings prefs={prefs} />
       </div>
 
-      <ProfileOnboarding open={!user?.profile} />
+      <ProfilePrompt profileSet={!!user?.profile} />
 
       <DashboardGrid prefs={prefs}>
         {visible.flatMap((id) => {

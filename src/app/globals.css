@@ -108,6 +108,10 @@ body {
   html {
     -webkit-tap-highlight-color: transparent;
   }
+  html,
+  body {
+    overflow-x: clip;
+  }
   button {
     cursor: pointer;
   }

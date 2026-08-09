@@ -29,7 +29,10 @@ export function DemoSection({
   glow = "brand",
 }: DemoSectionProps) {
   return (
-    <section id={id} className="relative py-16 sm:py-24">
+    <section
+      id={id}
+      className="relative overflow-x-clip py-16 sm:py-24"
+    >
       <div
         aria-hidden
         className={cn(

@@ -68,6 +68,26 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
           />
         </div>
 
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-feather bg-card p-3.5 transition-colors hover:border-accent/40">
+          <input
+            type="checkbox"
+            name="terms"
+            className="mt-0.5 h-4 w-4 shrink-0 accent-[--accent]"
+            required
+          />
+          <span className="text-sm leading-relaxed text-subtle">
+            Am citit și sunt de acord cu{" "}
+            <Link
+              href="/termeni"
+              target="_blank"
+              className="font-bold text-accent hover:underline"
+            >
+              Termenii și Condițiile
+            </Link>
+            .
+          </span>
+        </label>
+
         {state.error && (
           <p className="animate-pop-in rounded-xl bg-danger/10 px-4 py-2.5 text-sm font-semibold text-danger">
             {state.error}

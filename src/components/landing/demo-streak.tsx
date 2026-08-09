@@ -35,7 +35,7 @@ export function DemoStreak() {
 
   return (
     <div className="surface mx-auto w-full max-w-xl space-y-5 rounded-[2rem] p-6 sm:p-8">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-4">
           <motion.div
             animate={{ scale: [1, 1.08, 1], rotate: [0, -3, 3, 0] }}
@@ -95,7 +95,7 @@ export function DemoStreak() {
         </div>
       </div>
 
-      <div className="flex items-center justify-between rounded-2xl border border-accent/25 bg-accent/[0.06] px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-accent/25 bg-accent/[0.06] px-4 py-3">
         <span className="flex items-center gap-2 text-sm font-bold text-ink">
           <Timer className="h-4 w-4 text-accent" />
           Timp rămas până la resetarea zilei

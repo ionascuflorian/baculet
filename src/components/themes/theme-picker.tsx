@@ -17,9 +17,11 @@ type ThemeOption = {
 export function ThemePicker({
   themes,
   current,
+  onSelected,
 }: {
   themes: ThemeOption[];
   current: string | null;
+  onSelected?: (slug: string | null) => void;
 }) {
   const router = useRouter();
   const [applied, setApplied] = useState(current);
@@ -33,6 +35,7 @@ export function ThemePicker({
     if (pending) return;
     applyOnDocument(slug);
     setApplied(slug);
+    onSelected?.(slug);
     startTransition(async () => {
       try {
         await setUserTheme(slug);

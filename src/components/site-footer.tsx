@@ -24,6 +24,7 @@ const SOCIAL_LINKS: { href: string; label: string; icon: LucideIcon }[] = [
 const PAGE_LINKS = [
   { href: "/contact", label: "Contact" },
   { href: "/privacy", label: "Confidențialitate" },
+  { href: "/termeni", label: "Termeni și Condiții" },
   { href: "/feedback", label: "Feedback" },
   { href: "/help", label: "Ajutor" },
 ];
