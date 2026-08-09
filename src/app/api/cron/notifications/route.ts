@@ -10,7 +10,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const WARNING_WINDOW_MS = 6 * 3600_000; // cu 6h înainte de termen
+const WARNING_WINDOW_MS = 24 * 3600_000; // cu o zi înainte de termen
 
 function isAuthorized(req: Request): boolean {
   const expected = process.env.CRON_SECRET;
@@ -86,12 +86,15 @@ export async function GET(req: Request) {
       }
     }
 
-    // --- Amintire zilnică: ora setată, fără activitate azi ---
+    // --- Amintire zilnică: ora setată (sau cu până la 3h după, ca să
+    // acopere abaterea de ±59 min a cron-ului pe planul Hobby, unde o
+    // singură rulare pe zi poate „prinde" mai multe ore alese) ---
     if (user.reminderHour != null) {
       const todayStart = localStartOfTodayUtc(tz, now);
       const activeToday = !!user.lastActiveAt && user.lastActiveAt >= todayStart;
       const alreadySent = !!user.reminderSentOn && user.reminderSentOn >= todayStart;
-      if (localHour(tz, now) === user.reminderHour && !activeToday && !alreadySent) {
+      const localH = localHour(tz, now);
+      if (localH >= user.reminderHour && localH < user.reminderHour + 3 && !activeToday && !alreadySent) {
         await notifyUser(user.id, "reminder", {
           title: "Hai să înveți azi!",
           body:
