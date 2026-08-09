@@ -2,6 +2,7 @@
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { notifyUser } from "@/lib/notify";
 
 export interface FriendUser {
   id: string;
@@ -75,9 +76,35 @@ export async function followUser(targetId: string): Promise<{ ok: boolean }> {
     await prisma.follow.create({
       data: { followerId: session.user.id, followingId: targetId },
     });
+    // Notificare instant către cel urmărit (fire-and-forget, respectă
+    // preferințele lui din setări).
+    notifyFollow(session.user.id, targetId);
     return { ok: true };
   } catch {
     return { ok: false };
+  }
+}
+
+async function notifyFollow(followerId: string, targetId: string) {
+  try {
+    const [follower, target] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: followerId },
+        select: { name: true, username: true },
+      }),
+      prisma.user.findUnique({
+        where: { id: targetId },
+        select: { followNotifs: true, emailNotifs: true, streakNotifs: true, reminderHour: true, email: true, name: true },
+      }),
+    ]);
+    if (!follower || !target || !target.followNotifs) return;
+    await notifyUser(targetId, "follow", {
+      title: "Ai un urmăritor nou!",
+      body: `${follower.name} a început să te urmărească.`,
+      url: "/prieteni",
+    });
+  } catch (err) {
+    console.error("notifyFollow failed:", err);
   }
 }
 

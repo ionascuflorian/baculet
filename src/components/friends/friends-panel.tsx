@@ -45,7 +45,9 @@ export function FriendsPanel({
   }, [query]);
 
   const following = friends.filter((f) => f.following);
-  const followers = friends.filter((f) => f.followedBy && !f.following);
+  // Toți cei care te urmăresc (inclusiv urmărirea reciprocă) — înainte,
+  // `&& !f.following` îi ascundea pe prietenii reciproci din „Te urmăresc".
+  const followers = friends.filter((f) => f.followedBy);
 
   const toggle = async (user: FriendUser) => {
     setBusyId(user.id);

@@ -8,6 +8,7 @@ const EMAILJS_PUBLIC_KEY = process.env.EMAILJS_PUBLIC_KEY;
 const EMAILJS_PRIVATE_KEY = process.env.EMAILJS_PRIVATE_KEY;
 const EMAILJS_OTP_TEMPLATE_ID = process.env.EMAILJS_TEMPLATE_ID;
 const EMAILJS_SUPPORT_TEMPLATE_ID = process.env.EMAILJS_SUPPORT_TEMPLATE_ID;
+const EMAILJS_NOTIF_TEMPLATE_ID = process.env.EMAILJS_NOTIF_TEMPLATE_ID;
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || "support@baculet.ro";
 
 function emailjsConfigured() {
@@ -87,5 +88,33 @@ export async function sendSupportEmail(input: {
     });
   } catch (error) {
     console.error("Eroare la trimiterea emailului de suport EmailJS:", error);
+  }
+}
+
+// Notificări (streak, follow, amintire zilnică). Template-ul are nevoie de:
+// to_email, name, title, message. Cât timp EMAILJS_NOTIF_TEMPLATE_ID nu e
+// setat, notificarea se printează în consolă (fallback de dezvoltare).
+export async function sendNotificationEmail(input: {
+  to: string;
+  name: string;
+  title: string;
+  message: string;
+}): Promise<boolean> {
+  if (!EMAILJS_SERVICE_ID || !EMAILJS_PUBLIC_KEY || !EMAILJS_NOTIF_TEMPLATE_ID) {
+    console.log(`\n[🔔 Baculet Notificare]\nCătre: ${input.to}\n${input.title}\n${input.message}\n`);
+    return false;
+  }
+  try {
+    await sendEmailJs(EMAILJS_NOTIF_TEMPLATE_ID, {
+      to_email: input.to,
+      from_name: "Baculet",
+      name: input.name,
+      title: input.title,
+      message: input.message,
+    });
+    return true;
+  } catch (error) {
+    console.error("Eroare la trimiterea emailului de notificare EmailJS:", error);
+    return false;
   }
 }

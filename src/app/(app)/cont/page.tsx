@@ -27,6 +27,10 @@ export default async function AccountPage({
       passwordHash: true,
       themeSlug: true,
       profile: true,
+      emailNotifs: true,
+      streakNotifs: true,
+      followNotifs: true,
+      reminderHour: true,
     },
   });
 
@@ -90,6 +94,12 @@ export default async function AccountPage({
         needsCurrentPassword={hasPassword(user.passwordHash)}
         studyProfile={user.profile}
         username={user.username}
+        notifPrefs={{
+          emailNotifs: user.emailNotifs,
+          streakNotifs: user.streakNotifs,
+          followNotifs: user.followNotifs,
+          reminderHour: user.reminderHour,
+        }}
         themes={themes.map((t) => ({
           slug: t.slug,
           name: t.name,

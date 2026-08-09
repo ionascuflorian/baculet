@@ -14,6 +14,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { BottomNav } from "@/components/bottom-nav";
 import { StreakTimer } from "@/components/streak-timer";
 import { SiteFooter } from "@/components/site-footer";
+import { NotificationsBootstrap } from "@/components/push/notifications-bootstrap";
 
 // Siera (chat AI + markdown) se încarcă la cerere, separat de JS-ul inițial.
 const Siera = dynamic(
@@ -179,6 +180,7 @@ export function AppShell({
 
       <BottomNav />
       <Siera />
+      <NotificationsBootstrap />
     </div>
   );
 }

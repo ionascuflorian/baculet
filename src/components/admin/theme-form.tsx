@@ -63,8 +63,10 @@ export function ThemeForm({
         throw new Error(body.error || "Eroare la generarea temei");
       }
       const data = (await res.json()) as { light: Palette; dark: Palette };
-      setLight(data.light);
-      setDark(data.dark);
+      // Default-urile completează cheile pe care AI-ul nu le generează,
+      // ca „Text pe accent" să nu rămână gol în formular.
+      setLight({ ...defaultPalette(), ...data.light });
+      setDark({ ...defaultDarkPalette(), ...data.dark });
       setAiPrompt("");
     } catch (err) {
       setAiError(err instanceof Error ? err.message : "Eroare la generarea temei");

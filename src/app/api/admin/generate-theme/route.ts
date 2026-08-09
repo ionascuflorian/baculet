@@ -18,6 +18,7 @@ const paletteSchema = z.object({
   feather: hex,
   accent: hex,
   accentDark: hex,
+  onAccent: hex,
 });
 
 const themeSchema = z.object({
@@ -47,7 +48,8 @@ export async function POST(req: Request) {
         "Ești un designer de interfețe pentru 'Baculet', o aplicație românească de învățat pentru Bacalaureat. " +
         "Generează două palete de culori CSS armonioase și accesibile — varianta 'light' și varianta 'dark' — " +
         "fiecare culoare în format hex #rrggbb. Cheile: background, foreground, card, ink (text principal), " +
-        "subtle (text secundar), feather (contururi), accent (culoare accent), accentDark (accent întunecat). " +
+        "subtle (text secundar), feather (contururi), accent (culoare accent), accentDark (accent întunecat), " +
+        "onAccent (text pe accent). " +
         "Asigură un contrast bun, text lizibil pe fundal și culori plăcute ochiului, potrivite unei aplicații de studiu.",
       prompt: prompt
         ? `Generează o temă care respectă descrierea: "${prompt}".`

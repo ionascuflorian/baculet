@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { User, Palette, Trash2 } from "lucide-react";
+import { User, Palette, Trash2, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { ProfileForm } from "@/components/account/profile-form";
@@ -10,14 +10,19 @@ import { PasswordForm } from "@/components/account/password-form";
 import { DeleteAccount } from "@/components/account/delete-account";
 import { ProfileSettings } from "@/components/account/profile-settings";
 import { UsernameForm } from "@/components/account/username-form";
+import {
+  NotificationsSettings,
+  type NotifPrefs,
+} from "@/components/account/notifications-settings";
 import { ThemePicker } from "@/components/themes/theme-picker";
 import { APP_VERSION } from "@/lib/version";
 
-type Tab = "cont" | "teme" | "risc";
+type Tab = "cont" | "teme" | "notificari" | "risc";
 
 const tabs: { id: Tab; label: string; icon: typeof User }[] = [
   { id: "cont", label: "Setări cont", icon: User },
   { id: "teme", label: "Teme", icon: Palette },
+  { id: "notificari", label: "Notificări", icon: Bell },
   { id: "risc", label: "Șterge cont", icon: Trash2 },
 ];
 
@@ -28,6 +33,7 @@ interface AccountSettingsProps {
   needsCurrentPassword: boolean;
   studyProfile: string | null;
   username: string | null;
+  notifPrefs: NotifPrefs;
   themes: {
     slug: string;
     name: string;
@@ -44,6 +50,7 @@ export function AccountSettings({
   needsCurrentPassword,
   studyProfile,
   username,
+  notifPrefs,
   themes,
   currentTheme,
 }: AccountSettingsProps) {
@@ -145,6 +152,23 @@ export function AccountSettings({
                 pentru previzualizare în direct.
               </p>
               <ThemePicker themes={themes} current={currentTheme} />
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {tab === "notificari" && (
+        <div className="animate-slide-up">
+          <Card>
+            <CardContent className="p-5">
+              <h2 className="mb-1 text-lg font-extrabold text-ink">
+                Notificări
+              </h2>
+              <p className="mb-4 text-sm text-subtle">
+                Alege cum vrei să te ținem la curent: streak-uri în pericol,
+                urmăritori noi și amintiri zilnice de învățat.
+              </p>
+              <NotificationsSettings prefs={notifPrefs} />
             </CardContent>
           </Card>
         </div>

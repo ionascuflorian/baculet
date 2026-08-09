@@ -61,8 +61,12 @@ export async function saveTheme(
 ): Promise<ThemeSaveState> {
   try {
     await requireAdmin();
-    const data = themeSchema.parse(input);
-    const slug = data.slug?.trim() || slugify(data.name);
+    // Slug-ul gol/doar spații = absent → se auto-generează din nume.
+    const data = themeSchema.parse({
+      ...input,
+      slug: input.slug?.trim() || undefined,
+    });
+    const slug = data.slug?.trim() || slugify(data.name) || "tema";
 
     const existing = await prisma.theme.findUnique({ where: { slug } });
     if (existing && existing.id !== id) {
@@ -91,6 +95,13 @@ export async function saveTheme(
     return { id: theme.id };
   } catch (err) {
     console.error("saveTheme failed:", err);
+    if (err instanceof z.ZodError) {
+      return {
+        error:
+          err.issues[0]?.message ??
+          "Date invalide. Verifică numele și culorile (format #rrggbb).",
+      };
+    }
     return { error: "Date invalide. Verifică numele și culorile (format #rrggbb)." };
   }
 }
