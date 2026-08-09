@@ -30,6 +30,27 @@ export const metadata: Metadata = {
   },
   description:
     "Toate resursele de care ai nevoie ca să treci Bacalaureatul din România: materii, lecții, teste grilă și subiecte oficiale.",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
+    apple: [
+      {
+        url: "/icons/apple-touch-icon.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
+    ],
+  },
+  appleWebApp: {
+    capable: true,
+    title: "Baculet",
+    statusBarStyle: "black-translucent",
+  },
+  other: {
+    // iOS < 16.4 ignoră `mobile-web-app-capable` (generat de Next.js) și
+    // cere varianta cu prefix `apple-` pentru modul standalone.
+    "apple-mobile-web-app-capable": "yes",
+  },
 };
 
 export const viewport: Viewport = {
@@ -37,6 +58,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: "cover",
 };
 
 export default async function RootLayout({

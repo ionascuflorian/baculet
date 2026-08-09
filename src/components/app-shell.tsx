@@ -62,7 +62,7 @@ export function AppShell({
 
   return (
     <div className="app-shell flex min-h-screen flex-col bg-background">
-      <header className="sticky top-0 z-40 border-b border-feather bg-background/80 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-feather bg-background/80 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-4">
           <div className="flex items-center gap-3">
             <Logo href="/dashboard" />
