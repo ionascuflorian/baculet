@@ -79,7 +79,7 @@
 }
 
 #nprogress .bar {
-  top: 4rem !important;
+  top: calc(4rem + env(safe-area-inset-top)) !important;
 }
 
 body {

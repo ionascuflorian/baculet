@@ -26,7 +26,7 @@ export function BottomNav() {
   }, [pathname]);
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 px-5 pb-[calc(0.75rem+max(env(safe-area-inset-bottom),0.5rem))] md:hidden">
+    <div className="fixed inset-x-0 bottom-0 z-40 px-5 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:hidden">
       <nav
         aria-label="Navigare principală"
         className="mx-auto flex max-w-sm items-center justify-around gap-1 rounded-[2.2rem] border border-feather bg-card/70 px-3 py-2 shadow-lg shadow-black/5 backdrop-blur-xl"

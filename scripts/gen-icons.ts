@@ -85,7 +85,7 @@ function iconSvg(size: number, ratio: number, rounded: boolean): string {
   const tx = size / 2 - CENTER_X * s;
   const ty = size / 2 + CENTER_Y * s; // y-up (font) → y-down (SVG): flip în scale
   const rx = rounded ? size * 0.14 : 0;
-  const dot = `<path transform="translate(${(G.dotX * s).toFixed(
+  const dot = `<path transform="translate(${G.dotX.toFixed(
     2
   )} 0)" d="${G.dotPath}" fill="${ACCENT}"/>`;
   return [

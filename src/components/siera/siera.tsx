@@ -661,7 +661,10 @@ export function Siera() {
             className="fixed inset-x-0 bottom-0 z-[70] flex flex-col justify-end"
           >
             <motion.div
-              className="siera-sheet w-full rounded-t-[24px]"
+              className={cn(
+                "siera-sheet w-full rounded-t-[24px]",
+                sheetH >= window.innerHeight - 1 && "pt-[env(safe-area-inset-top)]"
+              )}
               animate={{ height: sheetH }}
               transition={
                 dragging
@@ -730,7 +733,13 @@ export function Siera() {
                   : { width }
             }
           >
-            <div className={cn("siera-sheet group h-full w-full", SHEET_ROUND[mode])}>
+            <div
+              className={cn(
+                "siera-sheet group h-full w-full",
+                SHEET_ROUND[mode],
+                mode === "fullscreen" && "pt-[env(safe-area-inset-top)]"
+              )}
+            >
               <div className="siera-hero">
                 <div className="flex w-full items-center justify-between gap-2 px-0.5 pb-2">
                   <ModeMenu mode={mode} onSelect={setMode} />
