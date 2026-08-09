@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { Flame, AtSign, Trophy, CalendarDays, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { Flame, AtSign, Trophy, CalendarDays, ShieldCheck, Settings } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getXpBreakdowns } from "@/lib/xp";
@@ -95,13 +96,21 @@ export default async function UserProfilePage({
             </span>
           </div>
         </div>
-        {isLoggedIn && (
-          <FollowButton
-            targetId={user.id}
-            initialFollowing={Boolean(myFollow)}
-            isSelf={isSelf}
-          />
-        )}
+        {isLoggedIn &&
+          (isSelf ? (
+            <Link
+              href="/cont"
+              className="flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-bold text-white transition-all hover:opacity-90"
+            >
+              <Settings className="h-4 w-4" /> Setări cont
+            </Link>
+          ) : (
+            <FollowButton
+              targetId={user.id}
+              initialFollowing={Boolean(myFollow)}
+              isSelf={isSelf}
+            />
+          ))}
       </section>
 
       <div className="grid grid-cols-3 gap-3">

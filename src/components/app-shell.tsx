@@ -35,6 +35,7 @@ interface AppShellProps {
     name: string;
     email: string;
     role: string;
+    username: string | null;
     image: string | null;
   };
   streakCount: number;
@@ -125,7 +126,7 @@ export function AppShell({
             )}
 
             <Link
-              href="/cont"
+              href={user.username ? `/u/${user.username}` : "/cont"}
               title="Contul meu"
               className="flex items-center gap-2 rounded-full p-1 transition-colors hover:bg-ink/5"
             >

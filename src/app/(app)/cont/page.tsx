@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { Flame, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { Flame, ShieldCheck, UserRound } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { AccountSettings } from "@/components/account/account-settings";
@@ -71,6 +72,14 @@ export default async function AccountPage({
               </span>
             )}
           </div>
+          {user.username && (
+            <Link
+              href={`/u/${user.username}`}
+              className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-accent hover:underline"
+            >
+              <UserRound className="h-4 w-4" /> Vezi profilul tău public
+            </Link>
+          )}
         </div>
       </section>
 

@@ -17,6 +17,7 @@ export default async function AppLayout({
       name: true,
       email: true,
       role: true,
+      username: true,
       streakCount: true,
       timezone: true,
       image: true,
@@ -32,6 +33,7 @@ export default async function AppLayout({
         name: user.name,
         email: user.email,
         role: user.role,
+        username: user.username,
         image: user.image,
       }}
       streakCount={user.streakCount}
