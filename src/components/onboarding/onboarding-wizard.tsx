@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { ProfilePicker } from "@/components/profile/profile-picker";
 import { ThemePicker } from "@/components/themes/theme-picker";
+import { AvatarEditor } from "@/components/account/avatar-editor";
 import {
   updateProfile,
   updateUsername,
@@ -113,6 +114,7 @@ export function OnboardingWizard({
   const [preview, setPreview] = useState<string | null>(
     user.image?.startsWith("data:image") ? user.image : null
   );
+  const [editing, setEditing] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -199,10 +201,26 @@ export function OnboardingWizard({
       return;
     }
     const reader = new FileReader();
-    reader.onload = () => setPreview(String(reader.result ?? ""));
+    reader.onload = () => setEditing(String(reader.result ?? ""));
     reader.onerror = () => setFileError("Nu am putut citi fișierul.");
     reader.readAsDataURL(file);
   }
+
+  const openFilePicker = () => fileRef.current?.click();
+
+  const handleAvatarClick = () => {
+    if (preview) {
+      setEditing(preview);
+    } else {
+      openFilePicker();
+    }
+  };
+
+  const handleEditorSave = (dataUrl: string) => {
+    setPreview(dataUrl);
+    setEditing(null);
+    setFileError(null);
+  };
 
   return (
     <div className="mx-auto w-full max-w-2xl space-y-4 px-4 py-6">
@@ -376,7 +394,7 @@ export function OnboardingWizard({
                     <div className="flex items-center gap-4">
                       <button
                         type="button"
-                        onClick={() => fileRef.current?.click()}
+                        onClick={handleAvatarClick}
                         className="group relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-feather/60"
                         aria-label="Schimbă poza de profil"
                       >
@@ -400,13 +418,13 @@ export function OnboardingWizard({
                         <p className="font-bold text-ink">Poza de profil</p>
                         <p className="text-xs text-subtle">
                           {preview
-                            ? "Click pe poză pentru a schimba imaginea."
-                            : "Click pe poză pentru a încărca o fotografie."}
+                            ? "Click pe poză pentru a-i modifica cropul."
+                            : "Click pe poză pentru a încărca și edita o fotografie."}
                         </p>
                         {preview && (
                           <button
                             type="button"
-                            onClick={() => fileRef.current?.click()}
+                            onClick={openFilePicker}
                             className="w-fit text-xs font-semibold text-accent transition-colors hover:underline"
                           >
                             Schimbă poza
@@ -438,6 +456,15 @@ export function OnboardingWizard({
                       <p className="animate-pop-in rounded-xl bg-danger/10 px-4 py-2.5 text-sm font-semibold text-danger">
                         {avatarState.error}
                       </p>
+                    )}
+
+                    {editing && (
+                      <AvatarEditor
+                        imageSrc={editing}
+                        onClose={() => setEditing(null)}
+                        onSave={handleEditorSave}
+                        onPickImage={openFilePicker}
+                      />
                     )}
 
                     {preview ? (

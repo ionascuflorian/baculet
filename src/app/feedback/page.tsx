@@ -13,7 +13,7 @@ export default async function FeedbackPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <header className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-2 px-4">
+      <header className="relative mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-2 px-4">
         <Link
           href={backHref}
           className="flex items-center gap-2 text-sm font-semibold text-subtle transition-colors hover:text-ink"
@@ -21,7 +21,7 @@ export default async function FeedbackPage() {
           <ArrowLeft className="h-4 w-4" />
           Înapoi
         </Link>
-        <Logo />
+        <Logo className="absolute left-1/2 -translate-x-1/2" />
         <ThemeToggle />
       </header>
 

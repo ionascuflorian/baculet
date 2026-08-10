@@ -37,7 +37,7 @@ export function DemoDashboard() {
       />
 
       <div className="relative rounded-[2rem] border border-feather/60 bg-card/60 p-4 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.05)] backdrop-blur-xl sm:p-5 dark:border-white/10">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <WidgetShell className="sm:col-span-2">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
