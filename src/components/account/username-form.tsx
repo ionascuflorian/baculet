@@ -30,7 +30,7 @@ export function UsernameForm({ current }: { current: string | null }) {
             required
             minLength={2}
             maxLength={20}
-            pattern="[a-z0-9]([a-z0-9._-]{1,18}[a-z0-9])?"
+            pattern="[a-z0-9]([a-z0-9._\-]{1,18}[a-z0-9])?"
             placeholder={current ?? "ex: andrei.bac2026"}
             defaultValue={current ?? ""}
             className="pl-9"

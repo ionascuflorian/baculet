@@ -16,7 +16,6 @@ export default async function OnboardingPage() {
       username: true,
       themeSlug: true,
       profile: true,
-      termsAcceptedAt: true,
       onboardingDone: true,
     },
   });
@@ -37,9 +36,6 @@ export default async function OnboardingPage() {
         username: user.username,
         themeSlug: user.themeSlug,
         profile: user.profile,
-        termsAcceptedAt: user.termsAcceptedAt
-          ? user.termsAcceptedAt.toISOString()
-          : null,
       }}
       themes={themes.map((t) => ({
         slug: t.slug,

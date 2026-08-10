@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -12,7 +11,6 @@ import {
   GraduationCap,
   Loader2,
   Palette as PaletteIcon,
-  ScrollText,
   UserRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,13 +18,12 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { ProfilePicker } from "@/components/profile/profile-picker";
 import { ThemePicker } from "@/components/themes/theme-picker";
-import { AvatarEditor } from "@/components/account/avatar-editor";
 import {
   updateProfile,
   updateUsername,
   type ProfileState,
 } from "@/lib/actions/account";
-import { acceptTerms, completeOnboarding } from "@/lib/actions/onboarding";
+import { completeOnboarding } from "@/lib/actions/onboarding";
 import { cn } from "@/lib/utils";
 import type { ProfileId } from "@/lib/profile";
 import type { Palette } from "@/components/themes/palette";
@@ -45,7 +42,6 @@ interface Step {
   title: string;
   desc: string;
   icon: typeof UserRound;
-  required?: boolean;
 }
 
 interface OnboardingUser {
@@ -54,7 +50,6 @@ interface OnboardingUser {
   username: string | null;
   themeSlug: string | null;
   profile: ProfileId | null;
-  termsAcceptedAt: string | null;
 }
 
 export function OnboardingWizard({
@@ -68,17 +63,6 @@ export function OnboardingWizard({
   const [pending, startTransition] = useTransition();
 
   const baseSteps: Step[] = [
-    ...(user.termsAcceptedAt
-      ? []
-      : [
-          {
-            id: "terms",
-            title: "Termeni și Condiții",
-            desc: "Un pas scurt, obligatoriu înainte de start.",
-            icon: ScrollText,
-            required: true,
-          },
-        ]),
     {
       id: "profile",
       title: "Profil de studiu",
@@ -108,7 +92,6 @@ export function OnboardingWizard({
   const [steps] = useState<Step[]>(baseSteps);
   const [stepIndex, setStepIndex] = useState(0);
   const [done, setDone] = useState<Set<string>>(new Set());
-  const [termsChecked, setTermsChecked] = useState(false);
 
   const [profileState, setProfileState] = useState<{
     pending: boolean;
@@ -130,7 +113,6 @@ export function OnboardingWizard({
   const [preview, setPreview] = useState<string | null>(
     user.image?.startsWith("data:image") ? user.image : null
   );
-  const [editing, setEditing] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -153,7 +135,6 @@ export function OnboardingWizard({
   }, [avatarState.ok]);
 
   const step = steps[stepIndex];
-  const isLast = stepIndex === steps.length - 1;
   const pct = Math.round((done.size / steps.length) * 100);
 
   function markDone(id: string) {
@@ -193,11 +174,16 @@ export function OnboardingWizard({
     }
   }
 
-  function acceptTermsAndContinue() {
+  function onThemeSelected() {
+    markDone("theme");
+    goNext();
+  }
+
+  function finishSetup() {
     startTransition(async () => {
-      await acceptTerms();
-      markDone("terms");
-      goNext();
+      await completeOnboarding();
+      router.push("/dashboard");
+      router.refresh();
     });
   }
 
@@ -213,7 +199,7 @@ export function OnboardingWizard({
       return;
     }
     const reader = new FileReader();
-    reader.onload = () => setEditing(String(reader.result ?? ""));
+    reader.onload = () => setPreview(String(reader.result ?? ""));
     reader.onerror = () => setFileError("Nu am putut citi fișierul.");
     reader.readAsDataURL(file);
   }
@@ -231,7 +217,7 @@ export function OnboardingWizard({
         </div>
         <Button
           variant="ghost"
-          onClick={() => startTransition(() => completeOnboarding())}
+          onClick={finishSetup}
           disabled={pending}
         >
           {pending ? (
@@ -318,42 +304,6 @@ export function OnboardingWizard({
                 </div>
               </div>
 
-              {step.id === "terms" && (
-                <div className="space-y-5">
-                  <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-feather bg-card p-4 transition-colors hover:border-accent/40">
-                    <input
-                      type="checkbox"
-                      checked={termsChecked}
-                      onChange={(e) => setTermsChecked(e.target.checked)}
-                      className="mt-0.5 h-4 w-4 shrink-0 accent-[--accent]"
-                    />
-                    <span className="text-sm leading-relaxed text-subtle">
-                      Am citit și sunt de acord cu{" "}
-                      <Link
-                        href="/termeni"
-                        target="_blank"
-                        className="font-bold text-accent hover:underline"
-                      >
-                        Termenii și Condițiile
-                      </Link>{" "}
-                      Baculet.
-                    </span>
-                  </label>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-xs font-semibold text-subtle">
-                      Pas obligatoriu — nu poate fi omis.
-                    </span>
-                    <Button
-                      onClick={acceptTermsAndContinue}
-                      disabled={!termsChecked || pending}
-                    >
-                      {pending && <Loader2 className="h-4 w-4 animate-spin" />}
-                      Accept și continuă <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-
               {step.id === "profile" && (
                 <div className="space-y-4">
                   <ProfilePicker
@@ -382,7 +332,7 @@ export function OnboardingWizard({
                         placeholder="ex. andrei_bac2027"
                         minLength={2}
                         maxLength={20}
-                        pattern="[a-z0-9]([a-z0-9._-]{1,18}[a-z0-9])?"
+                        pattern="[a-z0-9]([a-z0-9._\-]{1,18}[a-z0-9])?"
                         required
                         autoFocus
                       />
@@ -411,7 +361,7 @@ export function OnboardingWizard({
                   <ThemePicker
                     themes={themes}
                     current={user.themeSlug}
-                    onSelected={() => markDone("theme")}
+                    onSelected={onThemeSelected}
                   />
                   <p className="text-xs font-semibold text-subtle">
                     Tema se salvează automat și se sincronizează pe toate
@@ -450,8 +400,8 @@ export function OnboardingWizard({
                         <p className="font-bold text-ink">Poza de profil</p>
                         <p className="text-xs text-subtle">
                           {preview
-                            ? "Click pe poză pentru a-i modifica cropul."
-                            : "Click pe poză pentru a încărca și edita o fotografie."}
+                            ? "Click pe poză pentru a schimba imaginea."
+                            : "Click pe poză pentru a încărca o fotografie."}
                         </p>
                         {preview && (
                           <button
@@ -515,28 +465,16 @@ export function OnboardingWizard({
                 >
                   <ArrowLeft className="h-4 w-4" /> Înapoi
                 </Button>
-                {step.id !== "terms" && step.id !== "profile" && (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      if (step.id === "theme") markDone("theme");
-                      goNext();
-                    }}
-                    disabled={pending}
-                  >
-                    Omită
-                  </Button>
-                )}
-                {(step.id === "username" || step.id === "avatar") && (
-                  <span className="text-xs font-semibold text-subtle">
-                    Poți omite oricând acest pas.
-                  </span>
-                )}
-                {(step.id === "theme" || step.id === "profile") && (
-                  <Button onClick={goNext} disabled={pending}>
-                    Continuă <ArrowRight className="h-4 w-4" />
-                  </Button>
-                )}
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (step.id === "theme") markDone("theme");
+                    goNext();
+                  }}
+                  disabled={pending}
+                >
+                  Omită
+                </Button>
               </div>
             </motion.div>
           ) : (
@@ -559,7 +497,7 @@ export function OnboardingWizard({
               <Button
                 size="lg"
                 className="mt-6"
-                onClick={() => startTransition(() => completeOnboarding())}
+                onClick={finishSetup}
                 disabled={pending}
               >
                 {pending && <Loader2 className="h-5 w-5 animate-spin" />}
