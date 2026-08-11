@@ -131,16 +131,22 @@ export const authConfig = {
     async signIn({ user, account }) {
       if (account?.provider === "google" && user.email) {
         const email = user.email.toLowerCase();
-        const existing = await prisma.user.findUnique({
-          where: { email },
+        const existing = await prisma.user.findFirst({
+          where: { OR: [{ email }, { googleEmail: email }] },
         });
         if (existing) {
-          if (!existing.image && user.image) {
-            await prisma.user.update({
-              where: { id: existing.id },
-              data: { image: user.image },
-            });
-          }
+          await prisma.user.update({
+            where: { id: existing.id },
+            data: {
+              googleLinked: true,
+              googleEmail: email,
+              // Contul a fost găsit doar prin googleEmail: emailul din cont a
+              // fost schimbat în setări. Îl sincronizăm înapoi la adresa
+              // Google (verificată de Google, deci sigură).
+              ...(existing.email !== email ? { email } : {}),
+              ...(!existing.image && user.image ? { image: user.image } : {}),
+            },
+          });
         } else {
           const googleName = user.name ?? email.split("@")[0];
           const { username: base } = buildUsername(googleName, email);
@@ -152,6 +158,8 @@ export const authConfig = {
               image: user.image ?? null,
               passwordHash: crypto.randomUUID(),
               emailVerified: new Date(),
+              googleLinked: true,
+              googleEmail: email,
             },
           });
         }

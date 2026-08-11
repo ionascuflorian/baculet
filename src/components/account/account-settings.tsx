@@ -15,6 +15,7 @@ import {
   type NotifPrefs,
 } from "@/components/account/notifications-settings";
 import { ThemePicker } from "@/components/themes/theme-picker";
+import { GoogleIcon } from "@/components/google-icon";
 import { APP_VERSION } from "@/lib/version";
 
 type Tab = "cont" | "teme" | "notificari" | "risc";
@@ -31,6 +32,7 @@ interface AccountSettingsProps {
   profile: { name: string; image: string };
   email: string;
   needsCurrentPassword: boolean;
+  googleLinked?: boolean;
   studyProfile: string | null;
   username: string | null;
   notifPrefs: NotifPrefs;
@@ -48,6 +50,7 @@ export function AccountSettings({
   profile,
   email,
   needsCurrentPassword,
+  googleLinked = false,
   studyProfile,
   username,
   notifPrefs,
@@ -131,6 +134,13 @@ export function AccountSettings({
           <Card>
             <CardContent className="p-5">
               <h2 className="mb-4 text-lg font-extrabold text-ink">Parolă</h2>
+              {googleLinked && (
+                <p className="mb-4 flex items-start gap-2 rounded-xl bg-ink/5 px-4 py-3 text-sm text-subtle">
+                  <GoogleIcon className="mt-0.5 h-4 w-4 shrink-0" />
+                  Contul tău e conectat cu Google. Poți seta și o parolă pentru
+                  a te conecta și cu email și parolă.
+                </p>
+              )}
               <PasswordForm needsCurrentPassword={needsCurrentPassword} />
             </CardContent>
           </Card>

@@ -45,6 +45,8 @@ model User {
   followNotifs  Boolean  @default(true)
   termsAcceptedAt DateTime?
   onboardingDone Boolean @default(false)
+  googleLinked  Boolean @default(false)
+  googleEmail   String?  @unique
   reminderHour  Int?
   streakWarnedFor DateTime?
   reminderSentOn DateTime?

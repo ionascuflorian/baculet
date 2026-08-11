@@ -4,6 +4,7 @@ import { Flame, ShieldCheck, UserRound } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { AccountSettings } from "@/components/account/account-settings";
+import { GoogleIcon } from "@/components/google-icon";
 import { hasPassword } from "@/lib/user";
 
 export default async function AccountPage({
@@ -31,6 +32,7 @@ export default async function AccountPage({
       streakNotifs: true,
       followNotifs: true,
       reminderHour: true,
+      googleLinked: true,
     },
   });
 
@@ -75,6 +77,11 @@ export default async function AccountPage({
                 <ShieldCheck className="h-3.5 w-3.5" /> Admin
               </span>
             )}
+            {user.googleLinked && (
+              <span className="flex items-center gap-1 rounded-xl bg-ink/5 px-2.5 py-1 text-xs font-bold text-ink">
+                <GoogleIcon className="h-3.5 w-3.5" /> Conectat cu Google
+              </span>
+            )}
           </div>
           {user.username && (
             <Link
@@ -92,6 +99,7 @@ export default async function AccountPage({
         profile={{ name: user.name, image: user.image ?? "" }}
         email={user.email}
         needsCurrentPassword={hasPassword(user.passwordHash)}
+        googleLinked={user.googleLinked}
         studyProfile={user.profile}
         username={user.username}
         notifPrefs={{
