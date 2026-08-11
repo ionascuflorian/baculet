@@ -14,10 +14,19 @@ const useHydrated = () =>
   );
 
 function greetingForHour(hour: number) {
-  if (hour < 5) return "Noapte bună";
-  if (hour < 12) return "Bună dimineața";
-  if (hour < 18) return "Bună ziua";
-  return "Bună seara";
+  if (hour < 5) return { text: "Noapte bună", emoji: "🌙" };
+  if (hour < 12) return { text: "Bună dimineața", emoji: "🌅" };
+  if (hour < 18) return { text: "Bună ziua", emoji: "☀️" };
+  return { text: "Bună seara", emoji: "🌇" };
+}
+
+function streakMessage(streak: number) {
+  if (streak <= 0) {
+    return "Hai să începem seria azi — un test grilă îți ia doar 10 minute.";
+  }
+  const rest = streak % 100;
+  const unit = rest === 1 ? "zi" : rest >= 20 ? "de zile" : "zile";
+  return `Continuă seria și azi — ești la ${streak} ${unit}. Un test grilă îți ia doar 10 minute.`;
 }
 
 export function GreetingWidget({
@@ -48,13 +57,13 @@ export function GreetingWidget({
         <div>
           <p className="text-sm font-medium text-subtle">{today}</p>
           <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
-            {greeting}
-            {firstName ? `, ${firstName}` : ""}!
+            {greeting.text}
+            {firstName ? `, ${firstName}` : ""}!{" "}
+            <span aria-hidden className="align-middle">
+              {greeting.emoji}
+            </span>
           </h1>
-          <p className="mt-2 text-subtle">
-            Hai să continuăm învățatul. Ritmul de azi îți construiește BAC-ul de
-            mâine.
-          </p>
+          <p className="mt-2 text-subtle">{streakMessage(streakCount)}</p>
         </div>
         {streakCount > 0 && (
           <StreakTimer

@@ -41,19 +41,26 @@ export async function updateProfile(
     }
 
     const rawImage = parsed.data.image;
-    let image: string | null = null;
-    if (rawImage && rawImage.startsWith("data:image")) {
+    let image: string | null | undefined;
+    if (rawImage.startsWith("data:image")) {
       if (rawImage.length > MAX_IMAGE_BYTES) {
         return {
           error: "Imaginea salvată este prea mare. Încearcă din nou cu o poză mai mică.",
         };
       }
       image = rawImage;
+    } else if (rawImage === "") {
+      // Nimic nou încărcat — se șterge poza.
+      image = null;
     }
+    // Altfel (URL extern, ex. avatar Google) — se păstrează poza existentă.
 
     await prisma.user.update({
       where: { id: user.id },
-      data: { name: parsed.data.name.trim(), image },
+      data: {
+        name: parsed.data.name.trim(),
+        ...(image !== undefined ? { image } : {}),
+      },
     });
 
     revalidatePath("/cont");

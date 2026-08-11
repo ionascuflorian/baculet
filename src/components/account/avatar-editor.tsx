@@ -14,6 +14,9 @@ const MAX_ZOOM = 4;
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
+    // Pozele externe (ex. avatar Google) au nevoie de CORS pentru a putea fi
+    // desenate pe canvas și exportate (googleusercontent trimite ACAO: *).
+    img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error("Nu am putut citi imaginea."));
     img.src = src;

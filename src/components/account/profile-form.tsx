@@ -16,7 +16,7 @@ export function ProfileForm({
   initial: { name: string; image: string };
 }) {
   const [preview, setPreview] = useState<string | null>(
-    initial.image.startsWith("data:image") ? initial.image : null
+    initial.image || null
   );
   const [editing, setEditing] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
