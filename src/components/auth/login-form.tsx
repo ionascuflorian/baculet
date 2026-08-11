@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useActionState, useState } from "react";
-import { Loader2, Mail, KeyRound, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, Loader2, Mail, KeyRound, ArrowLeft } from "lucide-react";
 import { login } from "@/lib/actions/auth";
 import { requestCode, verifyCode } from "@/lib/actions/otp";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,9 @@ type Tab = "password" | "otp";
 
 export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
   const [tab, setTab] = useState<Tab>("password");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const [passwordState, passwordAction, passwordPending] = useActionState(
     login,
@@ -25,7 +28,6 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
   const [otpError, setOtpError] = useState("");
   const [requesting, setRequesting] = useState(false);
   const [step, setStep] = useState<"email" | "code">("email");
-  const [email, setEmail] = useState("");
   const [devCode, setDevCode] = useState<string | null>(null);
   const [verifyState, verifyAction, verifyPending] = useActionState(
     verifyCode,
@@ -101,19 +103,38 @@ export function LoginForm({ googleEnabled }: { googleEnabled: boolean }) {
               type="email"
               autoComplete="email"
               placeholder="tu@exemplu.ro"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
             />
           </div>
           <div>
             <Label htmlFor="password">Parolă</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              placeholder="••••••••"
-              required
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="pr-12"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((s) => !s)}
+                aria-label={showPassword ? "Ascunde parola" : "Arată parola"}
+                className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-subtle transition-colors hover:bg-ink/5 hover:text-ink"
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4.5 w-4.5" />
+                ) : (
+                  <Eye className="h-4.5 w-4.5" />
+                )}
+              </button>
+            </div>
           </div>
 
           {passwordState.error && (

@@ -17,6 +17,7 @@ export default async function OnboardingPage() {
       themeSlug: true,
       profile: true,
       onboardingDone: true,
+      termsAcceptedAt: true,
     },
   });
   if (!user) redirect("/login");
@@ -36,6 +37,7 @@ export default async function OnboardingPage() {
         username: user.username,
         themeSlug: user.themeSlug,
         profile: user.profile,
+        termsAcceptedAt: user.termsAcceptedAt,
       }}
       themes={themes.map((t) => ({
         slug: t.slug,

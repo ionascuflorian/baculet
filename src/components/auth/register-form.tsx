@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
-import { Loader2 } from "lucide-react";
+import { useActionState, useState } from "react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { register } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,10 @@ import { GoogleButton } from "@/components/auth/google-button";
 
 export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
   const [state, action, pending] = useActionState(register, {});
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <div className="w-full max-w-md rounded-3xl border-2 border-feather bg-card p-6 shadow-sm sm:p-8">
@@ -42,6 +46,8 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
             type="text"
             autoComplete="name"
             placeholder="Andrei Popescu"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
             required
           />
         </div>
@@ -53,19 +59,38 @@ export function RegisterForm({ googleEnabled }: { googleEnabled: boolean }) {
             type="email"
             autoComplete="email"
             placeholder="tu@exemplu.ro"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             required
           />
         </div>
         <div>
           <Label htmlFor="password">Parolă</Label>
-          <Input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            placeholder="Minim 6 caractere"
-            required
-          />
+          <div className="relative">
+            <Input
+              id="password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="new-password"
+              placeholder="Minim 6 caractere"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="pr-12"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((s) => !s)}
+              aria-label={showPassword ? "Ascunde parola" : "Arată parola"}
+              className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-subtle transition-colors hover:bg-ink/5 hover:text-ink"
+            >
+              {showPassword ? (
+                <EyeOff className="h-4.5 w-4.5" />
+              ) : (
+                <Eye className="h-4.5 w-4.5" />
+              )}
+            </button>
+          </div>
         </div>
 
         <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-feather bg-card p-3.5 transition-colors hover:border-accent/40">

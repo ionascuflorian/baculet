@@ -11,6 +11,7 @@ import {
   GraduationCap,
   Loader2,
   Palette as PaletteIcon,
+  ScrollText,
   UserRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,7 +25,7 @@ import {
   updateUsername,
   type ProfileState,
 } from "@/lib/actions/account";
-import { completeOnboarding } from "@/lib/actions/onboarding";
+import { completeOnboarding, acceptTerms } from "@/lib/actions/onboarding";
 import { cn } from "@/lib/utils";
 import type { ProfileId } from "@/lib/profile";
 import type { Palette } from "@/components/themes/palette";
@@ -51,6 +52,7 @@ interface OnboardingUser {
   username: string | null;
   themeSlug: string | null;
   profile: ProfileId | null;
+  termsAcceptedAt: Date | null;
 }
 
 export function OnboardingWizard({
@@ -63,34 +65,46 @@ export function OnboardingWizard({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
-  const baseSteps: Step[] = [
-    {
-      id: "profile",
-      title: "Profil de studiu",
-      desc: "Îți aranjăm materiile potrivite profilului tău de bacalaureat.",
-      icon: GraduationCap,
-    },
-    {
-      id: "username",
-      title: "Username",
-      desc: "Cum te găsesc colegii tăi în clasament și la prieteni.",
-      icon: UserRound,
-    },
-    {
-      id: "theme",
-      title: "Tema site-ului",
-      desc: "Alege paleta care ți se potrivește. O poți schimba oricând.",
-      icon: PaletteIcon,
-    },
-    {
-      id: "avatar",
-      title: "Poza de profil",
-      desc: "O poză îți face profilul prietenos. O poți adăuga și mai târziu.",
-      icon: Camera,
-    },
-  ];
-
-  const [steps] = useState<Step[]>(baseSteps);
+  const [steps] = useState<Step[]>(() => {
+    const base: Step[] = [
+      {
+        id: "profile",
+        title: "Profil de studiu",
+        desc: "Îți aranjăm materiile potrivite profilului tău de bacalaureat.",
+        icon: GraduationCap,
+      },
+      {
+        id: "username",
+        title: "Username",
+        desc: "Cum te găsesc colegii tăi în clasament și la prieteni.",
+        icon: UserRound,
+      },
+      {
+        id: "theme",
+        title: "Tema site-ului",
+        desc: "Alege paleta care ți se potrivește. O poți schimba oricând.",
+        icon: PaletteIcon,
+      },
+      {
+        id: "avatar",
+        title: "Poza de profil",
+        desc: "O poză îți face profilul prietenos. O poți adăuga și mai târziu.",
+        icon: Camera,
+      },
+    ];
+    if (!user.termsAcceptedAt) {
+      return [
+        {
+          id: "terms",
+          title: "Termeni și Condiții",
+          desc: "Confirmă că ești de acord cu regulile platformei.",
+          icon: ScrollText,
+        },
+        ...base,
+      ];
+    }
+    return base;
+  });
   const [stepIndex, setStepIndex] = useState(0);
   const [done, setDone] = useState<Set<string>>(new Set());
 
@@ -189,6 +203,18 @@ export function OnboardingWizard({
     });
   }
 
+  const [termsChecked, setTermsChecked] = useState(false);
+  const [termsPending, setTermsPending] = useState(false);
+
+  async function acceptTermsStep() {
+    if (termsPending) return;
+    setTermsPending(true);
+    await acceptTerms();
+    setTermsPending(false);
+    markDone("terms");
+    goNext();
+  }
+
   function onFile(file: File | undefined) {
     setFileError(null);
     if (!file) return;
@@ -236,7 +262,7 @@ export function OnboardingWizard({
         <Button
           variant="ghost"
           onClick={finishSetup}
-          disabled={pending}
+          disabled={pending || (!user.termsAcceptedAt && !done.has("terms"))}
         >
           {pending ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -321,6 +347,75 @@ export function OnboardingWizard({
                   <p className="text-sm text-subtle">{step.desc}</p>
                 </div>
               </div>
+
+              {step.id === "terms" && (
+                <div className="space-y-4">
+                  <div className="max-h-56 space-y-3 overflow-y-auto rounded-xl border border-feather bg-background/60 p-4 text-sm leading-relaxed text-subtle">
+                    <p>
+                      <strong className="text-ink">Ce primești:</strong>{" "}
+                      lecții structurate pe materii, teste grilă cu corectare
+                      automată, subiecte oficiale și asistentul Siera.
+                    </p>
+                    <p>
+                      <strong className="text-ink">Contul tău:</strong> ești
+                      responsabil de corectitudinea datelor și de păstrarea
+                      parolei. Contul poate fi folosit doar de tine.
+                    </p>
+                    <p>
+                      <strong className="text-ink">Conținutul:</strong> este
+                      pentru uz personal, educațional — nu ai dreptul să-l
+                      reproduci sau comercializezi fără acordul nostru.
+                    </p>
+                    <p>
+                      <strong className="text-ink">Datele tale:</strong> nu
+                      vindem și nu închiriem datele către terți. Detalii în
+                      Politica de confidențialitate.
+                    </p>
+                  </div>
+
+                  <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-feather bg-card p-3.5 transition-colors hover:border-accent/40">
+                    <input
+                      type="checkbox"
+                      checked={termsChecked}
+                      onChange={(e) => setTermsChecked(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-[--accent]"
+                    />
+                    <span className="text-sm leading-relaxed text-subtle">
+                      Am citit și sunt de acord cu{" "}
+                      <a
+                        href="/termeni"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-bold text-accent hover:underline"
+                      >
+                        Termenii și Condițiile
+                      </a>{" "}
+                      și{" "}
+                      <a
+                        href="/privacy"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-bold text-accent hover:underline"
+                      >
+                        Politica de confidențialitate
+                      </a>
+                      .
+                    </span>
+                  </label>
+
+                  <Button
+                    type="button"
+                    onClick={acceptTermsStep}
+                    disabled={!termsChecked || termsPending}
+                    className="w-full"
+                  >
+                    {termsPending && (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    )}
+                    {termsPending ? "Se salvează…" : "Accept și continuă"}
+                  </Button>
+                </div>
+              )}
 
               {step.id === "profile" && (
                 <div className="space-y-4">
@@ -492,16 +587,18 @@ export function OnboardingWizard({
                 >
                   <ArrowLeft className="h-4 w-4" /> Înapoi
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    if (step.id === "theme") markDone("theme");
-                    goNext();
-                  }}
-                  disabled={pending}
-                >
-                  Omită
-                </Button>
+                {step.id !== "terms" && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      if (step.id === "theme") markDone("theme");
+                      goNext();
+                    }}
+                    disabled={pending}
+                  >
+                    Omită
+                  </Button>
+                )}
               </div>
             </motion.div>
           ) : (

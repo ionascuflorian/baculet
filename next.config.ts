@@ -6,6 +6,11 @@ const nextConfig: NextConfig = {
     // Versiunea afișată pe site (footer + Cont) urmează automat package.json.
     NEXT_PUBLIC_APP_VERSION: pkg.version,
   },
+  turbopack: {
+    // Explicit: există un package-lock.json accidental în directorul home
+    // care face ca inferarea root-ului să eșueze (rute 404 în dev).
+    root: process.cwd(),
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: "5mb",
