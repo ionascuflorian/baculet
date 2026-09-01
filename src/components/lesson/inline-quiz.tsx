@@ -16,26 +16,21 @@ export function InlineQuiz({ quiz, stepId, onPassed }: { quiz: InlineQuizData; s
   const [revealed, setRevealed] = useState(false);
   const [flashIdx, setFlashIdx] = useState(0);
 
-  const q = quiz.questions[0];
-  const isSingle = quiz.questions.length === 1;
-
-  if (!q) return null;
-
-  const hasFlash = q.type === "FLASHCARD";
-  const hasCloze = q.type === "CLOZE";
-
-  const current = hasFlash ? quiz.questions[flashIdx] : q;
+  if (quiz.questions.length === 0) return null;
+  const isMulti = quiz.questions.length > 1;
+  // pentru orice quiz cu >1 întrebare, folosim navigare tip flashcard
+  const useFlashNav = isMulti;
+  const current = useFlashNav ? quiz.questions[flashIdx] : quiz.questions[0];
   const selected = answers[current.id];
   const isCorrect = selected === current.correctIndex;
 
   function check() {
     setRevealed(true);
-    // dacă toate răspunsurile corecte, notifică părinte
     const allCorrect = quiz.questions.every((qq) => answers[qq.id] === qq.correctIndex || (qq.id === current.id && selected === qq.correctIndex));
     if (allCorrect) onPassed?.();
   }
 
-  if (hasFlash) {
+  if (useFlashNav) {
     return (
       <div className="rounded-xl border-2 border-accent/20 bg-accent/[0.04] p-4">
         <p className="mb-1 text-xs font-extrabold uppercase tracking-widest text-accent">Flashcard {flashIdx + 1}/{quiz.questions.length}</p>

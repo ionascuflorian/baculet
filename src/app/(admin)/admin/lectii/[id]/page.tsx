@@ -13,7 +13,7 @@ export default async function AdminLessonDetailPage({
   const { id } = await params;
   const lesson = await prisma.lesson.findUnique({
     where: { id },
-    include: { chapter: { include: { subject: true } } },
+    include: { chapter: { include: { subject: true } }, steps: { orderBy: { order: "asc" } } },
   });
 
   if (!lesson) notFound();
@@ -29,6 +29,7 @@ export default async function AdminLessonDetailPage({
       <Card>
         <CardContent className="p-5">
           <h1 className="mb-4 text-2xl font-extrabold text-ink">{lesson.title}</h1>
+          <p className="mb-3 text-xs font-semibold text-subtle">{lesson.steps.length} pași generați din markdown (##) · progresul elevilor se păstrează per pas</p>
           <LessonForm
             chapterId={lesson.chapterId}
             lessonId={lesson.id}
@@ -42,6 +43,16 @@ export default async function AdminLessonDetailPage({
               order: lesson.order,
             }}
           />
+          {lesson.steps.length > 0 && (
+            <div className="mt-4 rounded-xl border border-feather p-3">
+              <p className="text-xs font-extrabold text-ink mb-2">Previzualizare pași:</p>
+              <div className="space-y-1">
+                {lesson.steps.map((s) => (
+                  <p key={s.id} className="text-xs text-subtle">Pasul {s.order + 1}: {s.title ?? "(fără titlu)"} — {s.content.slice(0, 60)}...</p>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

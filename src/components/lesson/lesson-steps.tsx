@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { CheckCircle2, Lock, ArrowRight, ArrowLeft, Sparkles, Circle } from "lucide-react";
+import { useToast } from "@/components/ui/toast";
 import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -35,6 +36,14 @@ export function LessonSteps({ lessonId, lessonSlugPath, steps, doneStepIds, isLe
   const [pending, start] = useTransition();
   const [localDone, setLocalDone] = useState<Set<string>>(doneStepIds);
   const [showCelebrate, setShowCelebrate] = useState(false);
+  const { showToast } = useToast();
+  const timeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    setLocalDone(new Set(doneStepIds));
+  }, [doneStepIds]);
+
+  useEffect(() => () => { if (timeoutRef.current) window.clearTimeout(timeoutRef.current); }, []);
 
   if (steps.length === 0) return null;
 
@@ -52,7 +61,10 @@ export function LessonSteps({ lessonId, lessonSlugPath, steps, doneStepIds, isLe
   };
 
   function handleComplete() {
-    if (isLocked(active)) return;
+    if (isLocked(active)) {
+      showToast("Parcurge pașii anteriori mai întâi.");
+      return;
+    }
     start(async () => {
       try {
         if (isDone) {
@@ -67,15 +79,13 @@ export function LessonSteps({ lessonId, lessonSlugPath, steps, doneStepIds, isLe
           setLocalDone((s) => new Set(s).add(current.id));
           if (res.lessonCompleted) {
             setShowCelebrate(true);
-            setTimeout(() => setShowCelebrate(false), 3200);
+            timeoutRef.current = window.setTimeout(() => setShowCelebrate(false), 3200);
           } else if (canGoNext) {
-            // avans automat după 400ms
-            setTimeout(() => setActive((a) => Math.min(a + 1, steps.length - 1)), 400);
+            timeoutRef.current = window.setTimeout(() => setActive((a) => Math.min(a + 1, steps.length - 1)), 400);
           }
         }
       } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error(e);
+        showToast(e instanceof Error ? e.message : "Eroare la salvare");
       }
     });
   }

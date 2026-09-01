@@ -67,7 +67,7 @@ export default async function SubjectPage({
 
   const chaptersWithProgress = subject.chapters.map((chapter) => {
     const done = chapter.lessons.filter((l) => completedIds.has(l.id)).length;
-    return { ...chapter, done, pct: chapter.lessons.length ? Math.round((done / chapter.lessons.length) * 100) : 0 };
+    return { ...chapter, done, pct: chapter.lessons.length ? Math.round((done / chapter.lessons.length) * 100) : 100 };
   });
 
   return (

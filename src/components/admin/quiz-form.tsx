@@ -17,6 +17,7 @@ export interface QuizFormValues {
   difficulty: number;
   published: boolean;
   order: number;
+  chapterId?: string | null;
 }
 
 export function QuizForm({
@@ -24,19 +25,24 @@ export function QuizForm({
   subjectId,
   quizId,
   initial,
+  chapters = [],
+  initialChapterId = null,
 }: {
   subjects: { id: string; name: string }[];
   subjectId: string;
   quizId: string | null;
   initial: QuizFormValues;
+  chapters?: { id: string; title: string }[];
+  initialChapterId?: string | null;
 }) {
   const router = useRouter();
   const { showToast } = useToast();
   const [state, action, pending] = useActionState(
     async (_prev: { error: string }, formData: FormData) => {
+      const ch = String(formData.get("chapterId") ?? "");
       const res = await saveQuiz(quizId, {
         subjectId: String(formData.get("subjectId") ?? ""),
-        chapterId: null,
+        chapterId: ch ? ch : null,
         title: String(formData.get("title") ?? ""),
         slug: String(formData.get("slug") ?? ""),
         description: String(formData.get("description") ?? ""),
@@ -69,20 +75,38 @@ export function QuizForm({
           <Input id="slug" name="slug" defaultValue={initial.slug} placeholder="generat automat" />
         </div>
       </div>
-      <div>
-        <Label htmlFor="subjectId">Materie</Label>
-        <select
-          id="subjectId"
-          name="subjectId"
-          defaultValue={subjectId}
-          className="h-12 w-full rounded-2xl border-2 border-feather bg-card px-4 text-sm font-semibold text-ink focus:outline-none"
-        >
-          {subjects.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <Label htmlFor="subjectId">Materie</Label>
+          <select
+            id="subjectId"
+            name="subjectId"
+            defaultValue={subjectId}
+            className="h-12 w-full rounded-2xl border-2 border-feather bg-card px-4 text-sm font-semibold text-ink focus:outline-none"
+          >
+            {subjects.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label htmlFor="chapterId">Capitol (opțional)</Label>
+          <select
+            id="chapterId"
+            name="chapterId"
+            defaultValue={initialChapterId ?? ""}
+            className="h-12 w-full rounded-2xl border-2 border-feather bg-card px-4 text-sm font-semibold text-ink focus:outline-none"
+          >
+            <option value="">Fără capitol (global)</option>
+            {chapters.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.title}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
       <div>
         <Label htmlFor="description">Descriere</Label>

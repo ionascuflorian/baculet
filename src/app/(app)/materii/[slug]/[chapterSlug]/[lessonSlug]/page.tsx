@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { MarkLessonComplete } from "@/components/mark-lesson-complete";
 import { LessonSteps } from "@/components/lesson/lesson-steps";
+import { Markdown } from "@/components/markdown";
 
 export default async function LessonPage({
   params,
@@ -147,18 +148,16 @@ export default async function LessonPage({
           isLessonDone={isDone}
         />
       ) : (
-        <Card>
-          <CardContent className="py-6">
-            <p className="text-sm text-subtle">Conținut indisponibil pe pași.</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* fallback completare clasică dacă nu are pași sau deja parcursă */}
-      {!hasSteps && (
-        <div className="space-y-3">
-          <MarkLessonComplete lessonId={lesson.id} path={path} isDone={isDone} completesChapter={completesChapter} />
-        </div>
+        <>
+          <Card>
+            <CardContent className="py-6">
+              <Markdown content={lesson.content} />
+            </CardContent>
+          </Card>
+          <div className="space-y-3">
+            <MarkLessonComplete lessonId={lesson.id} path={path} isDone={isDone} completesChapter={completesChapter} />
+          </div>
+        </>
       )}
 
       <div className="flex items-center justify-between pt-2">

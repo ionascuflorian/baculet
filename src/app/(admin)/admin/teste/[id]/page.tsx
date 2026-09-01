@@ -25,7 +25,10 @@ export default async function AdminQuizDetailPage({
 
   if (!quiz) notFound();
 
-  const subjects = await prisma.subject.findMany({ orderBy: { order: "asc" } });
+  const [subjects, chapters] = await Promise.all([
+    prisma.subject.findMany({ orderBy: { order: "asc" } }),
+    prisma.chapter.findMany({ where: { subjectId: quiz.subjectId }, orderBy: { order: "asc" }, select: { id: true, title: true } }),
+  ]);
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
@@ -43,6 +46,8 @@ export default async function AdminQuizDetailPage({
             subjects={subjects.map((s) => ({ id: s.id, name: s.name }))}
             subjectId={quiz.subjectId}
             quizId={quiz.id}
+            chapters={chapters}
+            initialChapterId={quiz.chapterId ?? null}
             initial={{
               title: quiz.title,
               slug: quiz.slug,
@@ -67,8 +72,9 @@ export default async function AdminQuizDetailPage({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-bold text-ink">
-                      {index + 1}. {q.text}
+                      {index + 1}. {q.text} {(q as unknown as { type: string }).type !== "SINGLE" && <span className="ml-2 rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-extrabold text-warning">{(q as unknown as { type: string }).type}</span>}
                     </p>
+                    {(q as unknown as { concept: string | null }).concept && <p className="text-xs text-subtle">concept: {(q as unknown as { concept: string }).concept}</p>}
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {(q.options as string[]).map((opt, i) => (
                         <span
@@ -112,6 +118,8 @@ export default async function AdminQuizDetailPage({
                 options: [],
                 correctIndex: 0,
                 explanation: "",
+                type: "SINGLE",
+                concept: "",
                 order: quiz.questions.length + 1,
               }}
             />

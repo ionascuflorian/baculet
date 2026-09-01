@@ -14,7 +14,7 @@ export default async function ProgressPage() {
   const session = await auth();
   const userId = session!.user.id;
 
-  const [user, subjects, attempts, allDone, stepDone, dueReviews, weak] = await Promise.all([
+  const [user, subjects, attempts, allDone, stepDone, dueReviews, weak, totalQuizCount] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: { streakCount: true, lastActiveAt: true },
@@ -35,6 +35,7 @@ export default async function ProgressPage() {
     prisma.lessonStepProgress.findMany({ where: { userId }, select: { stepId: true } }),
     getDueReviews(userId, 5),
     getWeakConcepts(userId, 4),
+    prisma.quizAttempt.count({ where: { userId } }),
   ]);
 
   const doneIds = new Set(allDone.map((d) => d.lessonId));
@@ -99,7 +100,7 @@ export default async function ProgressPage() {
             <ListChecks className="h-6 w-6 text-accent" />
           </div>
           <div>
-            <p className="text-2xl font-extrabold text-ink">{attempts.length}</p>
+            <p className="text-2xl font-extrabold text-ink">{totalQuizCount}</p>
             <p className="text-xs font-semibold text-subtle">teste rezolvate</p>
           </div>
         </Card>
@@ -144,7 +145,7 @@ export default async function ProgressPage() {
           <CardTitle className="flex items-center gap-2"><Award className="h-5 w-5 text-accent" /> Insigne</CardTitle>
         </CardHeader>
         <CardContent>
-          <BadgeGrid stats={{ streakCount: user?.streakCount ?? 0, lessonsDone: doneIds.size, quizCount: attempts.length, stepsDone: stepDone.length }} />
+          <BadgeGrid stats={{ streakCount: user?.streakCount ?? 0, lessonsDone: doneIds.size, quizCount: totalQuizCount, stepsDone: stepDone.length }} />
         </CardContent>
       </Card>
 

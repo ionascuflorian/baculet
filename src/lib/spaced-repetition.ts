@@ -88,23 +88,35 @@ export async function getDueReviews(userId: string, limit = 20) {
 }
 
 export async function getWeakConcepts(userId: string, limit = 6) {
-  const rows = await prisma.reviewItem.groupBy({
-    by: ["questionId"],
+  const items = await prisma.reviewItem.findMany({
     where: { userId },
-    _count: { questionId: true },
-    _sum: { failCount: true },
-    orderBy: { _sum: { failCount: "desc" } },
-    take: limit,
+    include: {
+      question: { select: { id: true, concept: true, text: true, quiz: { select: { subject: { select: { name: true } } } } } },
+    },
+    orderBy: { failCount: "desc" },
+    take: 50,
   });
-  const qIds = rows.map((r) => r.questionId);
-  const questions = await prisma.question.findMany({
-    where: { id: { in: qIds } },
-    select: { id: true, concept: true, text: true, quiz: { select: { subject: { select: { name: true } } } } },
-  });
-  return rows.map((r) => {
-    const q = questions.find((qq) => qq.id === r.questionId);
-    return { ...r, question: q };
-  });
+  // grupează per concept
+  const byConcept = new Map<string, { concept: string; failCount: number; examples: typeof items }>();
+  for (const it of items) {
+    const key = it.question.concept?.trim() || it.question.text.slice(0, 30);
+    const cur = byConcept.get(key);
+    if (cur) {
+      cur.failCount += it.failCount;
+      cur.examples.push(it);
+    } else {
+      byConcept.set(key, { concept: key, failCount: it.failCount, examples: [it] });
+    }
+  }
+  const sorted = [...byConcept.values()].sort((a, b) => b.failCount - a.failCount).slice(0, limit);
+  // mapăm la formatul așteptat de UI: păstrăm compatibilitate cu { _sum, question }
+  return sorted.map((g) => ({
+    questionId: g.examples[0].question.id,
+    _count: { questionId: g.examples.length } as unknown as { questionId: number },
+    _sum: { failCount: g.failCount } as unknown as { failCount: number | null },
+    question: g.examples[0].question as unknown as { id: string; concept: string | null; text: string; quiz: { subject: { name: string } } },
+    concept: g.concept,
+  }));
 }
 
 export async function getRecapQuizData(userId: string) {

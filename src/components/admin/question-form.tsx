@@ -15,6 +15,8 @@ export interface QuestionFormValues {
   options: string[];
   correctIndex: number;
   explanation: string;
+  type: string;
+  concept: string;
   order: number;
 }
 
@@ -43,6 +45,8 @@ export function QuestionForm({
         options,
         correctIndex: Number(formData.get("correctIndex") ?? 0),
         explanation: String(formData.get("explanation") ?? ""),
+        type: String(formData.get("type") ?? "SINGLE") as "SINGLE" | "CLOZE" | "FLASHCARD" | "DRAG_DROP",
+        concept: String(formData.get("concept") ?? ""),
         order: Number(formData.get("order") ?? 0),
       });
       if (!res?.id) return { error: "Eroare la salvare" };
@@ -94,14 +98,30 @@ export function QuestionForm({
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-[1fr_120px]">
+      <div className="grid gap-4 sm:grid-cols-3">
         <div>
-          <Label htmlFor="explanation">Explicație (opțional)</Label>
-          <Textarea id="explanation" name="explanation" defaultValue={initial.explanation} rows={2} />
+          <Label htmlFor="type">Tip</Label>
+          <select id="type" name="type" defaultValue={initial.type ?? "SINGLE"} className="h-12 w-full rounded-2xl border-2 border-feather bg-card px-4 text-sm font-semibold text-ink">
+            <option value="SINGLE">SINGLE (grilă)</option>
+            <option value="CLOZE">CLOZE (completare)</option>
+            <option value="FLASHCARD">FLASHCARD</option>
+            <option value="DRAG_DROP">DRAG_DROP</option>
+          </select>
+        </div>
+        <div>
+          <Label htmlFor="concept">Concept (etichetă recap)</Label>
+          <Input id="concept" name="concept" defaultValue={initial.concept ?? ""} placeholder="ex. functii-grad1-radacina" />
         </div>
         <div>
           <Label htmlFor="order">Ordine</Label>
           <Input id="order" name="order" type="number" defaultValue={initial.order} />
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-1">
+        <div>
+          <Label htmlFor="explanation">Explicație (opțional)</Label>
+          <Textarea id="explanation" name="explanation" defaultValue={initial.explanation} rows={2} />
         </div>
       </div>
 

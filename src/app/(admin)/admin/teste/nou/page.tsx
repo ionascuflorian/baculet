@@ -6,6 +6,7 @@ import { QuizForm } from "@/components/admin/quiz-form";
 export default async function NewQuizPage() {
   const subjects = await prisma.subject.findMany({ orderBy: { order: "asc" } });
   const defaultSubject = subjects[0];
+  const chapters = defaultSubject ? await prisma.chapter.findMany({ where: { subjectId: defaultSubject.id }, orderBy: { order: "asc" }, select: { id: true, title: true } }) : [];
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -23,6 +24,8 @@ export default async function NewQuizPage() {
         subjects={subjects.map((s) => ({ id: s.id, name: s.name }))}
         subjectId={defaultSubject?.id ?? ""}
         quizId={null}
+        chapters={chapters}
+        initialChapterId={null}
         initial={{
           title: "",
           slug: "",

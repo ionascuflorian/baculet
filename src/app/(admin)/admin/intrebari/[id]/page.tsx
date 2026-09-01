@@ -37,6 +37,8 @@ export default async function AdminQuestionDetailPage({
               options: (question.options as string[]).map((o) => String(o)),
               correctIndex: question.correctIndex,
               explanation: question.explanation ?? "",
+              type: (question as unknown as { type: string }).type ?? "SINGLE",
+              concept: (question as unknown as { concept: string | null }).concept ?? "",
               order: question.order,
             }}
           />

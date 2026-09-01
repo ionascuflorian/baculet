@@ -109,7 +109,7 @@ export async function saveChapter(
     throw err;
   }
 
-  revalidatePath("/admin/materii/[id]", "page");
+  revalidatePath(`/admin/materii/${data.subjectId}`);
   revalidatePath("/materii");
   return { id: chapter.id };
 }
@@ -140,31 +140,45 @@ export async function saveLesson(
   const data = lessonSchema.parse(input);
   const slug = data.slug?.trim() || slugify(data.title);
 
-  const lesson = id
-    ? await prisma.lesson.update({
-        where: { id },
-        data: {
-          title: data.title,
-          slug,
-          content: data.content,
-          videoUrl: data.videoUrl || null,
-          pdfUrl: data.pdfUrl || null,
-          order: data.order,
-        },
-      })
-    : await prisma.lesson.create({
-        data: {
-          chapterId: data.chapterId,
-          title: data.title,
-          slug,
-          content: data.content,
-          videoUrl: data.videoUrl || null,
-          pdfUrl: data.pdfUrl || null,
-          order: data.order,
-        },
-      });
+  let lesson;
+  try {
+    lesson = id
+      ? await prisma.lesson.update({
+          where: { id },
+          data: {
+            title: data.title,
+            slug,
+            content: data.content,
+            videoUrl: data.videoUrl || null,
+            pdfUrl: data.pdfUrl || null,
+            order: data.order,
+          },
+        })
+      : await prisma.lesson.create({
+          data: {
+            chapterId: data.chapterId,
+            title: data.title,
+            slug,
+            content: data.content,
+            videoUrl: data.videoUrl || null,
+            pdfUrl: data.pdfUrl || null,
+            order: data.order,
+          },
+        });
+  } catch (err) {
+    if ((err as { code?: string }).code === "P2002") {
+      throw new Error("Există deja o lecție cu acest slug în capitol.");
+    }
+    throw err;
+  }
 
-  revalidatePath("/admin/capitole/[id]", "page");
+  // sincronizează pașii bite-sized din markdown (## secțiuni)
+  const { syncLessonSteps } = await import("@/lib/lesson-steps");
+  await syncLessonSteps(lesson.id, data.content);
+
+  // revalidare corectă (path-uri reale, nu literal cu [id])
+  revalidatePath(`/admin/capitole/${data.chapterId}`);
+  revalidatePath("/admin/materii");
   revalidatePath("/materii");
   return { id: lesson.id };
 }
@@ -239,6 +253,8 @@ const questionSchema = z.object({
   options: z.array(z.string()).min(2),
   correctIndex: z.coerce.number().int().min(0),
   explanation: z.string().optional().default(""),
+  type: z.enum(["SINGLE", "CLOZE", "FLASHCARD", "DRAG_DROP"]).default("SINGLE"),
+  concept: z.string().optional().default(""),
   order: z.coerce.number().int().default(0),
 });
 
@@ -249,6 +265,11 @@ export async function saveQuestion(
   await requireAdmin();
   const data = questionSchema.parse(input);
 
+  // validare correctIndex în limite
+  if (data.correctIndex >= data.options.length) {
+    throw new Error("Indexul răspunsului corect este în afara variantelor.");
+  }
+
   const question = id
     ? await prisma.question.update({
         where: { id },
@@ -257,6 +278,8 @@ export async function saveQuestion(
           options: data.options,
           correctIndex: data.correctIndex,
           explanation: data.explanation || null,
+          type: data.type as unknown as never,
+          concept: data.concept || null,
           order: data.order,
         },
       })
@@ -267,11 +290,14 @@ export async function saveQuestion(
           options: data.options,
           correctIndex: data.correctIndex,
           explanation: data.explanation || null,
+          type: data.type as unknown as never,
+          concept: data.concept || null,
           order: data.order,
         },
       });
 
-  revalidatePath("/admin/teste/[id]", "page");
+  revalidatePath(`/admin/teste/${data.quizId}`);
+  revalidatePath("/materii");
   return { id: question.id };
 }
 
