@@ -59,12 +59,13 @@ export function UnitPath({ subjectSlug, chapterSlug, units }: Props) {
 
   return (
     <div className="relative mx-auto w-full max-w-xl">
-      {/* linie verticală - ascunsă pe mobil îngust pentru performanță, doar 1px */}
+      {/* linie verticală */}
       <div className="pointer-events-none absolute left-6 top-4 bottom-4 hidden w-px bg-feather/30 md:block md:left-1/2 md:-translate-x-1/2" aria-hidden />
       <div className="pointer-events-none absolute left-[22px] top-4 bottom-4 w-px bg-feather/30 md:hidden" aria-hidden />
       <div className="space-y-4">
         {units.map((unit, idx) => {
           const meta = getStatusMeta(unit.status);
+          const isLeft = idx % 2 === 0;
           const href =
             unit.type === "CHECKPOINT"
               ? `/checkpoint/${unit.slug}`
@@ -77,21 +78,18 @@ export function UnitPath({ subjectSlug, chapterSlug, units }: Props) {
           const isRecap = unit.type === "RECAP";
           const isCheckpoint = unit.type === "CHECKPOINT";
 
-          // aur = MASTERED (stăpânit), roșu/portocaliu = NEEDS_REVIEW / LOCKED
-          // explică ce trebuie să fie în chenare: titlu clar + streak sub, nu trunchiat
           const card = (
             <div
               className={cn(
                 "relative flex w-full items-center gap-3 rounded-2xl border p-3.5 sm:p-4 transition-colors",
-                // performanță: fără gradient/blur, culori solide, will-change doar la hover
                 unit.status === "LOCKED" && "bg-card border-feather/60 text-subtle",
                 unit.status === "AVAILABLE" && "bg-card border-accent/40 hover:border-accent hover:shadow-sm",
                 unit.status === "IN_PROGRESS" && "bg-warning/[0.06] border-warning/30",
                 unit.status === "COMPLETED" && "bg-success/[0.06] border-success/30",
-                unit.status === "MASTERED" && "bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-700", // auriu = stăpânit
-                unit.status === "NEEDS_REVIEW" && "bg-red-50 dark:bg-red-950/20 border-red-300 dark:border-red-800", // roșu = de revizuit
+                unit.status === "MASTERED" && "bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-700",
+                unit.status === "NEEDS_REVIEW" && "bg-red-50 dark:bg-red-950/20 border-red-300 dark:border-red-800",
                 isCheckpoint && unit.status !== "LOCKED" && "border-accent bg-accent/[0.04]",
-                "min-h-[76px]" // țintă tactilă 44px+, evită înghesuială
+                "min-h-[76px]"
               )}
               style={{ contentVisibility: "auto", containIntrinsicSize: "76px" } as React.CSSProperties}
             >
@@ -151,8 +149,7 @@ export function UnitPath({ subjectSlug, chapterSlug, units }: Props) {
             </div>
           );
 
-          // performanță: fără motion pe mobil, doar pe desktop și doar pentru primele 6
-          const MotionWrap = idx < 6 ? motion.div : "div" as any;
+          const MotionWrap = idx < 6 ? motion.div : ("div" as any);
           const motionProps =
             idx < 6
               ? {
@@ -167,25 +164,32 @@ export function UnitPath({ subjectSlug, chapterSlug, units }: Props) {
             <MotionWrap
               key={unit.id}
               {...motionProps}
-              className="relative flex items-center gap-3"
+              className={cn("relative md:flex md:items-center md:gap-4", isLeft ? "md:flex-row" : "md:flex-row-reverse")}
             >
-              {/* punct pe linie */}
-              <div className="pointer-events-none absolute left-[22px] hidden h-2.5 w-2.5 -translate-x-1/2 rounded-full bg-feather md:left-1/2 md:block" style={{ top: "50%" }} aria-hidden />
-              {/* pe mobil: card ocupă tot restul, fără ml-12 înghesuit */}
-              <div className="w-full pl-10 md:pl-0 md:flex md:items-center md:gap-4">
-                <div className="hidden md:block md:w-1/2" aria-hidden />
-                <div className="w-full md:w-1/2">
-                  {!locked ? (
-                    <Link href={href} className="block" prefetch={false}>
-                      {card}
-                    </Link>
-                  ) : (
-                    <div className="opacity-75" aria-disabled>
-                      {card}
-                    </div>
-                  )}
-                </div>
+              {/* desktop zig-zag */}
+              <div className={cn("hidden md:block md:w-1/2", isLeft ? "md:pr-6" : "md:pl-6")}>
+                {!locked ? (
+                  <Link href={href} className="block" prefetch={false}>
+                    {card}
+                  </Link>
+                ) : (
+                  <div className="opacity-60">{card}</div>
+                )}
               </div>
+              <div className="absolute left-1/2 hidden h-3 w-3 -translate-x-1/2 rounded-full bg-feather md:block" style={{ top: "50%" }} aria-hidden />
+              {/* mobil: o singură coloană, optimizată */}
+              <div className="w-full pl-10 md:hidden">
+                {!locked ? (
+                  <Link href={href} className="block" prefetch={false}>
+                    {card}
+                  </Link>
+                ) : (
+                  <div className="opacity-75" aria-disabled>
+                    {card}
+                  </div>
+                )}
+              </div>
+              <div className="hidden md:block md:w-1/2" aria-hidden />
             </MotionWrap>
           );
         })}
