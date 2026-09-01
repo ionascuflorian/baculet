@@ -21,12 +21,14 @@ import { getBacSchedule } from "@/lib/site-settings";
 import { getStudyActivities } from "@/lib/study-activity";
 import { startOfDay } from "@/lib/streak";
 import { ProfilePrompt } from "@/components/profile/profile-prompt";
+import { getDueReviews } from "@/lib/spaced-repetition";
+import { RecapWidget } from "@/components/recap/recap-widget";
 
 export default async function DashboardPage() {
   const session = await auth();
   const userId = session!.user.id;
 
-  const [user, subjects, completedLessons, recentAttempts, quizCount, todoItems, studyActivities] =
+  const [user, subjects, completedLessons, recentAttempts, quizCount, todoItems, studyActivities, dueReviews] =
     await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
@@ -75,6 +77,7 @@ export default async function DashboardPage() {
         select: { id: true, text: true, done: true, order: true },
       }),
       getStudyActivities(userId),
+      getDueReviews(userId, 3),
     ]);
 
   const prefs = normalizePrefs(user?.dashboardWidgets);
@@ -230,6 +233,19 @@ export default async function DashboardPage() {
           }
         })}
       </DashboardGrid>
+
+      {dueReviews.length > 0 && (
+        <RecapWidget
+          dueCount={dueReviews.length}
+          items={dueReviews.map((r) => ({
+            id: r.id,
+            text: r.question.text,
+            concept: r.question.concept,
+            quizTitle: r.question.quiz.title,
+            failCount: r.failCount,
+          }))}
+        />
+      )}
 
       {recentAttempts.length > 0 && (
         <section className="surface rounded-[1.25rem] p-5">

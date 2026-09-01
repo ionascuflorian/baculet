@@ -8,6 +8,7 @@ import { Prisma } from "@/generated/prisma/client";
 
 export const XP_PER_ANSWER = 10;
 export const XP_PER_LESSON = 25;
+export const XP_PER_STEP = 5;
 export const XP_PER_STREAK = 5;
 
 export function startOfWeekUtc(now: Date = new Date()): Date {
@@ -31,12 +32,16 @@ export interface XpBreakdowns {
 
 export async function getXpBreakdowns(userId: string): Promise<XpBreakdowns> {
   const weekStart = startOfWeekUtc();
-  const [attempts, lessons, streak] = await Promise.all([
+  const [attempts, lessons, steps, streak] = await Promise.all([
     prisma.quizAttempt.findMany({
       where: { userId },
       select: { quizId: true, score: true, createdAt: true },
     }),
     prisma.lessonProgress.findMany({
+      where: { userId },
+      select: { completedAt: true },
+    }),
+    prisma.lessonStepProgress.findMany({
       where: { userId },
       select: { completedAt: true },
     }),
@@ -62,19 +67,21 @@ export async function getXpBreakdowns(userId: string): Promise<XpBreakdowns> {
   const lessonXp = lessons.length * XP_PER_LESSON;
   const lessonXpWeek =
     lessons.filter((l) => l.completedAt >= weekStart).length * XP_PER_LESSON;
+  const stepXp = steps.length * XP_PER_STEP;
+  const stepXpWeek = steps.filter((s) => s.completedAt >= weekStart).length * XP_PER_STEP;
   const streakXp = (streak?.streakCount ?? 0) * XP_PER_STREAK;
 
   const allTime = {
     quizXp,
-    lessonXp,
+    lessonXp: lessonXp + stepXp,
     streakXp,
-    total: quizXp + lessonXp + streakXp,
+    total: quizXp + lessonXp + stepXp + streakXp,
   };
   const week = {
     quizXp: quizXpWeek,
-    lessonXp: lessonXpWeek,
+    lessonXp: lessonXpWeek + stepXpWeek,
     streakXp: 0,
-    total: quizXpWeek + lessonXpWeek,
+    total: quizXpWeek + lessonXpWeek + stepXpWeek,
   };
   return { allTime, week };
 }
@@ -91,7 +98,7 @@ export interface BoardRow {
 function xpSelectSql(weekStart: Date | null) {
   return Prisma.sql`
     (SELECT u.id, u.name, u.username, u.image,
-       (COALESCE(q.xp, 0) + COALESCE(l.xp, 0) + ${weekStart ? Prisma.sql`0` : Prisma.sql`COALESCE(s."streakCount" * ${XP_PER_STREAK}, 0)`}) AS xp
+       (COALESCE(q.xp, 0) + COALESCE(l.xp, 0) + COALESCE(st.xp, 0) + ${weekStart ? Prisma.sql`0` : Prisma.sql`COALESCE(s."streakCount" * ${XP_PER_STREAK}, 0)`}) AS xp
      FROM "User" u
      LEFT JOIN (
        SELECT "userId", SUM("best") * ${XP_PER_ANSWER} AS xp FROM (
@@ -107,6 +114,12 @@ function xpSelectSql(weekStart: Date | null) {
        ${weekStart ? Prisma.sql`WHERE "completedAt" >= ${weekStart}` : Prisma.empty}
        GROUP BY "userId"
      ) l ON l."userId" = u.id
+     LEFT JOIN (
+       SELECT "userId", COUNT(*) * ${XP_PER_STEP} AS xp
+       FROM "LessonStepProgress"
+       ${weekStart ? Prisma.sql`WHERE "completedAt" >= ${weekStart}` : Prisma.empty}
+       GROUP BY "userId"
+     ) st ON st."userId" = u.id
      LEFT JOIN "User" s ON s.id = u.id)`;
 }
 

@@ -93,30 +93,61 @@ async function main() {
         options: ["x = 2", "x = 3", "x = -3", "x = 6"],
         correctIndex: 1,
         explanation: "2x - 6 = 0 ⇒ 2x = 6 ⇒ x = 3.",
+        concept: "functii-grad1-radacina",
       },
       {
         text: "Pentru ce valoare a lui a funcția f(x) = ax + 3 are rădăcina x = 1?",
         options: ["a = -3", "a = 3", "a = 1", "a = 0"],
         correctIndex: 0,
         explanation: "a·1 + 3 = 0 ⇒ a = -3.",
+        concept: "functii-grad1-parametru",
       },
       {
         text: "Discriminantul ecuației x² + 4x + 4 = 0 este:",
         options: ["Δ = 0", "Δ = 16", "Δ = 4", "Δ = 8"],
         correctIndex: 0,
         explanation: "Δ = 16 - 16 = 0, deci ecuația are o rădăcină dublă.",
+        concept: "ecuatii-grad2-discriminant",
       },
       {
         text: "Suma rădăcinilor ecuației x² - 7x + 12 = 0 este:",
         options: ["7", "12", "-7", "-12"],
         correctIndex: 0,
         explanation: "Din relațiile lui Viète, S = -b/a = 7.",
+        concept: "ecuatii-grad2-viete-suma",
       },
       {
         text: "Produsul rădăcinilor ecuației x² - 7x + 12 = 0 este:",
         options: ["7", "12", "-12", "6"],
         correctIndex: 1,
         explanation: "P = c/a = 12/1 = 12.",
+        concept: "ecuatii-grad2-viete-produs",
+      },
+    ],
+  });
+
+  // Quiz inline de tip CLOZE / FLASHCARD pentru interactivitate
+  await upsertQuiz(mate.id, "algebra", {
+    title: "Mini-quiz — Funcții de gradul I (interactiv)",
+    slug: "mini-quiz-functii-grad1",
+    difficulty: 1,
+    order: 2,
+    questions: [
+      {
+        text: "Completează: Graficul funcției f(x)=ax+b este o ____.",
+        options: ["parabolă", "dreaptă", "hiperbolă", "cerc"],
+        correctIndex: 1,
+        explanation: "Graficul este o dreaptă.",
+        type: "FLASHCARD",
+        concept: "functii-grad1-grafic",
+      },
+      {
+        text: "Rădăcina lui f(x)=2x-4 este x = __.",
+        options: ["1", "2", "4", "0"],
+        correctIndex: 1,
+        explanation: "2x-4=0 ⇒ x=2.",
+        type: "CLOZE",
+        concept: "functii-grad1-radacina",
       },
     ],
   });
@@ -162,6 +193,7 @@ async function main() {
         options: ["George Bacovia", "Lucian Blaga", "Ion Barbu", "Tudor Arghezi"],
         correctIndex: 0,
         explanation: "George Bacovia este considerat principalul reprezentant al simbolismului românesc.",
+        concept: "simbolism-bacovia",
       },
       {
         text: "Care dintre următoarele este o operă de Camil Petrescu?",
@@ -173,12 +205,14 @@ async function main() {
         ],
         correctIndex: 1,
         explanation: "Camil Petrescu a scris „Ultima noapte de dragoste, întâia noapte de război”.",
+        concept: "camil-petrescu-opera",
       },
       {
         text: "Volumul de debut al lui Lucian Blaga este:",
         options: ["Plumb", "Poemele luminii", "Flori de mucigai", "Joc secund"],
         correctIndex: 1,
         explanation: "Lucian Blaga debutează în 1919 cu „Poemele luminii”.",
+        concept: "blaga-debut",
       },
     ],
   });
@@ -531,7 +565,7 @@ async function upsertLesson(
   chapterId: string,
   data: { title: string; slug: string; order: number; content: string }
 ) {
-  await prisma.lesson.upsert({
+  const lesson = await prisma.lesson.upsert({
     where: { chapterId_slug: { chapterId, slug: data.slug } },
     update: { title: data.title, content: data.content, order: data.order },
     create: {
@@ -542,6 +576,57 @@ async function upsertLesson(
       content: data.content,
     },
   });
+  await syncLessonSteps(lesson.id, data.content);
+  return lesson;
+}
+
+function parseLessonSteps(content: string): { title: string | null; content: string }[] {
+  const sections: { title: string | null; content: string }[] = [];
+  const lines = content.split("\n");
+  let currentTitle: string | null = null;
+  let buffer: string[] = [];
+  for (const line of lines) {
+    const h2 = line.match(/^##\s+(.*)/);
+    if (h2) {
+      if (buffer.join("\n").trim() || currentTitle) {
+        sections.push({ title: currentTitle, content: buffer.join("\n").trim() });
+      }
+      currentTitle = h2[1].trim();
+      buffer = [];
+    } else {
+      buffer.push(line);
+    }
+  }
+  if (buffer.join("\n").trim() || currentTitle) {
+    sections.push({ title: currentTitle, content: buffer.join("\n").trim() });
+  }
+  // If first section has no title and is just the H1, keep it
+  if (sections.length === 0 && content.trim()) sections.push({ title: null, content: content.trim() });
+  return sections.filter((s) => s.content.length > 0);
+}
+
+async function syncLessonSteps(lessonId: string, content: string) {
+  const steps = parseLessonSteps(content);
+  // Remove old steps not in new count
+  await prisma.lessonStep.deleteMany({
+    where: { lessonId, order: { gte: steps.length } },
+  });
+  for (let i = 0; i < steps.length; i++) {
+    const s = steps[i];
+    const existing = await prisma.lessonStep.findUnique({
+      where: { lessonId_order: { lessonId, order: i } },
+    });
+    if (existing) {
+      await prisma.lessonStep.update({
+        where: { id: existing.id },
+        data: { title: s.title, content: s.content },
+      });
+    } else {
+      await prisma.lessonStep.create({
+        data: { lessonId, title: s.title, content: s.content, order: i },
+      });
+    }
+  }
 }
 
 async function upsertQuiz(
@@ -557,6 +642,8 @@ async function upsertQuiz(
       options: string[];
       correctIndex: number;
       explanation?: string;
+      type?: "SINGLE" | "CLOZE" | "FLASHCARD" | "DRAG_DROP";
+      concept?: string;
     }[];
   }
 ) {
@@ -595,6 +682,9 @@ async function upsertQuiz(
       options: q.options,
       correctIndex: q.correctIndex,
       explanation: q.explanation ?? null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      type: ((q as any).type ?? "SINGLE") as any,
+      concept: (q as { concept?: string }).concept ?? null,
       order: i,
     })),
   });

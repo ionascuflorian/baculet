@@ -1,17 +1,20 @@
 import Link from "next/link";
-import { Flame, BookOpen, ListChecks, Trophy } from "lucide-react";
+import { Flame, BookOpen, ListChecks, Trophy, Award, Brain } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { BadgeGrid } from "@/components/badges/badge-grid";
+import { getDueReviews, getWeakConcepts } from "@/lib/spaced-repetition";
+import { Button } from "@/components/ui/button";
 
 export default async function ProgressPage() {
   const session = await auth();
   const userId = session!.user.id;
 
-  const [user, subjects, attempts, allDone] = await Promise.all([
+  const [user, subjects, attempts, allDone, stepDone, dueReviews, weak] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: { streakCount: true, lastActiveAt: true },
@@ -29,6 +32,9 @@ export default async function ProgressPage() {
       include: { quiz: { include: { subject: true } } },
     }),
     prisma.lessonProgress.findMany({ where: { userId }, select: { lessonId: true } }),
+    prisma.lessonStepProgress.findMany({ where: { userId }, select: { stepId: true } }),
+    getDueReviews(userId, 5),
+    getWeakConcepts(userId, 4),
   ]);
 
   const doneIds = new Set(allDone.map((d) => d.lessonId));
@@ -132,6 +138,48 @@ export default async function ProgressPage() {
           ))}
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Award className="h-5 w-5 text-accent" /> Insigne</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <BadgeGrid stats={{ streakCount: user?.streakCount ?? 0, lessonsDone: doneIds.size, quizCount: attempts.length, stepsDone: stepDone.length }} />
+        </CardContent>
+      </Card>
+
+      {(dueReviews.length > 0 || weak.length > 0) && (
+        <Card className="border-warning/30">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2"><Brain className="h-5 w-5 text-warning" /> Repetiție spațiată</CardTitle>
+            <Button asChild size="sm" variant="outline"><Link href="/recapitulare">Recapitulare</Link></Button>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {dueReviews.length > 0 && (
+              <div>
+                <p className="text-sm font-bold text-ink mb-2">{dueReviews.length} concepte de revizuit acum</p>
+                {dueReviews.slice(0, 3).map((r) => (
+                  <div key={r.id} className="rounded-xl border border-feather p-3 mb-2">
+                    <p className="text-sm font-bold text-ink line-clamp-2">{r.question.text}</p>
+                    <p className="text-xs text-subtle">{r.question.concept ?? "general"} · greșit {r.failCount}x</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            {weak.length > 0 && (
+              <div>
+                <p className="text-sm font-bold text-ink mb-2">Puncte slabe</p>
+                {weak.map((w) => (
+                  <div key={w.questionId} className="flex items-center justify-between rounded-xl bg-danger/5 px-3 py-2 mb-2">
+                    <span className="text-sm font-semibold text-ink truncate">{w.question?.concept ?? w.question?.text.slice(0, 40)}</span>
+                    <span className="text-xs font-bold text-danger">{w._sum.failCount} greșeli</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">

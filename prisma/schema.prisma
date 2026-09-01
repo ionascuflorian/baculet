@@ -24,6 +24,13 @@ enum ExamSession {
   SPECIAL
 }
 
+enum QuestionType {
+  SINGLE
+  CLOZE
+  FLASHCARD
+  DRAG_DROP
+}
+
 model User {
   id            String   @id @default(cuid())
   email         String   @unique
@@ -53,15 +60,17 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  lessonProgress    LessonProgress[]
-  quizAttempts      QuizAttempt[]
-  pushSubscriptions PushSubscription[]
-  calendarEvents    CalendarEvent[]
-  quizzes           Quiz[]
-  todoItems         TodoItem[]
-  studyActivities   StudyActivity[]
-  following         Follow[] @relation("Follower")
-  followers         Follow[] @relation("Following")
+  lessonProgress      LessonProgress[]
+  lessonStepProgress  LessonStepProgress[]
+  quizAttempts        QuizAttempt[]
+  pushSubscriptions   PushSubscription[]
+  calendarEvents      CalendarEvent[]
+  quizzes             Quiz[]
+  todoItems           TodoItem[]
+  studyActivities     StudyActivity[]
+  reviewItems         ReviewItem[]
+  following           Follow[] @relation("Follower")
+  followers           Follow[] @relation("Following")
 }
 
 // Urmărire unidirecțională: `follower` urmărește `following`.
@@ -173,8 +182,40 @@ model Lesson {
 
   chapter  Chapter          @relation(fields: [chapterId], references: [id], onDelete: Cascade)
   progress LessonProgress[]
+  steps    LessonStep[]
 
   @@unique([chapterId, slug])
+}
+
+model LessonStep {
+  id        String  @id @default(cuid())
+  lessonId  String
+  title     String?
+  content   String
+  order     Int     @default(0)
+  quizId    String? @unique
+
+  lesson   Lesson          @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  quiz     Quiz?           @relation(fields: [quizId], references: [id], onDelete: SetNull)
+  progress LessonStepProgress[]
+
+  @@unique([lessonId, order])
+  @@index([lessonId])
+}
+
+model LessonStepProgress {
+  id        String   @id @default(cuid())
+  userId    String
+  lessonId  String
+  stepId    String
+  completedAt DateTime @default(now())
+
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  step LessonStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, stepId])
+  @@index([userId, lessonId])
+  @@index([completedAt])
 }
 
 model LessonProgress {
@@ -208,23 +249,28 @@ model Quiz {
     user      User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
     questions Question[]
     attempts  QuizAttempt[]
+    step      LessonStep?
   
     @@index([userId])
     @@unique([subjectId, slug])
   }
 
 model Question {
-  id           String  @id @default(cuid())
+  id           String       @id @default(cuid())
   quizId       String
   text         String
   options      Json
   correctIndex Int
   explanation  String?
-  order        Int     @default(0)
+  type         QuestionType @default(SINGLE)
+  concept      String?
+  order        Int          @default(0)
 
-  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  quiz        Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  reviewItems ReviewItem[]
 
   @@index([quizId])
+  @@index([concept])
 }
 
 model QuizAttempt {
@@ -296,6 +342,27 @@ model TodoItem {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// Repetitie spatiata: un rand per intrebare gresita / de revizuit.
+model ReviewItem {
+  id           String   @id @default(cuid())
+  userId       String
+  questionId   String
+  failCount    Int      @default(1)
+  successCount Int      @default(0)
+  nextReviewAt DateTime @default(now())
+  interval     Int      @default(1)
+  ease         Float    @default(2.5)
+  lastFailedAt DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questionId])
+  @@index([userId, nextReviewAt])
 }
 
 // Un rând per zi în care utilizatorul a învățat (lecție completată sau test

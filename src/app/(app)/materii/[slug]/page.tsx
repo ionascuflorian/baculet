@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { ChapterTree } from "@/components/skill-tree/chapter-tree";
 
 const PROFILE_LABELS: Record<string, string> = {
   REAL: "Real",
@@ -96,7 +97,8 @@ export default async function SubjectPage({
       </div>
 
       <div className="space-y-4">
-        <h2 className="text-xl font-bold text-ink">Capitole</h2>
+        <h2 className="text-xl font-bold text-ink">Arbore de Învățare</h2>
+        <p className="text-sm text-subtle">Parcurge capitolele în ordine — se deblochează pe măsură ce progresezi. Progresia blocată previne copleșirea.</p>
         {chaptersWithProgress.length === 0 && (
           <Card>
             <CardContent className="py-8 text-center text-sm text-subtle">
@@ -104,31 +106,9 @@ export default async function SubjectPage({
             </CardContent>
           </Card>
         )}
-        {chaptersWithProgress.map((chapter, idx) => (
-          <Link key={chapter.id} href={`/materii/${subject.slug}/${chapter.slug}`}>
-            <Card
-              className={cn(
-                "transition-all hover:-translate-y-0.5 hover:shadow-md",
-                chapter.pct === 100 && "border-success/50"
-              )}
-            >
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/10 font-extrabold text-accent">
-                    {idx + 1}
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg">{chapter.title}</CardTitle>
-                    <p className="text-sm text-subtle">
-                      {chapter.lessons.length} lecții · {chapter.done} parcurse
-                    </p>
-                  </div>
-                </div>
-                <ChevronRight className="h-5 w-5 text-subtle" />
-              </CardHeader>
-            </Card>
-          </Link>
-        ))}
+        {chaptersWithProgress.length > 0 && (
+          <ChapterTree subjectSlug={subject.slug} chapters={chaptersWithProgress} />
+        )}
       </div>
 
       {subject.quizzes.length > 0 && (

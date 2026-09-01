@@ -25,6 +25,7 @@ const Siera = dynamic(
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/materii", label: "Materii" },
+  { href: "/recapitulare", label: "Recapitulare" },
   { href: "/subiecte-bac", label: "Subiecte BAC" },
   { href: "/progres", label: "Progres" },
   { href: "/prieteni", label: "Prieteni" },

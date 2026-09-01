@@ -3,11 +3,11 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, Video, FileText } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { MarkLessonComplete } from "@/components/mark-lesson-complete";
+import { LessonSteps } from "@/components/lesson/lesson-steps";
 
 export default async function LessonPage({
   params,
@@ -41,6 +41,22 @@ export default async function LessonPage({
       content: true,
       videoUrl: true,
       pdfUrl: true,
+      steps: {
+        orderBy: { order: "asc" },
+        select: {
+          id: true,
+          title: true,
+          content: true,
+          order: true,
+          quiz: {
+            select: {
+              id: true,
+              title: true,
+              questions: { orderBy: { order: "asc" }, select: { id: true, text: true, options: true, correctIndex: true, explanation: true, type: true } },
+            },
+          },
+        },
+      },
     },
   });
   if (!lesson) notFound();
@@ -49,18 +65,25 @@ export default async function LessonPage({
   const prev = chapter.lessons[idx - 1] ?? null;
   const next = chapter.lessons[idx + 1] ?? null;
 
-  const progress = await prisma.lessonProgress.findMany({
-    where: { userId, lesson: { chapterId: chapter.id } },
-    select: { lessonId: true },
-  });
+  const [progress, stepProgress] = await Promise.all([
+    prisma.lessonProgress.findMany({
+      where: { userId, lesson: { chapterId: chapter.id } },
+      select: { lessonId: true },
+    }),
+    prisma.lessonStepProgress.findMany({
+      where: { userId, lessonId: lesson.id },
+      select: { stepId: true },
+    }),
+  ]);
   const doneIds = new Set(progress.map((p) => p.lessonId));
   const isDone = doneIds.has(lesson.id);
-  // Marcarea acestei lecții finalizează capitolul doar dacă restul sunt deja parcure.
+  const doneStepIds = new Set(stepProgress.map((s) => s.stepId));
   const completesChapter =
     !isDone &&
     chapter.lessons.every((l) => l.id === lesson.id || doneIds.has(l.id));
 
   const path = `/materii/${slug}/${chapterSlug}/${lessonSlug}`;
+  const hasSteps = lesson.steps.length > 0;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -96,49 +119,70 @@ export default async function LessonPage({
         </div>
       )}
 
-      <Card>
-        <CardContent className="py-6">
-          <Markdown content={lesson.content} />
-        </CardContent>
-      </Card>
+      {hasSteps ? (
+        <LessonSteps
+          lessonId={lesson.id}
+          lessonSlugPath={path}
+          steps={lesson.steps.map((s) => ({
+            id: s.id,
+            title: s.title,
+            content: s.content,
+            order: s.order,
+            quiz: s.quiz
+              ? {
+                  id: s.quiz.id,
+                  title: s.quiz.title,
+                  questions: s.quiz.questions.map((q) => ({
+                    id: q.id,
+                    text: q.text,
+                    options: q.options as string[],
+                    correctIndex: q.correctIndex,
+                    explanation: q.explanation,
+                    type: q.type as string,
+                  })),
+                }
+              : null,
+          }))}
+          doneStepIds={doneStepIds}
+          isLessonDone={isDone}
+        />
+      ) : (
+        <Card>
+          <CardContent className="py-6">
+            <p className="text-sm text-subtle">Conținut indisponibil pe pași.</p>
+          </CardContent>
+        </Card>
+      )}
 
-      <div className="space-y-3">
-        {prev && (
-          <div className="flex justify-start">
-            <Button asChild variant="ghost" size="sm">
-              <Link href={`/materii/${slug}/${chapterSlug}/${prev.slug}`}>
-                <ArrowLeft className="h-4 w-4" /> {prev.title}
-              </Link>
-            </Button>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="min-w-0">
-            <MarkLessonComplete
-              lessonId={lesson.id}
-              path={path}
-              isDone={isDone}
-              completesChapter={completesChapter}
-            />
-          </div>
-
-          {next ? (
-            <Button asChild variant="secondary" size="lg" className="w-full min-w-0">
-              <Link
-                href={`/materii/${slug}/${chapterSlug}/${next.slug}`}
-                className="flex items-center justify-center gap-2"
-              >
-                <span className="truncate">{next.title}</span>
-                <ArrowRight className="h-5 w-5 shrink-0" />
-              </Link>
-            </Button>
-          ) : (
-            <Button asChild variant="secondary" size="lg" className="w-full">
-              <Link href={`/materii/${slug}`}>Gata capitolul</Link>
-            </Button>
-          )}
+      {/* fallback completare clasică dacă nu are pași sau deja parcursă */}
+      {!hasSteps && (
+        <div className="space-y-3">
+          <MarkLessonComplete lessonId={lesson.id} path={path} isDone={isDone} completesChapter={completesChapter} />
         </div>
+      )}
+
+      <div className="flex items-center justify-between pt-2">
+        {prev ? (
+          <Button asChild variant="ghost" size="sm">
+            <Link href={`/materii/${slug}/${chapterSlug}/${prev.slug}`}>
+              <ArrowLeft className="h-4 w-4" /> {prev.title}
+            </Link>
+          </Button>
+        ) : (
+          <span />
+        )}
+        {next ? (
+          <Button asChild variant="secondary" size="sm">
+            <Link href={`/materii/${slug}/${chapterSlug}/${next.slug}`} className="flex items-center gap-2">
+              <span className="truncate">{next.title}</span>
+              <ArrowRight className="h-5 w-5 shrink-0" />
+            </Link>
+          </Button>
+        ) : (
+          <Button asChild variant="secondary" size="sm">
+            <Link href={`/materii/${slug}`}>Gata capitolul</Link>
+          </Button>
+        )}
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { nextStreak } from "@/lib/streak";
 import { recordStudyActivity } from "@/lib/study-activity";
+import { recordReview } from "@/lib/spaced-repetition";
 
 export async function submitQuiz(
   quizId: string,
@@ -60,6 +61,15 @@ export async function submitQuiz(
   }
 
   await recordStudyActivity(session.user.id);
+
+  // spaced repetition: înregistrează fiecare răspuns
+  for (const q of quiz.questions) {
+    const correct = answers[q.id] === q.correctIndex;
+    // nu blocăm răspunsul principal dacă SR eșuează
+    try {
+      await recordReview(session.user.id, q.id, correct);
+    } catch {}
+  }
 
   return { attemptId: attempt.id };
 }
