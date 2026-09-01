@@ -42,7 +42,7 @@ async function main() {
 
   const mateChapters: ChapterSeed[] = [
     {
-      title: "Algebră",
+      title: "Algebră — clasa a IX-a",
       slug: "algebra",
       order: 1,
       lessons: [
@@ -58,6 +58,12 @@ async function main() {
           order: 2,
           file: ["matematica", "algebra", "ecuatii-de-gradul-al-ii-lea.md"],
         },
+        {
+          title: "Funcția de gradul al II-lea",
+          slug: "functia-de-gradul-al-ii-lea",
+          order: 3,
+          file: ["matematica", "algebra", "functia-de-gradul-al-ii-lea.md"],
+        },
       ],
     },
     {
@@ -70,6 +76,95 @@ async function main() {
           slug: "triunghiul-teoreme-esentiale",
           order: 1,
           file: ["matematica", "geometrie", "triunghiul-teoreme-esentiale.md"],
+        },
+      ],
+    },
+    {
+      title: "Trigonometrie",
+      slug: "trigonometrie",
+      order: 3,
+      lessons: [
+        {
+          title: "Elemente de trigonometrie",
+          slug: "elemente-de-trigonometrie",
+          order: 1,
+          file: ["matematica", "trigonometrie", "elemente-de-trigonometrie.md"],
+        },
+      ],
+    },
+    {
+      title: "Combinatorică și Geometrie analitică",
+      slug: "combinatorica-geometrie-analitica",
+      order: 4,
+      lessons: [
+        {
+          title: "Permutări, aranjamente, combinări",
+          slug: "permutari-aranjamente-combinari",
+          order: 1,
+          file: ["matematica", "combinatorica", "permutari-aranjamente-combinari.md"],
+        },
+        {
+          title: "Reper cartezian și ecuația dreptei",
+          slug: "reper-si-ecuatia-dreptei",
+          order: 2,
+          file: ["matematica", "geometrie-analitica", "reper-si-ecuatia-dreptei.md"],
+        },
+      ],
+    },
+    {
+      title: "Matrice, determinanți și sisteme",
+      slug: "matrice-determinanti-sisteme",
+      order: 5,
+      lessons: [
+        {
+          title: "Matrice și determinanți",
+          slug: "matrice-determinanti",
+          order: 1,
+          file: ["matematica", "matrice", "matrice-determinanti.md"],
+        },
+        {
+          title: "Sisteme de ecuații liniare",
+          slug: "sisteme-de-ecuatii",
+          order: 2,
+          file: ["matematica", "matrice", "sisteme-de-ecuatii.md"],
+        },
+      ],
+    },
+    {
+      title: "Analiză — limite, continuitate și derivate",
+      slug: "analiza-limite-derivate",
+      order: 6,
+      lessons: [
+        {
+          title: "Limite și continuitate",
+          slug: "limite-continuitate",
+          order: 1,
+          file: ["matematica", "analiza-xi", "limite-continuitate.md"],
+        },
+        {
+          title: "Derivate și studiul funcțiilor",
+          slug: "derivate-si-studiu",
+          order: 2,
+          file: ["matematica", "analiza-xi", "derivate-si-studiu.md"],
+        },
+      ],
+    },
+    {
+      title: "Algebră XII și Analiză XII",
+      slug: "algebra-analiza-xii",
+      order: 7,
+      lessons: [
+        {
+          title: "Grupuri, inele și polinoame",
+          slug: "grupuri-inele-polinoame",
+          order: 1,
+          file: ["matematica", "algebra-xii", "grupuri-inele-polinoame.md"],
+        },
+        {
+          title: "Primitive și integrala definită",
+          slug: "primitive-integrala",
+          order: 2,
+          file: ["matematica", "analiza-xii", "primitive-integrala.md"],
         },
       ],
     },
@@ -148,6 +243,156 @@ async function main() {
         explanation: "2x-4=0 ⇒ x=2.",
         type: "CLOZE",
         concept: "functii-grad1-radacina",
+      },
+    ],
+  });
+
+  await upsertQuiz(mate.id, "trigonometrie", {
+    title: "Test — Trigonometrie",
+    slug: "test-trigonometrie",
+    difficulty: 2,
+    order: 3,
+    questions: [
+      {
+        text: "sin²α + cos²α = ?",
+        options: ["0", "1", "2", "sin2α"],
+        correctIndex: 1,
+        explanation: "Identitatea fundamentală.",
+        concept: "trigonometrie-identitate",
+      },
+      {
+        text: "Teorema sinusurilor: a/sinA = ?",
+        options: ["2R", "R", "2r", "r"],
+        correctIndex: 0,
+        explanation: "a/sinA = 2R (raza cercului circumscris).",
+        concept: "teorema-sinusurilor",
+      },
+      {
+        text: "Valoarea lui cos 60° este:",
+        options: ["0", "1/2", "√3/2", "1"],
+        correctIndex: 1,
+        explanation: "cos 60° = 1/2.",
+        concept: "valori-trigonometrice",
+      },
+    ],
+  });
+
+  await upsertQuiz(mate.id, "combinatorica-geometrie-analitica", {
+    title: "Test — Combinatorică & Geometrie analitică",
+    slug: "test-combinatorica-geometrie",
+    difficulty: 2,
+    order: 4,
+    questions: [
+      {
+        text: "C₅² = ?",
+        options: ["10", "20", "5", "15"],
+        correctIndex: 0,
+        explanation: "C₅² = 10.",
+        concept: "combinari",
+      },
+      {
+        text: "Panta dreptei prin A(0,0) și B(2,4) este:",
+        options: ["1", "2", "1/2", "4"],
+        correctIndex: 1,
+        explanation: "m=(4-0)/(2-0)=2.",
+        concept: "panta-dreptei",
+      },
+      {
+        text: "Două drepte sunt perpendiculare dacă:",
+        options: ["m₁=m₂", "m₁·m₂=-1", "m₁·m₂=1", "m₁=-m₂"],
+        correctIndex: 1,
+        explanation: "Perpendicularitate: m₁·m₂=-1.",
+        concept: "perpendicularitate",
+      },
+    ],
+  });
+
+  await upsertQuiz(mate.id, "matrice-determinanti-sisteme", {
+    title: "Test — Matrice, determinanți și sisteme",
+    slug: "test-matrice-sisteme",
+    difficulty: 2,
+    order: 5,
+    questions: [
+      {
+        text: "det [[1,2],[3,4]] = ?",
+        options: ["-2", "2", "10", "-10"],
+        correctIndex: 0,
+        explanation: "1·4-2·3=-2.",
+        concept: "determinant-2x2",
+      },
+      {
+        text: "O matrice pătratică e inversabilă dacă:",
+        options: ["det=0", "det≠0", "det=1", "det>0"],
+        correctIndex: 1,
+        explanation: "Inversabilă iff det≠0.",
+        concept: "inversabilitate",
+      },
+      {
+        text: "Sistem Cramer are soluție unică dacă:",
+        options: ["detA=0", "detA≠0", "detA=1", "B=0"],
+        correctIndex: 1,
+        explanation: "Cramer: detA≠0 → unică.",
+        concept: "cramer",
+      },
+    ],
+  });
+
+  await upsertQuiz(mate.id, "analiza-limite-derivate", {
+    title: "Test — Limite, continuitate și derivate",
+    slug: "test-limite-derivate",
+    difficulty: 2,
+    order: 6,
+    questions: [
+      {
+        text: "(x³)' = ?",
+        options: ["3x²", "x²", "3x", "x³"],
+        correctIndex: 0,
+        explanation: "(xⁿ)'=n xⁿ⁻¹.",
+        concept: "derivata-putere",
+      },
+      {
+        text: "Ecuația tangentei în x₀ este:",
+        options: ["y-f(x₀)=f'(x₀)(x-x₀)", "y = f'(x)", "y = mx+n", "y = f(x₀)+x"],
+        correctIndex: 0,
+        explanation: "Formula tangentei.",
+        concept: "tangenta",
+      },
+      {
+        text: "Dacă f'(x)>0 pe interval, f este:",
+        options: ["descrescătoare", "crescătoare", "constantă", "concavă"],
+        correctIndex: 1,
+        explanation: "f'>0 → crescătoare.",
+        concept: "monotonie",
+      },
+    ],
+  });
+
+  await upsertQuiz(mate.id, "algebra-analiza-xii", {
+    title: "Test — Algebră XII & Analiză XII",
+    slug: "test-algebra-analiza-xii",
+    difficulty: 3,
+    order: 7,
+    questions: [
+      {
+        text: "Relația lui Viète S = -b/a se aplică pentru:",
+        options: ["ec. grad 1", "ec. grad 2", "ec. grad 3", "sisteme"],
+        correctIndex: 1,
+        explanation: "Pentru ax²+bx+c, S = -b/a.",
+        concept: "viete-grad2",
+      },
+      {
+        text: "∫ x² dx = ?",
+        options: ["x³/3 + C", "x³ + C", "2x + C", "x²/2 + C"],
+        correctIndex: 0,
+        explanation: "∫ xⁿ = xⁿ⁺¹/(n+1).",
+        concept: "primitiva-putere",
+      },
+      {
+        text: "Formula Leibniz-Newton: ∫ₐᵇ f(x)dx = ?",
+        options: ["F(b)-F(a)", "F(a)-F(b)", "f(b)-f(a)", "0"],
+        correctIndex: 0,
+        explanation: "F(b)-F(a).",
+        concept: "leibniz-newton",
       },
     ],
   });
