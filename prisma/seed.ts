@@ -177,6 +177,51 @@ async function main() {
     }
   }
 
+  // ─── Units & Concepts (Learning Path - data-driven) ───────────────
+  for (const chapter of mateChapters) {
+    const ch = await prisma.chapter.findUnique({ where: { subjectId_slug: { subjectId: mate.id, slug: chapter.slug } } });
+    if (!ch) continue;
+    const lessons = await prisma.lesson.findMany({ where: { chapterId: ch.id }, orderBy: { order: "asc" } });
+    for (const l of lessons) {
+      const unit = await upsertUnit(ch.id, {
+        title: l.title,
+        slug: l.slug,
+        order: l.order,
+        type: "LESSON",
+        description: `Unitate: ${l.title}`,
+      });
+      await prisma.lesson.update({ where: { id: l.id }, data: { unitId: unit.id } });
+      // 2-3 concepte per lecție (demo, marchează clar)
+      const base = l.slug;
+      await upsertConcept(l.id, { name: "Noțiuni de bază", slug: `${base}-notiuni`, order: 1, difficulty: 1 });
+      await upsertConcept(l.id, { name: "Aplicare", slug: `${base}-aplicare`, order: 2, difficulty: 2 });
+      if (l.title.toLowerCase().includes("grad") || l.title.toLowerCase().includes("trigonometrie")) {
+        await upsertConcept(l.id, { name: "Exercițiu tip BAC", slug: `${base}-bac`, order: 3, difficulty: 3 });
+      }
+    }
+    // Unitate de recapitulare automată
+    await upsertUnit(ch.id, {
+      title: "Recapitulare",
+      slug: `recap-${chapter.slug}`,
+      order: 99,
+      type: "RECAP",
+      description: "Recapitulare automată — 2 întrebări din fiecare lecție anterioară",
+    });
+    // Checkpoint
+    const cpUnit = await upsertUnit(ch.id, {
+      title: "Checkpoint",
+      slug: `checkpoint-${chapter.slug}`,
+      order: 100,
+      type: "CHECKPOINT",
+      description: "Checkpoint — combină conceptele învățate",
+    });
+    await prisma.checkpoint.upsert({
+      where: { slug: `checkpoint-${chapter.slug}` },
+      update: { title: `Checkpoint — ${chapter.title}`, order: 100, chapterId: ch.id, unitId: cpUnit.id },
+      create: { title: `Checkpoint — ${chapter.title}`, slug: `checkpoint-${chapter.slug}`, order: 100, chapterId: ch.id, unitId: cpUnit.id },
+    });
+  }
+
   await upsertQuiz(mate.id, "algebra", {
     title: "Test grilă — Algebră",
     slug: "test-grila-algebra",
@@ -806,6 +851,44 @@ async function upsertChapter(subjectId: string, data: ChapterSeed) {
   return chapter;
 }
 
+async function upsertUnit(
+  chapterId: string,
+  data: { title: string; slug: string; order: number; type?: "LESSON" | "RECAP" | "CHECKPOINT" | "DIAGNOSTIC"; description?: string }
+) {
+  const unit = await prisma.unit.upsert({
+    where: { chapterId_slug: { chapterId, slug: data.slug } },
+    update: { title: data.title, order: data.order, type: (data.type ?? "LESSON") as never, description: data.description ?? null },
+    create: {
+      chapterId,
+      title: data.title,
+      slug: data.slug,
+      order: data.order,
+      type: (data.type ?? "LESSON") as never,
+      description: data.description ?? null,
+    },
+  });
+  return unit;
+}
+
+async function upsertConcept(
+  lessonId: string,
+  data: { name: string; slug: string; order: number; difficulty?: number; description?: string }
+) {
+  const concept = await prisma.concept.upsert({
+    where: { lessonId_slug: { lessonId, slug: data.slug } },
+    update: { name: data.name, order: data.order, difficulty: data.difficulty ?? 1, description: data.description ?? null },
+    create: {
+      lessonId,
+      name: data.name,
+      slug: data.slug,
+      order: data.order,
+      difficulty: data.difficulty ?? 1,
+      description: data.description ?? null,
+    },
+  });
+  return concept;
+}
+
 async function upsertLesson(
   chapterId: string,
   data: { title: string; slug: string; order: number; content: string }
@@ -825,16 +908,33 @@ async function upsertLesson(
   return lesson;
 }
 
-function parseLessonSteps(content: string): { title: string | null; content: string }[] {
-  const sections: { title: string | null; content: string }[] = [];
+const STEP_TYPES_SEED = ["DESCOPERĂ","ÎNȚELEGE","VEZI UN EXEMPLU","ÎNCEARCĂ","EXERSEAZĂ","APLICĂ","RECAPITULEAZĂ"] as const;
+function inferStepTypeSeed(idx: number, title: string | null): string {
+  if (title) {
+    const t = title.toLowerCase();
+    if (t.includes("descoper")) return "DESCOPERĂ";
+    if (t.includes("înțeleg") || t.includes("inteleg")) return "ÎNȚELEGE";
+    if (t.includes("exemplu")) return "VEZI UN EXEMPLU";
+    if (t.includes("încearc") || t.includes("incearca")) return "ÎNCEARCĂ";
+    if (t.includes("exersez") || t.includes("exers")) return "EXERSEAZĂ";
+    if (t.includes("aplic")) return "APLICĂ";
+    if (t.includes("recapitul")) return "RECAPITULEAZĂ";
+  }
+  return STEP_TYPES_SEED[idx % STEP_TYPES_SEED.length] ?? "DESCOPERĂ";
+}
+function parseLessonSteps(content: string): { title: string | null; content: string; stepType: string }[] {
+  const sections: { title: string | null; content: string; stepType: string }[] = [];
   const lines = content.split("\n");
   let currentTitle: string | null = null;
   let buffer: string[] = [];
+  let idx = 0;
   for (const line of lines) {
     const h2 = line.match(/^##\s+(.*)/);
     if (h2) {
       if (buffer.join("\n").trim() || currentTitle) {
-        sections.push({ title: currentTitle, content: buffer.join("\n").trim() });
+        const title = currentTitle;
+        sections.push({ title, content: buffer.join("\n").trim(), stepType: inferStepTypeSeed(idx, title) });
+        idx++;
       }
       currentTitle = h2[1].trim();
       buffer = [];
@@ -843,33 +943,23 @@ function parseLessonSteps(content: string): { title: string | null; content: str
     }
   }
   if (buffer.join("\n").trim() || currentTitle) {
-    sections.push({ title: currentTitle, content: buffer.join("\n").trim() });
+    const title = currentTitle;
+    sections.push({ title, content: buffer.join("\n").trim(), stepType: inferStepTypeSeed(idx, title) });
   }
-  // If first section has no title and is just the H1, keep it
-  if (sections.length === 0 && content.trim()) sections.push({ title: null, content: content.trim() });
+  if (sections.length === 0 && content.trim()) sections.push({ title: null, content: content.trim(), stepType: "DESCOPERĂ" });
   return sections.filter((s) => s.content.length > 0);
 }
 
 async function syncLessonSteps(lessonId: string, content: string) {
   const steps = parseLessonSteps(content);
-  // Remove old steps not in new count
-  await prisma.lessonStep.deleteMany({
-    where: { lessonId, order: { gte: steps.length } },
-  });
+  await prisma.lessonStep.deleteMany({ where: { lessonId, order: { gte: steps.length } } });
   for (let i = 0; i < steps.length; i++) {
     const s = steps[i];
-    const existing = await prisma.lessonStep.findUnique({
-      where: { lessonId_order: { lessonId, order: i } },
-    });
+    const existing = await prisma.lessonStep.findUnique({ where: { lessonId_order: { lessonId, order: i } } });
     if (existing) {
-      await prisma.lessonStep.update({
-        where: { id: existing.id },
-        data: { title: s.title, content: s.content },
-      });
+      await prisma.lessonStep.update({ where: { id: existing.id }, data: { title: s.title, content: s.content, stepType: s.stepType } });
     } else {
-      await prisma.lessonStep.create({
-        data: { lessonId, title: s.title, content: s.content, order: i },
-      });
+      await prisma.lessonStep.create({ data: { lessonId, title: s.title, content: s.content, order: i, stepType: s.stepType } });
     }
   }
 }

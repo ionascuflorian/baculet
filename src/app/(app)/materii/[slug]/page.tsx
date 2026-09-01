@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ChevronRight, ListChecks, ArrowLeft } from "lucide-react";
+import { ArrowLeft, ListChecks } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
-import { ChapterTree } from "@/components/skill-tree/chapter-tree";
+import { Card, CardContent } from "@/components/ui/card";
+import { getLearningPathForChapter } from "@/lib/learning-path";
+import { getNextBestActionForSubject } from "@/lib/next-action";
+import { UnitPath } from "@/components/learning-path/unit-path";
 
 const PROFILE_LABELS: Record<string, string> = {
   REAL: "Real",
@@ -60,16 +61,15 @@ export default async function SubjectPage({
 
   if (!subject) notFound();
 
-  const completed = await prisma.lessonProgress.findMany({
-    where: { userId, lesson: { chapter: { subjectId: subject.id } } },
-    select: { lessonId: true },
-  });
-  const completedIds = new Set(completed.map((c) => c.lessonId));
+  const nextAction = await getNextBestActionForSubject(userId, subject.slug);
 
-  const chaptersWithProgress = subject.chapters.map((chapter) => {
-    const done = chapter.lessons.filter((l) => completedIds.has(l.id)).length;
-    return { ...chapter, done, pct: chapter.lessons.length ? Math.round((done / chapter.lessons.length) * 100) : 100 };
-  });
+  // pentru fiecare capitol, calculează learning path cu unități
+  const chaptersWithPath = await Promise.all(
+    subject.chapters.map(async (ch) => {
+      const units = await getLearningPathForChapter(userId, ch.id);
+      return { ...ch, units };
+    })
+  );
 
   return (
     <div className="space-y-6">
@@ -97,19 +97,41 @@ export default async function SubjectPage({
         </div>
       </div>
 
-      <div className="space-y-4">
-        <h2 className="text-xl font-bold text-ink">Arbore de Învățare</h2>
-        <p className="text-sm text-subtle">Parcurge capitolele în ordine — se deblochează pe măsură ce progresezi. Progresia blocată previne copleșirea.</p>
-        {chaptersWithProgress.length === 0 && (
+      {nextAction && (
+        <Card className="border-accent/20 bg-gradient-to-br from-accent/5 to-accent-dark/5">
+          <CardContent className="p-5">
+            <p className="text-xs font-extrabold uppercase tracking-widest text-accent">{nextAction.meta}</p>
+            <h3 className="mt-1 text-lg font-extrabold text-ink">{nextAction.title}</h3>
+            <p className="text-sm text-subtle">{nextAction.description}</p>
+            <Button asChild size="sm" className="mt-3">
+              <Link href={nextAction.href}>Continuă →</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="space-y-10">
+        <div>
+          <h2 className="text-xl font-bold text-ink">Traseul tău de învățare</h2>
+          <p className="text-sm text-subtle">Pași mici, clari. Băculeț te ghidează — tu doar continuă.</p>
+        </div>
+        {chaptersWithPath.length === 0 && (
           <Card>
             <CardContent className="py-8 text-center text-sm text-subtle">
               Capitolele pentru această materie se pregătesc.
             </CardContent>
           </Card>
         )}
-        {chaptersWithProgress.length > 0 && (
-          <ChapterTree subjectSlug={subject.slug} chapters={chaptersWithProgress} />
-        )}
+        {chaptersWithPath.map((ch) => (
+          <section key={ch.id} className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-feather/40" />
+              <h3 className="text-sm font-extrabold uppercase tracking-widest text-subtle">{ch.title}</h3>
+              <div className="h-px flex-1 bg-feather/40" />
+            </div>
+            <UnitPath subjectSlug={subject.slug} chapterSlug={ch.slug} units={ch.units} />
+          </section>
+        ))}
       </div>
 
       {subject.quizzes.length > 0 && (

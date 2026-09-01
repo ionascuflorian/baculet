@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { nextStreak } from "@/lib/streak";
 import { recordStudyActivity } from "@/lib/study-activity";
 import { recordReview } from "@/lib/spaced-repetition";
+import { updateConceptMastery } from "@/lib/mastery";
 
 export async function submitQuiz(
   quizId: string,
@@ -21,7 +22,7 @@ export async function submitQuiz(
       userId: true,
       questions: {
         orderBy: { order: "asc" },
-        select: { id: true, correctIndex: true },
+        select: { id: true, correctIndex: true, conceptId: true, concept: true },
       },
     },
   });
@@ -62,13 +63,25 @@ export async function submitQuiz(
 
   await recordStudyActivity(session.user.id);
 
-  // spaced repetition: înregistrează fiecare răspuns
+  // spaced repetition + mastery: înregistrează fiecare răspuns
   for (const q of quiz.questions) {
     const correct = answers[q.id] === q.correctIndex;
-    // nu blocăm răspunsul principal dacă SR eșuează
     try {
       await recordReview(session.user.id, q.id, correct);
     } catch {}
+    // mastery pe concept (dacă întrebarea are concept legat)
+    const conceptId = (q as unknown as { conceptId: string | null }).conceptId;
+    if (conceptId) {
+      try {
+        await updateConceptMastery(session.user.id, conceptId, correct, 1, { isCheckpoint: false });
+      } catch {}
+    } else if (q.concept) {
+      // fallback: găsește concept după slug dacă nu are FK
+      try {
+        const c = await prisma.concept.findFirst({ where: { slug: q.concept } });
+        if (c) await updateConceptMastery(session.user.id, c.id, correct, 1);
+      } catch {}
+    }
   }
 
   return { attemptId: attempt.id };

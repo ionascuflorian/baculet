@@ -23,12 +23,14 @@ import { startOfDay } from "@/lib/streak";
 import { ProfilePrompt } from "@/components/profile/profile-prompt";
 import { getDueReviews } from "@/lib/spaced-repetition";
 import { RecapWidget } from "@/components/recap/recap-widget";
+import { getGlobalNextAction } from "@/lib/next-action";
+import { NextActionCard } from "@/components/home/next-action-card";
 
 export default async function DashboardPage() {
   const session = await auth();
   const userId = session!.user.id;
 
-  const [user, subjects, completedLessons, recentAttempts, quizCount, todoItems, studyActivities, dueReviews] =
+  const [user, subjects, completedLessons, recentAttempts, quizCount, todoItems, studyActivities, dueReviews, globalAction, weakMastery, allConcepts] =
     await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
@@ -78,6 +80,14 @@ export default async function DashboardPage() {
       }),
       getStudyActivities(userId),
       getDueReviews(userId, 3),
+      getGlobalNextAction(userId),
+      prisma.userConceptProgress.findMany({
+        where: { userId, mastery: { lt: 60 } },
+        orderBy: { mastery: "asc" },
+        take: 3,
+        include: { concept: { select: { name: true } } },
+      }),
+      prisma.userConceptProgress.findMany({ where: { userId } }),
     ]);
 
   const prefs = normalizePrefs(user?.dashboardWidgets);
@@ -143,6 +153,51 @@ export default async function DashboardPage() {
       </div>
 
       <ProfilePrompt profileSet={!!user?.profile} />
+
+      {globalAction && (
+        <NextActionCard action={globalAction} progress={Math.round((completedLessons.length / Math.max(1, allLessons.length)) * 100)} />
+      )}
+
+      {weakMastery.length > 0 && (
+        <section className="rounded-[1.25rem] border border-warning/20 bg-warning/5 p-5">
+          <h2 className="text-sm font-extrabold uppercase tracking-widest text-warning">Pentru tine</h2>
+          <p className="text-sm text-subtle">Concepte unde ai întâmpinat dificultăți</p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {weakMastery.map((w) => (
+              <div key={w.conceptId} className="rounded-xl border border-feather bg-card p-3">
+                <p className="text-sm font-bold text-ink">🔴 {w.concept.name}</p>
+                <p className="text-xs text-subtle">Mastery {w.mastery}% — mai avem de lucru.</p>
+                <Link href="/recapitulare" className="mt-2 inline-flex text-xs font-bold text-accent">
+                  Exersează →
+                </Link>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {allConcepts.length > 0 && (
+        <section className="rounded-[1.25rem] border border-feather bg-card p-5">
+          <h2 className="text-sm font-extrabold uppercase tracking-widest text-subtle">Progresul tău</h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            {subjects.slice(0, 3).map((s) => {
+              const masteryAvg =
+                allConcepts.length > 0
+                  ? Math.round(allConcepts.reduce((a, c) => a + c.mastery, 0) / allConcepts.length)
+                  : 0;
+              return (
+                <div key={s.slug} className="rounded-xl bg-feather/20 p-3">
+                  <p className="text-sm font-bold text-ink">{s.name}</p>
+                  <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-feather">
+                    <div className="h-full bg-accent" style={{ width: `${masteryAvg}%` }} />
+                  </div>
+                  <p className="mt-1 text-xs text-subtle">{masteryAvg}% mastery</p>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <DashboardGrid prefs={prefs}>
         {visible.flatMap((id) => {

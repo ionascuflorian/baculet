@@ -18,6 +18,7 @@ export interface StepData {
   title: string | null;
   content: string;
   order: number;
+  stepType?: string | null;
   quiz?: InlineQuizData | null;
 }
 
@@ -129,7 +130,12 @@ export function LessonSteps({ lessonId, lessonSlugPath, steps, doneStepIds, isLe
 
       {/* Pas curent */}
       <div className="rounded-2xl border bg-card p-5 sm:p-6">
-        {current.title && <h2 className="mb-3 text-xl font-extrabold text-ink">{current.title}</h2>}
+        {current.stepType && (
+          <span className="mb-2 inline-flex rounded-full bg-accent/10 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-widest text-accent">
+            {current.stepType}
+          </span>
+        )}
+        {current.title && <h2 className="mb-2 text-xl font-extrabold text-ink">{current.title}</h2>}
         <Markdown content={current.content} />
         {current.quiz && (
           <div className="mt-6">

@@ -31,6 +31,22 @@ enum QuestionType {
   DRAG_DROP
 }
 
+enum UnitType {
+  LESSON
+  RECAP
+  CHECKPOINT
+  DIAGNOSTIC
+}
+
+enum UnitStatusEnum {
+  LOCKED
+  AVAILABLE
+  IN_PROGRESS
+  COMPLETED
+  MASTERED
+  NEEDS_REVIEW
+}
+
 model User {
   id            String   @id @default(cuid())
   email         String   @unique
@@ -69,6 +85,9 @@ model User {
   todoItems           TodoItem[]
   studyActivities     StudyActivity[]
   reviewItems         ReviewItem[]
+  conceptProgress     UserConceptProgress[]
+  unitProgress        UserUnitProgress[]
+  checkpointAttempts  CheckpointAttempt[]
   following           Follow[] @relation("Follower")
   followers           Follow[] @relation("Following")
 }
@@ -165,14 +184,36 @@ model Chapter {
 
   subject Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   lessons Lesson[]
+  units   Unit[]
   quizzes Quiz[]
+  checkpoints Checkpoint[]
 
   @@unique([subjectId, slug])
+}
+
+model Unit {
+  id          String   @id @default(cuid())
+  chapterId   String
+  title       String
+  slug        String
+  description String?
+  order       Int      @default(0)
+  type        UnitType @default(LESSON)
+
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+  concepts Concept[]
+  checkpoint Checkpoint?
+  progress UserUnitProgress[]
+
+  @@unique([chapterId, slug])
+  @@index([chapterId])
 }
 
 model Lesson {
   id        String  @id @default(cuid())
   chapterId String
+  unitId    String?
   title     String
   slug      String
   content   String
@@ -181,10 +222,13 @@ model Lesson {
   order     Int     @default(0)
 
   chapter  Chapter          @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  unit     Unit?            @relation(fields: [unitId], references: [id], onDelete: SetNull)
   progress LessonProgress[]
   steps    LessonStep[]
+  concepts Concept[]
 
   @@unique([chapterId, slug])
+  @@index([unitId])
 }
 
 model LessonStep {
@@ -193,6 +237,7 @@ model LessonStep {
   title     String?
   content   String
   order     Int     @default(0)
+  stepType  String? // DESCOPERĂ, ÎNȚELEGE, EXEMPLU, ÎNCEARCĂ, EXERSEAZĂ, APLICĂ, RECAPITULEAZĂ
   quizId    String? @unique
 
   lesson   Lesson          @relation(fields: [lessonId], references: [id], onDelete: Cascade)
@@ -231,6 +276,111 @@ model LessonProgress {
   @@index([completedAt])
 }
 
+model Concept {
+  id          String  @id @default(cuid())
+  lessonId    String?
+  unitId      String?
+  name        String
+  slug        String
+  description String?
+  difficulty  Int     @default(1)
+  order       Int     @default(0)
+
+  lesson Lesson? @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  unit   Unit?   @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  exercises Exercise[]
+  questions Question[]
+  progress  UserConceptProgress[]
+
+  @@unique([lessonId, slug])
+  @@unique([unitId, slug])
+  @@index([lessonId])
+  @@index([unitId])
+}
+
+model Exercise {
+  id        String       @id @default(cuid())
+  conceptId String
+  type      QuestionType @default(SINGLE)
+  difficulty Int         @default(1)
+  content   Json
+  answer    Json
+  explanation String?
+  order     Int          @default(0)
+  createdAt DateTime     @default(now())
+
+  concept Concept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  @@index([conceptId])
+}
+
+model UserConceptProgress {
+  id              String    @id @default(cuid())
+  userId          String
+  conceptId       String
+  mastery         Int       @default(0)
+  attempts        Int       @default(0)
+  correctAttempts Int       @default(0)
+  wrongAttempts   Int       @default(0)
+  lastPracticed   DateTime?
+  nextReview      DateTime?
+  updatedAt       DateTime  @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  concept Concept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, conceptId])
+  @@index([userId, mastery])
+  @@index([userId, nextReview])
+}
+
+model UserUnitProgress {
+  id          String   @id @default(cuid())
+  userId      String
+  unitId      String
+  status      String   @default("LOCKED")
+  progress    Int      @default(0)
+  score       Int?
+  completedAt DateTime?
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  unit Unit @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, unitId])
+  @@index([userId])
+}
+
+model Checkpoint {
+  id        String   @id @default(cuid())
+  chapterId String? @unique
+  unitId    String? @unique
+  title     String
+  slug      String  @unique
+  order     Int     @default(0)
+  createdAt DateTime @default(now())
+
+  chapter Chapter? @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  unit    Unit?    @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  attempts CheckpointAttempt[]
+}
+
+model CheckpointAttempt {
+  id           String   @id @default(cuid())
+  userId       String
+  checkpointId String
+  score        Int
+  maxScore     Int
+  answers      Json
+  createdAt    DateTime @default(now())
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  checkpoint Checkpoint @relation(fields: [checkpointId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([checkpointId])
+}
+
 model Quiz {
     id          String   @id @default(cuid())
     subjectId   String
@@ -258,6 +408,7 @@ model Quiz {
 model Question {
   id           String       @id @default(cuid())
   quizId       String
+  conceptId    String?
   text         String
   options      Json
   correctIndex Int
@@ -267,10 +418,12 @@ model Question {
   order        Int          @default(0)
 
   quiz        Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  conceptRef  Concept?     @relation(fields: [conceptId], references: [id], onDelete: SetNull)
   reviewItems ReviewItem[]
 
   @@index([quizId])
   @@index([concept])
+  @@index([conceptId])
 }
 
 model QuizAttempt {

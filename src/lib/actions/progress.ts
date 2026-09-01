@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { nextStreak } from "@/lib/streak";
 import { recordStudyActivity } from "@/lib/study-activity";
 import { XP_PER_STEP } from "@/lib/xp";
+import { updateConceptMastery } from "@/lib/mastery";
 
 export async function toggleLessonComplete(lessonId: string, path: string) {
   const session = await auth();
@@ -103,6 +104,30 @@ export async function completeLessonStep(
   }
   await recordStudyActivity(session.user.id);
 
+  // mastery: actualizează conceptele lecției (soft, pe baza parcurgerii pasului)
+  try {
+    const concepts = await prisma.concept.findMany({ where: { lessonId }, select: { id: true, difficulty: true } });
+    for (const c of concepts) {
+      await updateConceptMastery(session.user.id, c.id, true, c.difficulty, { isReview: false });
+    }
+  } catch {}
+
+  // unit progress: marchează progresul unității care conține lecția
+  try {
+    const lessonWithUnit = await prisma.lesson.findUnique({ where: { id: lessonId }, select: { unitId: true } });
+    if (lessonWithUnit?.unitId) {
+      const totalSteps = await prisma.lessonStep.count({ where: { lessonId } });
+      const doneSteps = await prisma.lessonStepProgress.count({ where: { userId: session.user.id, lessonId } });
+      const progress = totalSteps ? Math.round((doneSteps / totalSteps) * 100) : 0;
+      const status = progress === 100 ? "COMPLETED" : progress > 0 ? "IN_PROGRESS" : "AVAILABLE";
+      await prisma.userUnitProgress.upsert({
+        where: { userId_unitId: { userId: session.user.id, unitId: lessonWithUnit.unitId } },
+        update: { progress, status, completedAt: progress === 100 ? new Date() : null },
+        create: { userId: session.user.id, unitId: lessonWithUnit.unitId, progress, status, completedAt: progress === 100 ? new Date() : null },
+      });
+    }
+  } catch {}
+
   // auto-complete lecția dacă toți pașii sunt gata
   const [total, done] = await Promise.all([
     prisma.lessonStep.count({ where: { lessonId } }),
@@ -122,6 +147,7 @@ export async function completeLessonStep(
   revalidatePath(path);
   revalidatePath("/dashboard");
   revalidatePath("/progres");
+  revalidatePath("/materii");
   return { already: false, lessonCompleted, xp: XP_PER_STEP };
 }
 

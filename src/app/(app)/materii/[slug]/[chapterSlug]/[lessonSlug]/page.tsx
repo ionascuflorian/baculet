@@ -50,6 +50,7 @@ export default async function LessonPage({
           title: true,
           content: true,
           order: true,
+          stepType: true,
           quiz: {
             select: {
               id: true,
@@ -130,6 +131,7 @@ export default async function LessonPage({
             title: s.title,
             content: s.content,
             order: s.order,
+            stepType: s.stepType,
             quiz: s.quiz
               ? {
                   id: s.quiz.id,
