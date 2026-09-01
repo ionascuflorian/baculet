@@ -74,21 +74,27 @@ export async function getLearningPathForChapter(userId: string, chapterId: strin
   return units.map((u, idx) => {
     const prevUnit = idx > 0 ? units[idx - 1] : null;
     const prevStatus = idx === 0 ? "COMPLETED" : ((): UnitStatus => {
-      // calculează status prev pentru lock
       const prevProg = unitProgMap.get(prevUnit!.id);
+      // checkpoint/recap cu NEEDS_REVIEW nu blochează următorul (soft)
+      if (prevProg?.status === "COMPLETED" || prevProg?.status === "MASTERED" || prevProg?.status === "NEEDS_REVIEW") return "COMPLETED";
       const prevLessons = prevUnit!.lessons;
       const prevDone = prevLessons.length === 0 ? true : prevLessons.every((l) => doneLessons.has(l.id));
-      if (prevProg?.status === "COMPLETED" || prevProg?.status === "MASTERED") return "COMPLETED";
+      // dacă prev e checkpoint/recap fără progres, consideră prevDone ca mai sus
+      if (prevUnit!.type === "CHECKPOINT" || prevUnit!.type === "RECAP") {
+        if (prevProg) return prevProg.status === "LOCKED" ? "LOCKED" : "COMPLETED";
+        // fără progres dar prevDone true (fără lecții) -> disponibil
+        return prevDone ? "COMPLETED" : "LOCKED";
+      }
       if (prevDone) return "COMPLETED";
       return "LOCKED";
     })();
 
     const isLocked = prevStatus === "LOCKED";
     const lessonsDone = u.lessons.filter((l) => doneLessons.has(l.id)).length;
-    const totalLessons = u.lessons.length || 1;
-    const progress = Math.round((lessonsDone / totalLessons) * 100);
+    const totalLessons = u.lessons.length || (u.type === "LESSON" ? 1 : 0);
+    const progress = totalLessons ? Math.round((lessonsDone / totalLessons) * 100) : 0;
     const hasStarted = lessonsDone > 0 && lessonsDone < totalLessons;
-    const isCompleted = lessonsDone === totalLessons && totalLessons > 0;
+    const isCompleted = totalLessons > 0 ? lessonsDone === totalLessons : false;
 
     // mastery avg pentru unitate
     let masteryAvg: number | null = null;
@@ -97,18 +103,21 @@ export async function getLearningPathForChapter(userId: string, chapterId: strin
       masteryAvg = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
     }
 
+    // dacă unitatea are progres salvat (checkpoint/recap), folosește-l
+    const saved = unitProgMap.get(u.id);
     let status: UnitStatus;
     if (isLocked) status = "LOCKED";
-    else if (u.type === "CHECKPOINT" || u.type === "RECAP") {
-      // checkpoint/recap devin disponibile după ce toate lesson-urile anterioare sunt completate
-      status = isLocked ? "LOCKED" : isCompleted ? "COMPLETED" : "AVAILABLE";
+    else if (saved && (u.type === "CHECKPOINT" || u.type === "RECAP")) {
+      status = saved.status as UnitStatus;
+    } else if (u.type === "CHECKPOINT" || u.type === "RECAP") {
+      // fără progres încă
+      status = "AVAILABLE";
     } else if (isCompleted) {
       if (masteryAvg !== null && masteryAvg >= 80) status = "MASTERED";
       else if (masteryAvg !== null && masteryAvg < 60) status = "NEEDS_REVIEW";
       else status = "COMPLETED";
     } else if (hasStarted) status = "IN_PROGRESS";
     else {
-      // prima unitate neblocată devine AVAILABLE, restul AVAILABLE dacă prev complet
       if (!foundFirstAvailable && !isLocked) {
         foundFirstAvailable = true;
         status = "AVAILABLE";
@@ -117,8 +126,9 @@ export async function getLearningPathForChapter(userId: string, chapterId: strin
       }
     }
 
-    // dacă e deja complet dar mastery scăzut, marchează NEEDS_REVIEW
     if (status === "COMPLETED" && masteryAvg !== null && masteryAvg < 60) status = "NEEDS_REVIEW";
+
+    const finalProgress = saved && (u.type === "CHECKPOINT" || u.type === "RECAP") ? saved.progress : progress;
 
     return {
       id: u.id,
@@ -130,7 +140,7 @@ export async function getLearningPathForChapter(userId: string, chapterId: strin
       lessons: u.lessons,
       concepts: u.concepts,
       status,
-      progress,
+      progress: finalProgress,
       masteryAvg,
     };
   });

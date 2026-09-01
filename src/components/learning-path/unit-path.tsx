@@ -68,10 +68,12 @@ export function UnitPath({ subjectSlug, chapterSlug, units }: Props) {
           const isLeft = idx % 2 === 0;
           const href =
             unit.type === "CHECKPOINT"
-              ? `/materii/${subjectSlug}/${chapterSlug}#checkpoint-${unit.slug}`
-              : unit.lessons[0]
-                ? `/materii/${subjectSlug}/${chapterSlug}/${unit.lessons[0].slug}`
-                : `/materii/${subjectSlug}/${chapterSlug}`;
+              ? `/checkpoint/${unit.slug}`
+              : unit.type === "RECAP"
+                ? `/recapitulare?unit=${unit.slug}`
+                : unit.lessons[0]
+                  ? `/materii/${subjectSlug}/${chapterSlug}/${unit.lessons[0].slug}`
+                  : `/materii/${subjectSlug}/${chapterSlug}`;
           const locked = unit.status === "LOCKED";
           const isRecap = unit.type === "RECAP";
           const isCheckpoint = unit.type === "CHECKPOINT";
