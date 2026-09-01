@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import type { Prisma } from "@/generated/prisma/client";
 
 export type MasteryLevel = "UNKNOWN" | "LEARNING" | "ALMOST" | "MASTERED" | "EXCELLENT";
 
@@ -57,9 +58,10 @@ export async function updateConceptMastery(
   conceptId: string,
   correct: boolean,
   difficulty = 1,
-  opts: { isReview?: boolean; isCheckpoint?: boolean } = {}
+  opts: { isReview?: boolean; isCheckpoint?: boolean } = {},
+  client: Prisma.TransactionClient = prisma
 ) {
-  const existing = await prisma.userConceptProgress.findUnique({
+  const existing = await client.userConceptProgress.findUnique({
     where: { userId_conceptId: { userId, conceptId } },
   });
   const current = existing?.mastery ?? 0;
@@ -74,7 +76,7 @@ export async function updateConceptMastery(
   else if (next < 80) nextReview = new Date(Date.now() + 3 * 24 * 3600 * 1000);
   else nextReview = new Date(Date.now() + 7 * 24 * 3600 * 1000);
 
-  const progress = await prisma.userConceptProgress.upsert({
+  const progress = await client.userConceptProgress.upsert({
     where: { userId_conceptId: { userId, conceptId } },
     update: {
       mastery: next,

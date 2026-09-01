@@ -401,7 +401,8 @@ export function DashboardGrid({
   // Reconciliere la schimbarea nr. de coloane sau a widgeturilor vizibile.
   const [prevDeps, setPrevDeps] = useState("");
   const reconcileKey = `${idSetKey}:${columns}`;
-  if (prevDeps !== reconcileKey) {
+  useEffect(() => {
+    if (prevDeps === reconcileKey) return;
     setPrevDeps(reconcileKey);
     setColState((prev) => {
       const currentIds = new Set(children.map((c) => c.id));
@@ -411,7 +412,8 @@ export function DashboardGrid({
         .filter((id) => !flat.includes(id));
       return recordFromColumns(packColumns([...flat, ...missing], columns));
     });
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reconcileKey]);
 
   const enterEditMode = useCallback(() => {
     editSnapshot.current = colState;

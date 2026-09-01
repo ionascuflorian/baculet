@@ -54,13 +54,13 @@ export async function POST(req: Request) {
     );
   }
 
-  if (!checkRateLimit(userId)) {
+  if (!(await checkRateLimit(userId))) {
     return new Response(
       "Ai depășit limita de mesaje către Siera. Încearcă din nou mai târziu.",
       { status: 429 }
     );
   }
-  consumeRateLimit(userId);
+  await consumeRateLimit(userId);
 
   try {
     const pageCtx = await getPageContext(pathname);

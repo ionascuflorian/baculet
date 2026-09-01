@@ -75,9 +75,14 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: "Date invalide." }, { status: 400 });
   }
 
-  await prisma.pushSubscription.deleteMany({
-    where: { userId: session.user.id, endpoint },
-  });
+  try {
+    await prisma.pushSubscription.deleteMany({
+      where: { userId: session.user.id, endpoint },
+    });
 
-  return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("push unsubscribe error:", err);
+    return NextResponse.json({ error: "Eroare la dezabonare." }, { status: 500 });
+  }
 }

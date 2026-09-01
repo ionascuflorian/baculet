@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { signIn } from "@/lib/auth";
 import { sendOtpEmail, showInAppCode } from "@/lib/mail";
 import { otpRequestRateLimit, otpVerifyRateLimit } from "@/lib/otp-rate-limit";
+import { generateOtpCode } from "@/lib/utils";
 
 export type ResetState = {
   error?: string;
@@ -27,7 +28,7 @@ export async function requestPasswordReset(
   if (!parsed.success) return { error: "Introdu o adresă de email validă." };
 
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) return { error: "Nu există niciun cont cu acest email." };
+  if (!user) return { error: "" };
 
   if (!(await otpRequestRateLimit(email))) {
     return {
@@ -37,7 +38,7 @@ export async function requestPasswordReset(
 
   await prisma.verificationToken.deleteMany({ where: { email } });
 
-  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const code = generateOtpCode();
   await prisma.verificationToken.create({
     data: { email, token: code, expires: new Date(Date.now() + 10 * 60 * 1000) },
   });
@@ -91,7 +92,7 @@ export async function resetPassword(
   }
 
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) return { error: "Contul nu a fost găsit." };
+  if (!user) return { error: "Cod incorect sau expirat." };
 
   const passwordHash = await bcrypt.hash(newPassword, 10);
   await prisma.user.update({

@@ -5,12 +5,9 @@ import { prisma } from "@/lib/db";
 import { signIn } from "@/lib/auth";
 import { sendOtpEmail, showInAppCode } from "@/lib/mail";
 import { otpRequestRateLimit } from "@/lib/otp-rate-limit";
+import { generateOtpCode } from "@/lib/utils";
 
 export type OtpState = { error?: string; email?: string; devCode?: string };
-
-function generateCode() {
-  return String(Math.floor(100000 + Math.random() * 900000));
-}
 
 export async function requestCode(
   _prev: OtpState,
@@ -33,7 +30,7 @@ export async function requestCode(
   // Șterge codurile vechi pentru acest email
   await prisma.verificationToken.deleteMany({ where: { email } });
 
-  const code = generateCode();
+  const code = generateOtpCode();
   await prisma.verificationToken.create({
     data: { email, token: code, expires: new Date(Date.now() + 10 * 60 * 1000) },
   });

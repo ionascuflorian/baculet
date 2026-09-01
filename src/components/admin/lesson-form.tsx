@@ -20,6 +20,15 @@ export interface LessonFormValues {
   order: number;
 }
 
+function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
+}
+
 export function LessonForm({
   chapterId,
   lessonId,
@@ -35,6 +44,14 @@ export function LessonForm({
   const { showToast } = useToast();
   const [content, setContent] = useState(initial.content);
   const [tab, setTab] = useState<"edit" | "preview">("edit");
+  const [slugTouched, setSlugTouched] = useState(false);
+  // Generator automat de slug din titlu (doar dacă adminul nu l-a editat manual).
+  const syncSlugFromTitle = (title: string) => {
+    const slugInput = document.getElementById("slug") as HTMLInputElement | null;
+    if (slugInput && !slugTouched && !initial.slug) {
+      slugInput.value = slugify(title);
+    }
+  };
   const [state, action, pending] = useActionState(
     async (_prev: { error: string }, formData: FormData) => {
       const res = await saveLesson(lessonId, {
@@ -64,11 +81,17 @@ export function LessonForm({
       <div className="grid gap-4 sm:grid-cols-[1fr_1fr_100px]">
         <div>
           <Label htmlFor="title">Titlu</Label>
-          <Input id="title" name="title" defaultValue={initial.title} required />
+          <Input id="title" name="title" defaultValue={initial.title} required onChange={(e) => syncSlugFromTitle(e.target.value)} />
         </div>
         <div>
           <Label htmlFor="slug">Slug</Label>
-          <Input id="slug" name="slug" defaultValue={initial.slug} placeholder="generat automat" />
+          <Input
+            id="slug"
+            name="slug"
+            defaultValue={initial.slug}
+            placeholder="generat automat din titlu"
+            onChange={() => setSlugTouched(true)}
+          />
         </div>
         <div>
           <Label htmlFor="order">Ordine</Label>

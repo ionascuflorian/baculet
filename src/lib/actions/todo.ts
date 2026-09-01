@@ -14,17 +14,25 @@ export async function addTodo(text: string): Promise<TodoState> {
   if (!trimmed || trimmed.length > 200) return { error: "Text invalid." };
 
   try {
-    const last = await prisma.todoItem.findFirst({
-      where: { userId: session.user.id },
-      orderBy: { order: "desc" },
-      select: { order: true },
-    });
-    await prisma.todoItem.create({
-      data: {
-        userId: session.user.id,
-        text: trimmed,
-        order: (last?.order ?? 0) + 1,
-      },
+    await prisma.$transaction(async (tx) => {
+      const hash = `todo:${session.user.id}`;
+      const lock = [...hash].reduce(
+        (acc, c) => (acc * 31 + c.charCodeAt(0)) >>> 0,
+        0
+      );
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${lock}::bigint)`;
+      const last = await tx.todoItem.findFirst({
+        where: { userId: session.user.id },
+        orderBy: { order: "desc" },
+        select: { order: true },
+      });
+      await tx.todoItem.create({
+        data: {
+          userId: session.user.id,
+          text: trimmed,
+          order: (last?.order ?? 0) + 1,
+        },
+      });
     });
     revalidatePath("/dashboard");
     return { ok: true };

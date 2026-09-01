@@ -24,10 +24,15 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Profil invalid." }, { status: 400 });
   }
 
-  await prisma.user.update({
-    where: { id: session.user.id },
-    data: { profile: parsed.data.profile },
-  });
+  try {
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: { profile: parsed.data.profile },
+    });
 
-  return NextResponse.json({ profile: parsed.data.profile });
+    return NextResponse.json({ profile: parsed.data.profile });
+  } catch (err) {
+    console.error("profile PATCH error:", err);
+    return NextResponse.json({ error: "Eroare internă." }, { status: 500 });
+  }
 }

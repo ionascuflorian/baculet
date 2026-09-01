@@ -68,19 +68,25 @@ export async function submitQuiz(
     const correct = answers[q.id] === q.correctIndex;
     try {
       await recordReview(session.user.id, q.id, correct);
-    } catch {}
+    } catch (err) {
+      console.error("submitQuiz: recordReview failed:", err);
+    }
     // mastery pe concept (dacă întrebarea are concept legat)
     const conceptId = (q as unknown as { conceptId: string | null }).conceptId;
     if (conceptId) {
       try {
         await updateConceptMastery(session.user.id, conceptId, correct, 1, { isCheckpoint: false });
-      } catch {}
+      } catch (err) {
+        console.error("submitQuiz: mastery update failed:", err);
+      }
     } else if (q.concept) {
       // fallback: găsește concept după slug dacă nu are FK
       try {
         const c = await prisma.concept.findFirst({ where: { slug: q.concept } });
         if (c) await updateConceptMastery(session.user.id, c.id, correct, 1);
-      } catch {}
+      } catch (err) {
+        console.error("submitQuiz: concept fallback failed:", err);
+      }
     }
   }
 

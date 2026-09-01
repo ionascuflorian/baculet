@@ -75,6 +75,7 @@ const MODE_MOTION: Record<
 };
 
 function clampWidth(v: number): number {
+  if (typeof window === "undefined") return v;
   const max = Math.min(MAX_W, window.innerWidth - 16);
   return Math.min(max, Math.max(MIN_W, Math.round(v)));
 }
@@ -282,37 +283,43 @@ export function Siera() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [happy, setHappy] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
-  const [mobile, setMobile] = useState(() =>
-    window.matchMedia("(max-width: 767px)").matches
-  );
+  // SSR-safe: valoarea reală se setează în useEffect după mount.
+  const [mobile, setMobile] = useState(false);
 
   // Mod de afișare pe desktop/tabletă: ales de utilizator (persistat), default
   // tableta → plutitor, desktop → panou lateral.
-  const [mode, setMode] = useState<SieraMode>(() => {
-    try {
-      const saved = localStorage.getItem("siera:mode");
-      if (saved === "sidebar" || saved === "floating" || saved === "fullscreen")
-        return saved;
-    } catch {}
-    return window.matchMedia("(min-width: 768px) and (max-width: 1024px)").matches
-      ? "floating"
-      : "sidebar";
-  });
-  const [width, setWidth] = useState<number>(() => {
-    try {
-      const w = Number(localStorage.getItem("siera:w"));
-      if (Number.isFinite(w) && w >= MIN_W && w <= MAX_W) return w;
-    } catch {}
-    return 440;
-  });
+  const [mode, setMode] = useState<SieraMode>("sidebar");
+  const [width, setWidth] = useState<number>(440);
 
   // Mobile: foaie de jos, la jumătate de ecran, extensibilă prin tragerea barei.
-  const [sheetH, setSheetH] = useState(() => Math.round(window.innerHeight * 0.5));
+  const [sheetH, setSheetH] = useState<number>(0);
   const [dragging, setDragging] = useState(false);
   const dragRef = useRef<{ startY: number; startH: number } | null>(null);
   const movedRef = useRef(false);
 
-  const compact = mobile && sheetH < Math.round(window.innerHeight * 0.85);
+  const compact =
+    mobile && sheetH < Math.round((typeof window !== "undefined" ? window.innerHeight : 600) * 0.85);
+
+  // Citește valorile browser-only o singură dată (după hidratare).
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    setMobile(mq.matches);
+    setSheetH(Math.round(window.innerHeight * 0.5));
+    try {
+      const saved = localStorage.getItem("siera:mode");
+      if (saved === "sidebar" || saved === "floating" || saved === "fullscreen") {
+        setMode(saved);
+      } else {
+        setMode(
+          window.matchMedia("(min-width: 768px) and (max-width: 1024px)").matches
+            ? "floating"
+            : "sidebar"
+        );
+      }
+      const w = Number(localStorage.getItem("siera:w"));
+      if (Number.isFinite(w) && w >= MIN_W && w <= MAX_W) setWidth(w);
+    } catch {}
+  }, []);
 
   useEffect(() => {
     if (!open || !mobile) setSheetH(Math.round(window.innerHeight * 0.5));
@@ -663,7 +670,7 @@ export function Siera() {
             <motion.div
               className={cn(
                 "siera-sheet w-full rounded-t-[24px]",
-                sheetH >= window.innerHeight - 1 && "pt-[env(safe-area-inset-top)]"
+                sheetH >= (typeof window !== "undefined" ? window.innerHeight : 0) - 1 && "pt-[env(safe-area-inset-top)]"
               )}
               animate={{ height: sheetH }}
               transition={

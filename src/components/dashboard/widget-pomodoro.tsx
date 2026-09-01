@@ -154,6 +154,17 @@ export function PomodoroWidget() {
     return audioRef.current;
   }, []);
 
+  // Colecție: închide contextul audio la demontare ca să nu expire resursele
+  // browserului (browserele limitau nr. de contexte audio simultane).
+  useEffect(() => {
+    return () => {
+      if (audioRef.current && audioRef.current.state !== "closed") {
+        void audioRef.current.close();
+      }
+      audioRef.current = null;
+    };
+  }, []);
+
   const playBeep = useCallback(() => {
     const ctx = audioRef.current ?? getAudio();
     if (!ctx) return;

@@ -118,9 +118,11 @@ export async function unfollowUser(targetId: string): Promise<{ ok: boolean }> {
   return { ok: true };
 }
 
-export async function getFriends(userId: string): Promise<FriendUser[]> {
-  // Reuniune: pe cine urmăresc + cine mă urmărește (fără dubluri).
-  const me = userId;
+export async function getFriends(_userId: string): Promise<FriendUser[]> {
+  const session = await auth();
+  if (!session?.user?.id) return [];
+  // Doar propriii prieteni — nu permite enumerarea prietenilor altor utilizatori.
+  const me = session.user.id;
   const [following, followedBy] = await Promise.all([
     prisma.follow.findMany({
       where: { followerId: me },
@@ -159,14 +161,18 @@ export async function getFriends(userId: string): Promise<FriendUser[]> {
   }));
 }
 
-export async function getFriendIds(userId: string): Promise<string[]> {
+export async function getFriendIds(_userId: string): Promise<string[]> {
+  const session = await auth();
+  if (!session?.user?.id) return [];
+  // Doar propriii prieteni.
+  const me = session.user.id;
   const [following, followedBy] = await Promise.all([
     prisma.follow.findMany({
-      where: { followerId: userId },
+      where: { followerId: me },
       select: { followingId: true },
     }),
     prisma.follow.findMany({
-      where: { followingId: userId },
+      where: { followingId: me },
       select: { followerId: true },
     }),
   ]);

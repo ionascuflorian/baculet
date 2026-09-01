@@ -148,20 +148,43 @@ export const authConfig = {
             },
           });
         } else {
-          const googleName = user.name ?? email.split("@")[0];
-          const { username: base } = buildUsername(googleName, email);
-          await prisma.user.create({
-            data: {
-              email,
-              name: googleName,
-              username: await uniqueUsername(base),
-              image: user.image ?? null,
-              passwordHash: crypto.randomUUID(),
-              emailVerified: new Date(),
-              googleLinked: true,
-              googleEmail: email,
-            },
-          });
+          try {
+            const googleName = user.name ?? email.split("@")[0];
+            const { username: base } = buildUsername(googleName, email);
+            await prisma.user.create({
+              data: {
+                email,
+                name: googleName,
+                username: await uniqueUsername(base),
+                image: user.image ?? null,
+                passwordHash: crypto.randomUUID(),
+                emailVerified: new Date(),
+                googleLinked: true,
+                googleEmail: email,
+              },
+            });
+          } catch (err) {
+            // Cursă de creare concurentă (P2002) — dacă alt request a creat deja
+            // contul, sincronizăm și continuăm normal.
+            if ((err as { code?: string }).code === "P2002") {
+              const raced = await prisma.user.findFirst({
+                where: { OR: [{ email }, { googleEmail: email }] },
+              });
+              if (raced) {
+                await prisma.user.update({
+                  where: { id: raced.id },
+                  data: {
+                    googleLinked: true,
+                    googleEmail: email,
+                    emailVerified: new Date(),
+                    ...(!raced.image && user.image ? { image: user.image } : {}),
+                  },
+                });
+                return true;
+              }
+            }
+            throw err;
+          }
         }
       }
       return true;

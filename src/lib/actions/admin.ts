@@ -52,10 +52,12 @@ export async function saveSubject(
     ? await prisma.subject.update({ where: { id }, data: payload })
     : await prisma.subject.create({ data: payload });
 
-  await prisma.subjectProfile.deleteMany({ where: { subjectId: subject.id } });
-  await prisma.subjectProfile.createMany({
-    data: data.profiles.map((profile) => ({ subjectId: subject.id, profile })),
-  });
+  await prisma.$transaction([
+    prisma.subjectProfile.deleteMany({ where: { subjectId: subject.id } }),
+    prisma.subjectProfile.createMany({
+      data: data.profiles.map((profile) => ({ subjectId: subject.id, profile })),
+    }),
+  ]);
 
   revalidatePath("/admin/materii");
   revalidatePath("/materii");
@@ -216,6 +218,7 @@ export async function saveQuiz(
         data: {
           chapterId: data.chapterId,
           title: data.title,
+          slug,
           description: data.description,
           difficulty: data.difficulty,
           published: data.published,

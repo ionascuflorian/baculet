@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Save } from "lucide-react";
 import { saveQuiz } from "@/lib/actions/admin";
@@ -20,6 +20,15 @@ export interface QuizFormValues {
   chapterId?: string | null;
 }
 
+function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
+}
+
 export function QuizForm({
   subjects,
   subjectId,
@@ -37,6 +46,13 @@ export function QuizForm({
 }) {
   const router = useRouter();
   const { showToast } = useToast();
+  const [slugTouched, setSlugTouched] = useState(false);
+  const syncSlugFromTitle = (title: string) => {
+    const slugInput = document.getElementById("slug") as HTMLInputElement | null;
+    if (slugInput && !slugTouched && !initial.slug) {
+      slugInput.value = slugify(title);
+    }
+  };
   const [state, action, pending] = useActionState(
     async (_prev: { error: string }, formData: FormData) => {
       const ch = String(formData.get("chapterId") ?? "");
@@ -68,11 +84,17 @@ export function QuizForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <Label htmlFor="title">Titlu</Label>
-          <Input id="title" name="title" defaultValue={initial.title} required />
+          <Input id="title" name="title" defaultValue={initial.title} required onChange={(e) => syncSlugFromTitle(e.target.value)} />
         </div>
         <div>
           <Label htmlFor="slug">Slug</Label>
-          <Input id="slug" name="slug" defaultValue={initial.slug} placeholder="generat automat" />
+          <Input
+            id="slug"
+            name="slug"
+            defaultValue={initial.slug}
+            placeholder="generat automat din titlu"
+            onChange={() => setSlugTouched(true)}
+          />
         </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">

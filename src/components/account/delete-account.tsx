@@ -26,6 +26,9 @@ export function DeleteAccount({ email }: { email: string }) {
               ? err.message
               : "A apărut o problemă la ștergerea contului."
           );
+        } finally {
+          // Dacă redirect-ul nu are loc (ex. totul a mers, dar redirecția
+          // cedează), readucem butonul la starea normală.
           setPending(false);
         }
       }}

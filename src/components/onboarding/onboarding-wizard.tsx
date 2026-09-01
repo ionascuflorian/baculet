@@ -197,7 +197,8 @@ export function OnboardingWizard({
 
   function finishSetup() {
     startTransition(async () => {
-      await completeOnboarding();
+      const res = await completeOnboarding();
+      if (!res.ok) return;
       router.push("/dashboard");
       router.refresh();
     });
@@ -205,14 +206,26 @@ export function OnboardingWizard({
 
   const [termsChecked, setTermsChecked] = useState(false);
   const [termsPending, setTermsPending] = useState(false);
+  const [termsError, setTermsError] = useState<string | null>(null);
 
   async function acceptTermsStep() {
     if (termsPending) return;
     setTermsPending(true);
-    await acceptTerms();
-    setTermsPending(false);
-    markDone("terms");
-    goNext();
+    setTermsError(null);
+    try {
+      const res = await acceptTerms();
+      if (!res.ok) throw new Error("Neautorizat");
+      markDone("terms");
+      goNext();
+    } catch (err) {
+      setTermsError(
+        err instanceof Error
+          ? err.message
+          : "Nu am putut salva acceptarea termenilor. Încearcă din nou."
+      );
+    } finally {
+      setTermsPending(false);
+    }
   }
 
   function onFile(file: File | undefined) {
@@ -414,6 +427,11 @@ export function OnboardingWizard({
                     )}
                     {termsPending ? "Se salvează…" : "Accept și continuă"}
                   </Button>
+                  {termsError && (
+                    <p className="rounded-xl bg-danger/10 px-4 py-2.5 text-sm font-semibold text-danger">
+                      {termsError}
+                    </p>
+                  )}
                 </div>
               )}
 

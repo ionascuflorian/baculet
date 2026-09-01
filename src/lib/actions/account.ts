@@ -6,8 +6,10 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { sendOtpEmail, showInAppCode } from "@/lib/mail";
 import { hasPassword } from "@/lib/user";
 import { RESERVED_USERNAMES } from "@/lib/username";
+import { generateOtpCode } from "@/lib/utils";
 
 async function requireUser() {
   const session = await auth();
@@ -17,7 +19,7 @@ async function requireUser() {
   return user;
 }
 
-export type ProfileState = { error?: string; ok?: boolean };
+export type ProfileState = { error?: string; ok?: boolean; pendingEmail?: string; devCode?: string };
 
 const profileSchema = z.object({
   name: z.string().min(2).max(80),
@@ -128,13 +130,86 @@ export async function changeEmail(
   if (newEmail === user.email) return { ok: true };
 
   const existing = await prisma.user.findUnique({ where: { email: newEmail } });
-  if (existing) {
+  if (existing && existing.id !== user.id) {
+    return { error: "Există deja un cont cu acest email." };
+  }
+
+  // Trimitere cod de verificare pe noua adresă — emailul NU e schimbat încă.
+  const code = generateOtpCode();
+  await prisma.verificationToken.deleteMany({ where: { email: newEmail } });
+  await prisma.verificationToken.create({
+    data: {
+      email: newEmail,
+      token: code,
+      expires: new Date(Date.now() + 10 * 60 * 1000),
+    },
+  });
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      pendingEmail: newEmail,
+      pendingEmailCode: new Date(),
+      pendingEmailExpires: new Date(Date.now() + 10 * 60 * 1000),
+    },
+  });
+  await sendOtpEmail(newEmail, code);
+
+  revalidatePath("/cont");
+  return {
+    ok: true,
+    pendingEmail: newEmail,
+    devCode: showInAppCode() ? code : undefined,
+  };
+}
+
+export async function verifyEmailChange(
+  _prev: ProfileState,
+  formData: FormData
+): Promise<ProfileState> {
+  const user = await requireUser();
+  const code = String(formData.get("code") ?? "").trim();
+  const pendingEmail = user.pendingEmail;
+
+  if (!/^\d{6}$/.test(code)) {
+    return { error: "Codul trebuie să aibă 6 cifre." };
+  }
+  if (!pendingEmail) {
+    return { error: "Nu există un email în așteptare." };
+  }
+  if (
+    !user.pendingEmailExpires ||
+    user.pendingEmailExpires.getTime() < Date.now()
+  ) {
+    return { error: "Codul a expirat. Solicită din nou o schimbare de email." };
+  }
+
+  // Verificarea codului: refolosim verificationToken pentru codul OTP trimis
+  // la noua adresă (atomic consume pentru a evita reuse).
+  const deleted = await prisma.verificationToken.deleteMany({
+    where: { email: pendingEmail, token: code, expires: { gt: new Date() } },
+  });
+  if (deleted.count === 0) {
+    return { error: "Cod incorect." };
+  }
+
+  // Mai verificăm o dată că adresa e încă liberă (anti race).
+  const taken = await prisma.user.findUnique({
+    where: { email: pendingEmail },
+    select: { id: true },
+  });
+  if (taken && taken.id !== user.id) {
     return { error: "Există deja un cont cu acest email." };
   }
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { email: newEmail },
+    data: {
+      email: pendingEmail,
+      pendingEmail: null,
+      pendingEmailCode: null,
+      pendingEmailExpires: null,
+      emailVerified: new Date(),
+    },
   });
 
   revalidatePath("/cont");

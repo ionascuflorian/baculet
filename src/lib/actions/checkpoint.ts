@@ -86,64 +86,68 @@ export async function submitCheckpoint(
   const maxScore = questions.length;
   const pct = Math.round((score / maxScore) * 100);
 
-  const attempt = await prisma.checkpointAttempt.create({
-    data: {
-      userId,
-      checkpointId: checkpoint.id,
-      score,
-      maxScore,
-      answers,
-    },
-  });
-
   // actualizează mastery per concept + UserUnitProgress
   const byConcept = new Map<string, { correct: number; total: number; name: string; id: string | null; slug: string }>();
   const masteryUpdates: { conceptId: string; mastery: number }[] = [];
+
+  // Rezolvă conceptId din slug înainte de tranzacție (read-uri separate).
+  const conceptSlugs = new Set<string>();
   for (const q of questions) {
-    const correct = answers[q.id] === q.correctIndex;
     const key = q.conceptId ?? q.conceptSlug ?? "general";
+    if (q.conceptSlug && !q.conceptId && q.conceptSlug !== "general") conceptSlugs.add(q.conceptSlug);
     const cur = byConcept.get(key) ?? { correct: 0, total: 0, name: q.conceptSlug ?? "Concept", id: q.conceptId ?? null, slug: q.conceptSlug ?? "general" };
     cur.total += 1;
-    if (correct) cur.correct += 1;
-    // păstrează id dacă există
+    if (answers[q.id] === q.correctIndex) cur.correct += 1;
     if (!cur.id && q.conceptId) cur.id = q.conceptId;
     byConcept.set(key, cur);
+  }
+  if (conceptSlugs.size > 0) {
+    const found = await prisma.concept.findMany({ where: { slug: { in: [...conceptSlugs] } }, select: { id: true, slug: true } });
+    for (const f of found) {
+      const entry = byConcept.get(f.slug);
+      if (entry && !entry.id) entry.id = f.id;
+    }
   }
 
   const weakConcepts: { conceptId: string; name: string }[] = [];
   for (const [key, data] of byConcept.entries()) {
     const isWeak = data.correct < data.total;
-    // rezolvă conceptId din slug dacă nu avem id
-    let cid: string | null = data.id;
-    if (!cid && data.slug !== "general") {
-      const c = await prisma.concept.findFirst({ where: { slug: data.slug } });
-      if (c) cid = c.id;
-    }
-    if (isWeak && cid) weakConcepts.push({ conceptId: cid, name: data.name });
-    else if (isWeak) weakConcepts.push({ conceptId: key, name: data.name });
-    if (cid) {
-      const allCorrectForConcept = data.correct === data.total;
-      try {
-        const prog = await updateConceptMastery(userId, cid, allCorrectForConcept, 2, { isCheckpoint: true });
-        masteryUpdates.push({ conceptId: cid, mastery: prog.mastery });
-      } catch {}
+    if (isWeak) {
+      const cid = data.id ?? key;
+      weakConcepts.push({ conceptId: cid, name: data.name });
     }
   }
 
-  // marchează unitatea checkpoint ca progres
-  if (checkpoint.unitId) {
-    try {
+  // Tranzacție: attempt + mastery + progres unitate merg împreună.
+  const attempt = await prisma.$transaction(async (tx) => {
+    const att = await tx.checkpointAttempt.create({
+      data: {
+        userId,
+        checkpointId: checkpoint.id,
+        score,
+        maxScore,
+        answers,
+      },
+    });
+
+    for (const [, data] of byConcept.entries()) {
+      if (!data.id) continue; // fără concept rezolvat — nu actualizăm mastery
+      const allCorrectForConcept = data.correct === data.total;
+      const prog = await updateConceptMastery(userId, data.id, allCorrectForConcept, 2, { isCheckpoint: true }, tx);
+      masteryUpdates.push({ conceptId: data.id, mastery: prog.mastery });
+    }
+
+    if (checkpoint.unitId) {
       const status = pct >= 70 ? "COMPLETED" : "NEEDS_REVIEW";
-      await prisma.userUnitProgress.upsert({
+      await tx.userUnitProgress.upsert({
         where: { userId_unitId: { userId, unitId: checkpoint.unitId } },
         update: { progress: 100, status, score: pct, completedAt: new Date() },
         create: { userId, unitId: checkpoint.unitId, progress: 100, status, score: pct, completedAt: new Date() },
       });
-    } catch {}
-  }
+    }
 
-  // deblochează următoarea unitate (nu blocăm agresiv) — următoarea unitate devine AVAILABLE indiferent
-  // statusul checkpoint-ului rămâne vizibil, dar next unit e deja AVAILABLE via learning-path logic
+    return att;
+  });
 
   revalidatePath(`/checkpoint/${checkpointSlug}`);
   revalidatePath("/materii");

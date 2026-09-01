@@ -1,13 +1,16 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { AuthError } from "next-auth";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { signIn, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { sendOtpEmail } from "@/lib/mail";
+import { registerRateLimit } from "@/lib/otp-rate-limit";
 import { buildUsername, uniqueUsername } from "@/lib/username";
+import { generateOtpCode } from "@/lib/utils";
 
 export type AuthState = { error?: string };
 
@@ -68,6 +71,17 @@ export async function register(
     return { error: "Verifică datele introduse (parolă minim 6 caractere)." };
   }
 
+  const hdrs = await headers();
+  const ip =
+    hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    hdrs.get("x-real-ip") ||
+    "unknown";
+  if (!(await registerRateLimit(ip))) {
+    return {
+      error: "Prea multe încercări. Încearcă din nou în jumătate de oră.",
+    };
+  }
+
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
     return { error: "Există deja un cont cu acest email." };
@@ -75,17 +89,24 @@ export async function register(
 
   const passwordHash = await bcrypt.hash(parsed.data.password, 10);
   const { username: base } = buildUsername(parsed.data.name, parsed.data.email);
-  await prisma.user.create({
-    data: {
-      email,
-      name: parsed.data.name.trim(),
-      username: await uniqueUsername(base),
-      passwordHash,
-      termsAcceptedAt: new Date(),
-    },
-  });
+  try {
+    await prisma.user.create({
+      data: {
+        email,
+        name: parsed.data.name.trim(),
+        username: await uniqueUsername(base),
+        passwordHash,
+        termsAcceptedAt: new Date(),
+      },
+    });
+  } catch (err) {
+    if ((err as { code?: string }).code === "P2002") {
+      return { error: "Există deja un cont cu acest email." };
+    }
+    throw err;
+  }
 
-  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const code = generateOtpCode();
   await prisma.verificationToken.deleteMany({ where: { email } });
   await prisma.verificationToken.create({
     data: { email, token: code, expires: new Date(Date.now() + 10 * 60 * 1000) },

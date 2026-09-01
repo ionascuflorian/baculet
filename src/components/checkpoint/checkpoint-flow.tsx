@@ -38,6 +38,7 @@ export function CheckpointFlow({ checkpointSlug, title, questions, chapterSlug, 
   const [revealed, setRevealed] = useState(false);
   const [pending, start] = useTransition();
   const [result, setResult] = useState<null | { score: number; maxScore: number; pct: number; weakConcepts: { conceptId: string; name: string }[] }>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const total = questions.length;
   const q = questions[idx];
@@ -72,6 +73,7 @@ export function CheckpointFlow({ checkpointSlug, title, questions, chapterSlug, 
           setPhase("results");
         } catch (e) {
           console.error(e);
+          setSubmitError("Nu am putut trimite răspunsurile. Încearcă din nou.");
         }
       });
     } else {
@@ -145,6 +147,11 @@ export function CheckpointFlow({ checkpointSlug, title, questions, chapterSlug, 
           })}
         </div>
         {revealed && q.explanation && <p className="rounded-xl bg-accent/10 p-3 text-sm text-ink">💡 {q.explanation}</p>}
+        {submitError && (
+          <p className="rounded-xl bg-danger/10 px-4 py-2.5 text-sm font-semibold text-danger">
+            {submitError}
+          </p>
+        )}
         <div className="flex justify-between">
           <Button variant="ghost" size="sm" onClick={() => setIdx((v) => Math.max(0, v - 1))} disabled={idx === 0}>
             Înapoi
@@ -159,6 +166,24 @@ export function CheckpointFlow({ checkpointSlug, title, questions, chapterSlug, 
             </Button>
           )}
         </div>
+      </div>
+    );
+  }
+
+  if (phase === "results" && !result) {
+    // Race: phase a ajuns la "results", dar rezultatul încă se încarcă (sau a eșuat).
+    return (
+      <div className="mx-auto max-w-xl space-y-4 py-16 text-center">
+        <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-accent border-t-transparent" />
+        <p className="text-sm font-semibold text-ink">Se calculează rezultatele…</p>
+        {submitError && (
+          <div>
+            <p className="rounded-xl bg-danger/10 px-4 py-2.5 text-sm font-semibold text-danger">{submitError}</p>
+            <Button size="sm" className="mt-3" onClick={() => { setSubmitError(null); setPhase("playing"); }}>
+              Încearcă din nou
+            </Button>
+          </div>
+        )}
       </div>
     );
   }

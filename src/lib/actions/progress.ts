@@ -18,35 +18,37 @@ export async function toggleLessonComplete(lessonId: string, path: string) {
   });
   if (!lesson) throw new Error("Lecția nu există");
 
-  const existing = await prisma.lessonProgress.findUnique({
-    where: {
-      userId_lessonId: { userId: session.user.id, lessonId },
-    },
+  // Toggle atomic: șterge toate rândurile existente; dacă n-a existat niciunul,
+  // creează unul nou. Evită duplicate pe cereri concurente.
+  const deleted = await prisma.lessonProgress.deleteMany({
+    where: { userId: session.user.id, lessonId },
   });
 
-  if (existing) {
-    await prisma.lessonProgress.delete({ where: { id: existing.id } });
-  } else {
-    await prisma.lessonProgress.create({
-      data: { userId: session.user.id, lessonId },
-    });
-
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { lastActiveAt: true, streakCount: true },
-    });
-    if (user) {
-      const streak = nextStreak(user.lastActiveAt, user.streakCount);
-      await prisma.user.update({
-        where: { id: session.user.id },
-        data: {
-          lastActiveAt: streak.lastActiveAt,
-          streakCount: streak.streakCount,
-        },
+  if (deleted.count === 0) {
+    try {
+      await prisma.lessonProgress.create({
+        data: { userId: session.user.id, lessonId },
       });
-    }
 
-    await recordStudyActivity(session.user.id);
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { lastActiveAt: true, streakCount: true },
+      });
+      if (user) {
+        const streak = nextStreak(user.lastActiveAt, user.streakCount);
+        await prisma.user.update({
+          where: { id: session.user.id },
+          data: {
+            lastActiveAt: streak.lastActiveAt,
+            streakCount: streak.streakCount,
+          },
+        });
+      }
+
+      await recordStudyActivity(session.user.id);
+    } catch (err) {
+      if ((err as { code?: string }).code !== "P2002") throw err;
+    }
   }
 
   revalidatePath(path);
@@ -82,14 +84,12 @@ export async function completeLessonStep(
     }
   }
 
-  const existing = await prisma.lessonStepProgress.findUnique({
-    where: { userId_stepId: { userId: session.user.id, stepId } },
+  // Creare atomică: skipDuplicates evită duplicate pe cereri concurente.
+  const created = await prisma.lessonStepProgress.createMany({
+    data: [{ userId: session.user.id, stepId, lessonId }],
+    skipDuplicates: true,
   });
-  if (existing) return { already: true };
-
-  await prisma.lessonStepProgress.create({
-    data: { userId: session.user.id, stepId, lessonId },
-  });
+  if (created.count === 0) return { already: true };
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
@@ -110,7 +110,9 @@ export async function completeLessonStep(
     for (const c of concepts) {
       await updateConceptMastery(session.user.id, c.id, true, c.difficulty, { isReview: false });
     }
-  } catch {}
+  } catch (err) {
+    console.error("completeLessonStep: mastery update failed:", err);
+  }
 
   // unit progress: marchează progresul unității care conține lecția
   try {
@@ -126,7 +128,9 @@ export async function completeLessonStep(
         create: { userId: session.user.id, unitId: lessonWithUnit.unitId, progress, status, completedAt: progress === 100 ? new Date() : null },
       });
     }
-  } catch {}
+  } catch (err) {
+    console.error("completeLessonStep: unit progress failed:", err);
+  }
 
   // auto-complete lecția dacă toți pașii sunt gata
   const [total, done] = await Promise.all([
@@ -135,13 +139,11 @@ export async function completeLessonStep(
   ]);
   let lessonCompleted = false;
   if (total > 0 && done === total) {
-    const lp = await prisma.lessonProgress.findUnique({
-      where: { userId_lessonId: { userId: session.user.id, lessonId } },
+    const created = await prisma.lessonProgress.createMany({
+      data: [{ userId: session.user.id, lessonId }],
+      skipDuplicates: true,
     });
-    if (!lp) {
-      await prisma.lessonProgress.create({ data: { userId: session.user.id, lessonId } });
-      lessonCompleted = true;
-    }
+    if (created.count > 0) lessonCompleted = true;
   }
 
   revalidatePath(path);
