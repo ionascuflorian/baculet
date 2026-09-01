@@ -147,6 +147,9 @@ export default async function LessonPage({
           }))}
           doneStepIds={doneStepIds}
           isLessonDone={isDone}
+          nextHref={next ? `/materii/${slug}/${chapterSlug}/${next.slug}` : null}
+          chapterHref={`/materii/${slug}/${chapterSlug}`}
+          nextTitle={next?.title ?? null}
         />
       ) : (
         <>
