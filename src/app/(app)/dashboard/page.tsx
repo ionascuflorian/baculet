@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { auth } from "@/lib/auth";
@@ -10,6 +9,9 @@ import { isWeatherLocation } from "@/lib/weather-location";
 import { CalendarWidget } from "@/components/dashboard/widget-calendar";
 import { BacCountdownWidget } from "@/components/dashboard/widget-bac-countdown";
 import { ResumeWidget } from "@/components/dashboard/widget-resume";
+import { WeakWidget } from "@/components/dashboard/widget-weak";
+import { ProgressWidget } from "@/components/dashboard/widget-progress";
+import { RecentWidget } from "@/components/dashboard/widget-recent";
 import { PomodoroWidget } from "@/components/dashboard/widget-pomodoro";
 import { TodoWidget } from "@/components/dashboard/widget-todo";
 import { StreakWidget } from "@/components/dashboard/widget-streaks";
@@ -24,7 +26,6 @@ import { ProfilePrompt } from "@/components/profile/profile-prompt";
 import { getDueReviews } from "@/lib/spaced-repetition";
 import { RecapWidget } from "@/components/recap/recap-widget";
 import { getGlobalNextAction } from "@/lib/next-action";
-import { NextActionCard } from "@/components/home/next-action-card";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -47,6 +48,7 @@ export default async function DashboardPage() {
       prisma.subject.findMany({
         orderBy: { order: "asc" },
         select: {
+          id: true,
           slug: true,
           name: true,
           chapters: {
@@ -87,7 +89,17 @@ export default async function DashboardPage() {
         take: 3,
         include: { concept: { select: { name: true } } },
       }),
-      prisma.userConceptProgress.findMany({ where: { userId } }),
+      prisma.userConceptProgress.findMany({
+        where: { userId },
+        include: {
+          concept: {
+            include: {
+              lesson: { include: { chapter: { include: { subject: { select: { id: true } } } } } },
+              unit: { include: { chapter: { include: { subject: { select: { id: true } } } } } },
+            },
+          },
+        },
+      }),
     ]);
 
   const prefs = normalizePrefs(user?.dashboardWidgets);
@@ -136,6 +148,29 @@ export default async function DashboardPage() {
 
   const bacSchedule = await getBacSchedule();
 
+  // Mastery mediu per materie, din progresul pe concepte.
+  const masteryBySubject = new Map<string, { sum: number; count: number }>();
+  for (const c of allConcepts) {
+    const sid =
+      c.concept.lesson?.chapter.subject.id ??
+      c.concept.unit?.chapter.subject.id;
+    if (!sid) continue;
+    const agg = masteryBySubject.get(sid) ?? { sum: 0, count: 0 };
+    agg.sum += c.mastery;
+    agg.count++;
+    masteryBySubject.set(sid, agg);
+  }
+  const subjectMastery = subjects
+    .filter((s) => masteryBySubject.has(s.id))
+    .map((s) => {
+      const agg = masteryBySubject.get(s.id)!;
+      return {
+        slug: s.slug,
+        name: s.name,
+        mastery: Math.round(agg.sum / agg.count),
+      };
+    });
+
   if (!user?.onboardingDone) redirect("/onboarding");
 
   return (
@@ -153,51 +188,6 @@ export default async function DashboardPage() {
       </div>
 
       <ProfilePrompt profileSet={!!user?.profile} />
-
-      {globalAction && (
-        <NextActionCard action={globalAction} progress={Math.round((completedLessons.length / Math.max(1, allLessons.length)) * 100)} />
-      )}
-
-      {weakMastery.length > 0 && (
-        <section className="rounded-[1.25rem] border border-warning/20 bg-warning/5 p-5">
-          <h2 className="text-sm font-extrabold uppercase tracking-widest text-warning">Pentru tine</h2>
-          <p className="text-sm text-subtle">Concepte unde ai întâmpinat dificultăți</p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            {weakMastery.map((w) => (
-              <div key={w.conceptId} className="rounded-xl border border-feather bg-card p-3">
-                <p className="text-sm font-bold text-ink">🔴 {w.concept.name}</p>
-                <p className="text-xs text-subtle">Mastery {w.mastery}% — mai avem de lucru.</p>
-                <Link href="/recapitulare" className="mt-2 inline-flex text-xs font-bold text-accent">
-                  Exersează →
-                </Link>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {allConcepts.length > 0 && (
-        <section className="rounded-[1.25rem] border border-feather bg-card p-5">
-          <h2 className="text-sm font-extrabold uppercase tracking-widest text-subtle">Progresul tău</h2>
-          <div className="mt-3 grid gap-3 sm:grid-cols-3">
-            {subjects.slice(0, 3).map((s) => {
-              const masteryAvg =
-                allConcepts.length > 0
-                  ? Math.round(allConcepts.reduce((a, c) => a + c.mastery, 0) / allConcepts.length)
-                  : 0;
-              return (
-                <div key={s.slug} className="rounded-xl bg-feather/20 p-3">
-                  <p className="text-sm font-bold text-ink">{s.name}</p>
-                  <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-feather">
-                    <div className="h-full bg-accent" style={{ width: `${masteryAvg}%` }} />
-                  </div>
-                  <p className="mt-1 text-xs text-subtle">{masteryAvg}% mastery</p>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
 
       <DashboardGrid prefs={prefs}>
         {visible.flatMap((id) => {
@@ -257,6 +247,55 @@ export default async function DashboardPage() {
                     totalLessons={totalLessons}
                     totalChapters={totalChapters}
                     chaptersDone={chaptersDone}
+                    nextAction={globalAction}
+                  />
+                ),
+              };
+            case "weak":
+              return {
+                id,
+                node: (
+                  <WeakWidget
+                    items={weakMastery.map((w) => ({
+                      conceptId: w.conceptId,
+                      mastery: w.mastery,
+                      concept: { name: w.concept.name },
+                    }))}
+                  />
+                ),
+              };
+            case "progress":
+              return { id, node: <ProgressWidget subjects={subjectMastery} /> };
+            case "recap":
+              return {
+                id,
+                node: (
+                  <RecapWidget
+                    dueCount={dueReviews.length}
+                    items={dueReviews.map((r) => ({
+                      id: r.id,
+                      text: r.question.text,
+                      concept: r.question.concept,
+                      quizTitle: r.question.quiz.title,
+                      failCount: r.failCount,
+                    }))}
+                  />
+                ),
+              };
+            case "recent":
+              return {
+                id,
+                node: (
+                  <RecentWidget
+                    attempts={recentAttempts.map((a) => ({
+                      id: a.id,
+                      quiz: {
+                        title: a.quiz.title,
+                        subject: { name: a.quiz.subject.name },
+                      },
+                      score: a.score,
+                      maxScore: a.maxScore,
+                    }))}
                   />
                 ),
               };
@@ -288,59 +327,6 @@ export default async function DashboardPage() {
           }
         })}
       </DashboardGrid>
-
-      {dueReviews.length > 0 && (
-        <RecapWidget
-          dueCount={dueReviews.length}
-          items={dueReviews.map((r) => ({
-            id: r.id,
-            text: r.question.text,
-            concept: r.question.concept,
-            quizTitle: r.question.quiz.title,
-            failCount: r.failCount,
-          }))}
-        />
-      )}
-
-      {recentAttempts.length > 0 && (
-        <section className="surface rounded-[1.25rem] p-5">
-          <header className="mb-3 flex items-center justify-between">
-            <h2 className="text-base font-bold tracking-tight text-ink">
-              Teste recente
-            </h2>
-            <Link
-              href="/progres"
-              className="rounded-full px-3 py-1.5 text-xs font-bold text-accent hover:text-accent-dark"
-            >
-              Vezi tot progresul
-            </Link>
-          </header>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {recentAttempts.map((a) => (
-              <div
-                key={a.id}
-                className="inset flex items-center justify-between rounded-xl p-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-ink">
-                    {a.quiz.title}
-                  </p>
-                  <p className="text-xs text-subtle">{a.quiz.subject.name}</p>
-                </div>
-                <span
-                  className={
-                    a.score / a.maxScore >= 0.5
-                      ? "ml-3 shrink-0 text-lg font-extrabold text-success"
-                      : "ml-3 shrink-0 text-lg font-extrabold text-danger"
-                  }
-                >
-                  {a.score}/{a.maxScore}
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
     </div>
   );
 }

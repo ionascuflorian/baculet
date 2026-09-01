@@ -4,6 +4,10 @@ export type WidgetId =
   | "weather"
   | "calendar"
   | "resume"
+  | "weak"
+  | "progress"
+  | "recap"
+  | "recent"
   | "pomodoro"
   | "todo"
   | "streaks"
@@ -44,7 +48,31 @@ export const WIDGETS: WidgetMeta[] = [
   {
     id: "resume",
     label: "Continuă învățatul",
-    description: "Scurtătură către lecția de unde ai rămas.",
+    description: "Următorul pas recomandat plus progresul general.",
+    defaultVisible: true,
+  },
+  {
+    id: "weak",
+    label: "Pentru tine",
+    description: "Concepte unde ai întâmpinat dificultăți (mastery scăzut).",
+    defaultVisible: true,
+  },
+  {
+    id: "progress",
+    label: "Progresul tău",
+    description: "Mastery-ul mediu pe fiecare materie, ca procent.",
+    defaultVisible: true,
+  },
+  {
+    id: "recap",
+    label: "Recapitulare",
+    description: "Cardurile programate pentru recapitulare (spaced repetition).",
+    defaultVisible: true,
+  },
+  {
+    id: "recent",
+    label: "Teste recente",
+    description: "Ultimele teste date cu scorul obținut.",
     defaultVisible: true,
   },
   {
@@ -84,7 +112,11 @@ export const WIDGET_WEIGHT: Record<WidgetId, number> = {
   bac: 1.6,
   weather: 2.6,
   calendar: 2.6,
-  resume: 2,
+  resume: 2.2,
+  weak: 2.2,
+  progress: 2,
+  recap: 2.4,
+  recent: 2.2,
   pomodoro: 2.6,
   todo: 2.4,
   streaks: 3,

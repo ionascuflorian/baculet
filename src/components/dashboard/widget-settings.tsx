@@ -18,9 +18,14 @@ const WIDGET_ICONS: Record<string, string> = {
   weather: "🌤️",
   calendar: "📅",
   resume: "▶️",
+  weak: "🎯",
+  progress: "📊",
+  recap: "🧠",
+  recent: "🕐",
   pomodoro: "🍅",
   todo: "✅",
   streaks: "🔥",
+  leaderboard: "🏆",
 };
 
 export function WidgetSettings({ prefs }: { prefs: DashboardPrefs }) {

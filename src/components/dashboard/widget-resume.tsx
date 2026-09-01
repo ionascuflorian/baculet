@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { PlayCircle, ChevronRight } from "lucide-react";
+import { PlayCircle, ChevronRight, Target, Brain, RefreshCcw, Lightbulb } from "lucide-react";
 import { WidgetShell } from "@/components/dashboard/widget-shell";
 import { Progress } from "@/components/ui/progress";
+import type { NextAction } from "@/lib/next-action";
 
 export interface ResumeWidgetProps {
   nextLesson: {
@@ -14,7 +15,19 @@ export interface ResumeWidgetProps {
   totalLessons: number;
   totalChapters: number;
   chaptersDone: number;
+  nextAction?: NextAction | null;
 }
+
+const ACTION_ICONS: Record<string, typeof PlayCircle> = {
+  CONTINUE_LESSON: PlayCircle,
+  REVIEW_WEAK: Brain,
+  REVIEW_SCHEDULED: RefreshCcw,
+  NEXT_LESSON: PlayCircle,
+  CHECKPOINT: Target,
+  PRACTICE: Lightbulb,
+  DIAGNOSTIC: Brain,
+  START_PATH: PlayCircle,
+};
 
 export function ResumeWidget({
   nextLesson,
@@ -22,8 +35,13 @@ export function ResumeWidget({
   totalLessons,
   totalChapters,
   chaptersDone,
+  nextAction,
 }: ResumeWidgetProps) {
   const pct = totalLessons ? Math.round((doneCount / totalLessons) * 100) : 0;
+
+  const ActionIcon = nextAction
+    ? (ACTION_ICONS[nextAction.type] ?? PlayCircle)
+    : PlayCircle;
 
   return (
     <WidgetShell
@@ -40,7 +58,30 @@ export function ResumeWidget({
       }
     >
       <div className="flex h-full flex-col gap-4">
-{nextLesson ? (
+        {nextAction ? (
+          <Link
+            href={nextAction.href}
+            className="surface-hover group flex items-center justify-between gap-4 rounded-2xl border-2 border-accent/20 bg-accent/[0.04] p-4"
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent/10">
+                <ActionIcon className="h-6 w-6 text-accent" />
+              </span>
+              <div className="min-w-0">
+                {nextAction.meta && (
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-accent">
+                    {nextAction.meta}
+                  </p>
+                )}
+                <p className="truncate font-bold text-ink">{nextAction.title}</p>
+                <p className="truncate text-sm text-subtle">
+                  {nextAction.description}
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="h-6 w-6 shrink-0 text-accent transition-transform group-hover:translate-x-1" />
+          </Link>
+        ) : nextLesson ? (
           <Link
             href={`/materii/${nextLesson.subject.slug}/${nextLesson.chapter.slug}/${nextLesson.slug}`}
             className="surface-hover group flex items-center justify-between gap-4 rounded-2xl border-2 border-accent/20 bg-accent/[0.04] p-4"
