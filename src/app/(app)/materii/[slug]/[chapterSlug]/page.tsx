@@ -80,7 +80,7 @@ export default async function ChapterPage({
         {chapter.lessons.map((lesson, idx) => {
           const isDone = completedIds.has(lesson.id);
           const prevDone = idx === 0 || completedIds.has(chapter.lessons[idx - 1].id);
-          const locked = !prevDone && !isDone;
+          const recommendedLocked = !prevDone && !isDone;
           const totalSteps = stepsCountMap.get(lesson.id) ?? 0;
           const doneSteps = stepsByLesson.get(lesson.id) ?? 0;
           const pct = totalSteps ? Math.round((doneSteps / totalSteps) * 100) : isDone ? 100 : 0;
@@ -88,32 +88,27 @@ export default async function ChapterPage({
             <Card
               className={cn(
                 "flex items-center gap-4 transition-all hover:-translate-y-0.5 hover:shadow-md",
-                isDone && "border-success/40",
-                locked && "opacity-60"
+                isDone && "border-success/40"
               )}
             >
               <CardContent className="flex w-full items-center gap-4 p-4">
-                <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold", locked ? "bg-feather/50 text-subtle" : isDone ? "bg-success/10 text-success" : "bg-accent/10 text-accent")}>
-                  {locked ? <Lock className="h-4 w-4" /> : idx + 1}
+                <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold", isDone ? "bg-success/10 text-success" : "bg-accent/10 text-accent")}>
+                  {idx + 1}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="font-bold text-ink flex items-center gap-2">{lesson.title} {locked && <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-extrabold text-warning">BLOCAT</span>}</p>
+                  <p className="font-bold text-ink flex items-center gap-2">{lesson.title} {recommendedLocked && <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-extrabold text-accent">RECOMANDAT SĂ TERMINI ANTERIOARA</span>}</p>
                   <p className="text-sm text-subtle">{totalSteps ? `${doneSteps}/${totalSteps} pași` : "Lecție"} · {pct}%</p>
                   {totalSteps > 0 && <div className="mt-1 w-32"><Progress value={pct} /></div>}
                 </div>
                 {isDone ? (
                   <CheckCircle2 className="h-6 w-6 shrink-0 text-success" />
-                ) : locked ? (
-                  <Lock className="h-5 w-5 shrink-0 text-subtle" />
                 ) : (
                   <Circle className="h-6 w-6 shrink-0 text-feather" />
                 )}
               </CardContent>
             </Card>
           );
-          return locked ? (
-            <div key={lesson.id} title="Finalizează lecția anterioară pentru a debloca">{card}</div>
-          ) : (
+          return (
             <Link key={lesson.id} href={`/materii/${chapter.subject.slug}/${chapter.slug}/${lesson.slug}`}>
               {card}
             </Link>

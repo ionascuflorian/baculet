@@ -107,13 +107,12 @@ export function LessonSteps({ lessonId, lessonSlugPath, steps, doneStepIds, isLe
             return (
               <button
                 key={s.id}
-                onClick={() => !locked && setActive(idx)}
-                disabled={locked}
+                onClick={() => setActive(idx)}
                 className={cn(
                   "flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full border-2 text-xs font-extrabold transition-all",
-                  activeIs ? "scale-110 border-accent bg-accent text-white" : done ? "border-success bg-success/10 text-success" : locked ? "border-feather bg-feather/30 text-subtle" : "border-feather bg-card text-subtle hover:border-accent/40"
+                  activeIs ? "scale-110 border-accent bg-accent text-white" : done ? "border-success bg-success/10 text-success" : locked ? "border-warning/30 bg-warning/10 text-warning" : "border-feather bg-card text-subtle hover:border-accent/40"
                 )}
-                title={s.title ?? `Pasul ${idx + 1}`}
+                title={(s.title ?? `Pasul ${idx + 1}`) + (locked ? " (recomandat să parcurgi anteriorul)" : "")}
               >
                 {done ? <CheckCircle2 className="h-3.5 w-3.5" /> : locked ? <Lock className="h-3 w-3" /> : idx + 1}
               </button>
@@ -158,7 +157,6 @@ export function LessonSteps({ lessonId, lessonSlugPath, steps, doneStepIds, isLe
             <Button
               variant="secondary"
               size="sm"
-              disabled={isLocked(active + 1)}
               onClick={() => setActive((a) => a + 1)}
             >
               Continuă <ArrowRight className="h-4 w-4" />
