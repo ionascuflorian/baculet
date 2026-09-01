@@ -52,20 +52,19 @@ export function UnitPath({ subjectSlug, chapterSlug, units }: Props) {
     return (
       <div className="rounded-2xl border border-dashed border-feather p-8 text-center">
         <p className="text-sm font-semibold text-subtle">Băculeț te va ghida pas cu pas prin materia necesară pentru BAC.</p>
-        <p className="mt-1 text-xs text-subtle">Hai să începem.</p>
+        <p className="mt-1 text-xs text-subtle">Hai să începem — prima unitate e deja disponibilă.</p>
       </div>
     );
   }
 
   return (
-    <div className="relative mx-auto max-w-md md:max-w-lg">
-      {/* linie verticală */}
-      <div className="pointer-events-none absolute left-1/2 top-6 bottom-6 hidden w-px -translate-x-1/2 bg-feather/50 md:block" />
-      <div className="absolute left-6 top-6 bottom-6 w-px bg-feather/40 md:hidden" />
-      <div className="space-y-6">
+    <div className="relative mx-auto w-full max-w-xl">
+      {/* linie verticală - ascunsă pe mobil îngust pentru performanță, doar 1px */}
+      <div className="pointer-events-none absolute left-6 top-4 bottom-4 hidden w-px bg-feather/30 md:block md:left-1/2 md:-translate-x-1/2" aria-hidden />
+      <div className="pointer-events-none absolute left-[22px] top-4 bottom-4 w-px bg-feather/30 md:hidden" aria-hidden />
+      <div className="space-y-4">
         {units.map((unit, idx) => {
           const meta = getStatusMeta(unit.status);
-          const isLeft = idx % 2 === 0;
           const href =
             unit.type === "CHECKPOINT"
               ? `/checkpoint/${unit.slug}`
@@ -78,23 +77,32 @@ export function UnitPath({ subjectSlug, chapterSlug, units }: Props) {
           const isRecap = unit.type === "RECAP";
           const isCheckpoint = unit.type === "CHECKPOINT";
 
+          // aur = MASTERED (stăpânit), roșu/portocaliu = NEEDS_REVIEW / LOCKED
+          // explică ce trebuie să fie în chenare: titlu clar + streak sub, nu trunchiat
           const card = (
             <div
               className={cn(
-                "relative flex w-full items-center gap-3 rounded-2xl border-2 p-4 transition-all",
-                statusStyles[unit.status],
-                !locked && "hover:-translate-y-0.5",
-                isCheckpoint && unit.status !== "LOCKED" && "bg-gradient-to-br from-accent/10 to-accent-dark/5 border-accent"
+                "relative flex w-full items-center gap-3 rounded-2xl border p-3.5 sm:p-4 transition-colors",
+                // performanță: fără gradient/blur, culori solide, will-change doar la hover
+                unit.status === "LOCKED" && "bg-card border-feather/60 text-subtle",
+                unit.status === "AVAILABLE" && "bg-card border-accent/40 hover:border-accent hover:shadow-sm",
+                unit.status === "IN_PROGRESS" && "bg-warning/[0.06] border-warning/30",
+                unit.status === "COMPLETED" && "bg-success/[0.06] border-success/30",
+                unit.status === "MASTERED" && "bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-700", // auriu = stăpânit
+                unit.status === "NEEDS_REVIEW" && "bg-red-50 dark:bg-red-950/20 border-red-300 dark:border-red-800", // roșu = de revizuit
+                isCheckpoint && unit.status !== "LOCKED" && "border-accent bg-accent/[0.04]",
+                "min-h-[76px]" // țintă tactilă 44px+, evită înghesuială
               )}
+              style={{ contentVisibility: "auto", containIntrinsicSize: "76px" } as React.CSSProperties}
             >
               <div
                 className={cn(
                   "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 text-sm font-extrabold",
                   unit.status === "COMPLETED" && "bg-success text-white border-success",
-                  unit.status === "MASTERED" && "bg-success text-white border-success",
-                  unit.status === "LOCKED" && "bg-feather/50 border-feather",
+                  unit.status === "MASTERED" && "bg-amber-500 text-white border-amber-500",
+                  unit.status === "LOCKED" && "bg-feather/50 border-feather text-subtle",
                   unit.status === "AVAILABLE" && "bg-accent text-white border-accent",
-                  unit.status === "NEEDS_REVIEW" && "bg-warning text-white border-warning",
+                  unit.status === "NEEDS_REVIEW" && "bg-red-500 text-white border-red-500",
                   unit.status === "IN_PROGRESS" && "bg-warning text-white border-warning"
                 )}
               >
@@ -113,63 +121,72 @@ export function UnitPath({ subjectSlug, chapterSlug, units }: Props) {
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-extrabold text-ink truncate">
-                  {idx + 1}. {unit.title}
-                  {isCheckpoint && <span className="ml-2 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-white">CHECKPOINT</span>}
-                  {isRecap && <span className="ml-2 rounded-full bg-warning/20 px-2 py-0.5 text-[10px] font-bold text-warning">RECAPITULARE</span>}
+                <p className="text-[13px] font-extrabold leading-tight text-ink sm:text-sm">
+                  <span className="line-clamp-2 sm:line-clamp-1 break-words">
+                    {idx + 1}. {unit.title}
+                  </span>
+                  <span className="mt-1 inline-flex flex-wrap gap-1">
+                    {isCheckpoint && <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-white">CHECKPOINT</span>}
+                    {isRecap && <span className="rounded-full bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300">RECAPITULARE</span>}
+                    {unit.status === "MASTERED" && <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">STĂPÂNIT</span>}
+                    {unit.status === "NEEDS_REVIEW" && <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white">DE REVIZUIT</span>}
+                  </span>
                 </p>
-                <p className="text-xs text-subtle truncate">
-                  {unit.type === "LESSON" ? `${unit.lessons.length} lecție · ` : ""}
+                <p className="mt-1 text-xs leading-tight text-subtle">
+                  {unit.type === "LESSON" ? `${unit.lessons.length} lecție · ` : isRecap ? "2× din fiecare lecție · " : isCheckpoint ? "10 exerciții · " : ""}
                   {meta.label}
-                  {unit.masteryAvg !== null && ` · mastery ${unit.masteryAvg}%`}
+                  {unit.masteryAvg !== null && ` · ${unit.masteryAvg}%`}
                 </p>
                 {unit.type === "LESSON" && unit.progress > 0 && unit.progress < 100 && (
-                  <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-feather">
-                    <div className="h-full bg-accent transition-all" style={{ width: `${unit.progress}%` }} />
+                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-feather">
+                    <div className="h-full bg-accent" style={{ width: `${unit.progress}%` }} />
                   </div>
                 )}
               </div>
-              <div className="shrink-0 text-xs font-bold text-subtle">
-                {unit.status === "MASTERED" && "🏆"}
-                {unit.status === "COMPLETED" && "✓"}
-                {unit.status === "NEEDS_REVIEW" && "↻"}
+              <div className="hidden shrink-0 text-xs font-bold sm:block">
+                {unit.status === "MASTERED" && <span className="text-amber-600">🏆</span>}
+                {unit.status === "COMPLETED" && <span className="text-success">✓</span>}
+                {unit.status === "NEEDS_REVIEW" && <span className="text-red-500">↻</span>}
               </div>
             </div>
           );
 
+          // performanță: fără motion pe mobil, doar pe desktop și doar pentru primele 6
+          const MotionWrap = idx < 6 ? motion.div : "div" as any;
+          const motionProps =
+            idx < 6
+              ? {
+                  initial: { opacity: 0, y: 8 },
+                  whileInView: { opacity: 1, y: 0 },
+                  viewport: { once: true, margin: "0px 0px -10% 0px" },
+                  transition: { duration: 0.22, delay: Math.min(idx * 0.03, 0.15) },
+                }
+              : {};
+
           return (
-            <motion.div
+            <MotionWrap
               key={unit.id}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.04, duration: 0.3 }}
-              className={cn("relative md:flex md:items-center md:gap-4", isLeft ? "md:flex-row" : "md:flex-row-reverse")}
+              {...motionProps}
+              className="relative flex items-center gap-3"
             >
-              {/* desktop zig-zag: offset */}
-              <div className={cn("hidden md:block md:w-1/2", isLeft ? "md:pr-6" : "md:pl-6")}>
-                {!locked ? (
-                  <Link href={href} className="block">
-                    {card}
-                  </Link>
-                ) : (
-                  <div className="opacity-60">{card}</div>
-                )}
+              {/* punct pe linie */}
+              <div className="pointer-events-none absolute left-[22px] hidden h-2.5 w-2.5 -translate-x-1/2 rounded-full bg-feather md:left-1/2 md:block" style={{ top: "50%" }} aria-hidden />
+              {/* pe mobil: card ocupă tot restul, fără ml-12 înghesuit */}
+              <div className="w-full pl-10 md:pl-0 md:flex md:items-center md:gap-4">
+                <div className="hidden md:block md:w-1/2" aria-hidden />
+                <div className="w-full md:w-1/2">
+                  {!locked ? (
+                    <Link href={href} className="block" prefetch={false}>
+                      {card}
+                    </Link>
+                  ) : (
+                    <div className="opacity-75" aria-disabled>
+                      {card}
+                    </div>
+                  )}
+                </div>
               </div>
-              {/* nod central (desktop) */}
-              <div className="absolute left-1/2 hidden h-3 w-3 -translate-x-1/2 rounded-full bg-feather md:block" style={{ top: "50%" }} />
-              {/* mobile: full width with left offset */}
-              <div className="md:hidden ml-12">
-                {!locked ? (
-                  <Link href={href} className="block">
-                    {card}
-                  </Link>
-                ) : (
-                  <div className="opacity-60">{card}</div>
-                )}
-              </div>
-              {/* spacer for zigzag */}
-              <div className="hidden md:block md:w-1/2" />
-            </motion.div>
+            </MotionWrap>
           );
         })}
       </div>
