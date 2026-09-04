@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "LessonStep" ADD COLUMN     "manual" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "minReadTime" INTEGER NOT NULL DEFAULT 15;

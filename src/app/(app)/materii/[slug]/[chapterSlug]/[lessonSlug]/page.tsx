@@ -51,6 +51,7 @@ export default async function LessonPage({
           content: true,
           order: true,
           stepType: true,
+          minReadTime: true,
           quiz: {
             select: {
               id: true,
@@ -92,8 +93,8 @@ export default async function LessonPage({
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
         <Button asChild variant="ghost" size="sm" className="mb-3 -ml-3">
-          <Link href={`/materii/${slug}/${chapterSlug}`}>
-            <ArrowLeft className="h-4 w-4" /> {chapter.title}
+          <Link href={`/materii/${slug}`}>
+            <ArrowLeft className="h-4 w-4" /> {chapter.subject.name}
           </Link>
         </Button>
         <div className="flex items-center gap-3">
@@ -132,6 +133,7 @@ export default async function LessonPage({
             content: s.content,
             order: s.order,
             stepType: s.stepType,
+            minReadTime: s.minReadTime,
             quiz: s.quiz
               ? {
                   id: s.quiz.id,
@@ -150,7 +152,7 @@ export default async function LessonPage({
           doneStepIds={doneStepIds}
           isLessonDone={isDone}
           nextHref={next ? `/materii/${slug}/${chapterSlug}/${next.slug}` : null}
-          chapterHref={`/materii/${slug}/${chapterSlug}`}
+          chapterHref={`/materii/${slug}`}
           nextTitle={next?.title ?? null}
         />
       ) : (
@@ -185,7 +187,7 @@ export default async function LessonPage({
           </Button>
         ) : (
           <Button asChild variant="secondary" size="sm">
-            <Link href={`/materii/${slug}`}>Gata capitolul</Link>
+            <Link href={`/materii/${slug}`}>Gata modulul</Link>
           </Button>
         )}
       </div>

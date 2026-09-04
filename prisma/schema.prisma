@@ -76,6 +76,8 @@ model User {
   reminderHour  Int?
   streakWarnedFor DateTime?
   reminderSentOn DateTime?
+  aiProvider    String?
+  aiApiKeyEnc   String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -223,6 +225,7 @@ model Lesson {
   videoUrl  String?
   pdfUrl    String?
   order     Int     @default(0)
+  difficulty Int    @default(1)
 
   chapter  Chapter          @relation(fields: [chapterId], references: [id], onDelete: Cascade)
   unit     Unit?            @relation(fields: [unitId], references: [id], onDelete: SetNull)
@@ -235,13 +238,15 @@ model Lesson {
 }
 
 model LessonStep {
-  id        String  @id @default(cuid())
-  lessonId  String
-  title     String?
-  content   String
-  order     Int     @default(0)
-  stepType  String? // DESCOPERĂ, ÎNȚELEGE, EXEMPLU, ÎNCEARCĂ, EXERSEAZĂ, APLICĂ, RECAPITULEAZĂ
-  quizId    String? @unique
+  id          String  @id @default(cuid())
+  lessonId    String
+  title       String?
+  content     String
+  order       Int     @default(0)
+  stepType    String? // DESCOPERĂ, ÎNȚELEGE, EXEMPLU, ÎNCEARCĂ, EXERSEAZĂ, APLICĂ, RECAPITULEAZĂ
+  quizId      String? @unique
+  minReadTime Int     @default(15) // secunde minime pentru a marca secțiunea de teorie/exemplu ca citită
+  manual      Boolean @default(false) // true = secțiune creată/editată în Constructor (nu e suprascrisă de sync din markdown)
 
   lesson   Lesson          @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   quiz     Quiz?           @relation(fields: [quizId], references: [id], onDelete: SetNull)

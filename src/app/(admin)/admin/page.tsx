@@ -36,7 +36,7 @@ export default async function AdminOverviewPage() {
 
   const stats = [
     { label: "Materii", value: subjectCount, icon: BookOpen, color: "bg-accent/10 text-accent" },
-    { label: "Capitole", value: chapterCount, icon: FolderOpen, color: "bg-accent/10 text-accent" },
+    { label: "Module", value: chapterCount, icon: FolderOpen, color: "bg-accent/10 text-accent" },
     { label: "Lecții", value: lessonCount, icon: BookOpen, color: "bg-warning/15 text-warning" },
     { label: "Teste", value: quizCount, icon: ListChecks, color: "bg-brand/10 text-brand" },
     { label: "Utilizatori", value: userCount, icon: Users, color: "bg-danger/10 text-danger" },

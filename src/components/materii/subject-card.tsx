@@ -53,7 +53,7 @@ export function SubjectCard({
           <div className="mt-4">
             <div className="mb-1.5 flex items-center justify-between text-xs font-bold">
               <span className="text-subtle">
-                {subject.chaptersCount} capitole · {subject.lessonsCount} lecții
+                {subject.chaptersCount} module · {subject.lessonsCount} lecții
               </span>
               <span className="text-accent">{subject.pct}%</span>
             </div>

@@ -11,7 +11,7 @@ interface MarkLessonCompleteProps {
   lessonId: string;
   path: string;
   isDone: boolean;
-  /** true dacă marcarea ACESTEI lecții completează capitolul */
+  /** true dacă marcarea ACESTEI lecții completează modulul */
   completesChapter: boolean;
 }
 
@@ -97,10 +97,10 @@ function ChapterCelebration({ reduced }: { reduced: boolean | null }) {
             <CheckCircle2 className="h-11 w-11 text-success" />
           </motion.div>
           <p className="text-xl font-extrabold tracking-tight text-ink">
-            Capitol finalizat! 🎉
+            Modul finalizat! 🎉
           </p>
           <p className="max-w-xs text-sm font-semibold text-subtle">
-            Ai parcurs toate lecțiile acestui capitol. Felicitări!
+            Ai parcurs toate lecțiile acestui modul. Felicitări!
           </p>
         </motion.div>
       </div>

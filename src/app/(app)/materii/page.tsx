@@ -90,7 +90,7 @@ export default async function SubjectsPage() {
       <section>
         <h1 className="text-3xl font-semibold text-ink sm:text-4xl">Materii</h1>
         <p className="mt-1 text-subtle">
-          Alege o materie și parcurge capitolele pas cu pas.
+          Alege o materie și parcurge modulele pas cu pas.
         </p>
       </section>
 

@@ -54,24 +54,63 @@ export function parseLessonSteps(content: string): { title: string | null; conte
 
 export async function syncLessonSteps(lessonId: string, content: string) {
   const steps = parseLessonSteps(content);
-  // șterge pașii în exces
-  await prisma.lessonStep.deleteMany({
-    where: { lessonId, order: { gte: steps.length } },
+
+  const existing = await prisma.lessonStep.findMany({
+    where: { lessonId },
+    orderBy: { order: "asc" },
   });
+
+  // pașii manuali (creați/editați în Constructor) sunt protejați: nu se rescriu, nu se șterg
+  const manualSteps = existing.filter((s) => s.manual);
+  const nonManual = existing.filter((s) => !s.manual).sort((a, b) => a.order - b.order);
+
+  // faza 1: mută temporar pașii auto pentru a evita conflicte pe @@unique([lessonId, order])
+  const SHIFT = 100000;
+  for (const s of nonManual) {
+    await prisma.lessonStep.update({ where: { id: s.id }, data: { order: s.order + SHIFT } });
+  }
+
+  // sloturile de order rămase după ce manualii și-au ocupat pozițiile
+  const occupied = new Set(manualSteps.map((s) => s.order));
+  const freeOrders: number[] = [];
+  let cursor = 0;
+  for (let i = 0; i < steps.length; i++) {
+    while (occupied.has(cursor)) cursor++;
+    freeOrders.push(cursor);
+    occupied.add(cursor);
+    cursor++;
+  }
+
+  // faza 2: actualizează/crează pașii auto pe pozițiile libere
   for (let i = 0; i < steps.length; i++) {
     const s = steps[i];
-    const existing = await prisma.lessonStep.findUnique({
-      where: { lessonId_order: { lessonId, order: i } },
-    });
-    if (existing) {
+    const order = freeOrders[i];
+    const existingStep = nonManual[i];
+    if (existingStep) {
       await prisma.lessonStep.update({
-        where: { id: existing.id },
-        data: { title: s.title, content: s.content, stepType: s.stepType },
+        where: { id: existingStep.id },
+        data: { title: s.title, content: s.content, stepType: s.stepType, order },
       });
     } else {
       await prisma.lessonStep.create({
-        data: { lessonId, title: s.title, content: s.content, order: i, stepType: s.stepType },
+        data: { lessonId, title: s.title, content: s.content, order, stepType: s.stepType, manual: false },
       });
+    }
+  }
+
+  // pașii auto rămași în exces: șterge-i, dar păstrează-i pe cei cu quiz atașat (compensați la final)
+  const orphans = nonManual.slice(steps.length);
+  const deleteIds = orphans.filter((s) => s.quizId === null).map((s) => s.id);
+  if (deleteIds.length > 0) {
+    await prisma.lessonStep.deleteMany({ where: { id: { in: deleteIds } } });
+  }
+  const keepQuizSteps = orphans.filter((s) => s.quizId !== null);
+  if (keepQuizSteps.length > 0) {
+    for (const s of keepQuizSteps) {
+      while (occupied.has(cursor)) cursor++;
+      await prisma.lessonStep.update({ where: { id: s.id }, data: { order: cursor } });
+      occupied.add(cursor);
+      cursor++;
     }
   }
 }

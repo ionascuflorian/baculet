@@ -104,7 +104,7 @@ export function DemoDashboard() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate font-bold text-ink">
-                  Capitolul 3 · Poezia romantică
+                  Modulul 3 · Poezia romantică
                 </p>
                 <p className="text-xs font-semibold text-subtle">
                   Lecția 8 din 12 · „Luceafărul” — comentariu

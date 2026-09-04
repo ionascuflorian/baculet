@@ -118,7 +118,7 @@ export default async function ChapterPage({
 
       {chapter.quizzes.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-lg font-bold text-ink">Teste pe acest capitol</h2>
+          <h2 className="text-lg font-bold text-ink">Teste pe acest modul</h2>
           {chapter.quizzes.map((quiz) => (
             <Link key={quiz.id} href={`/teste/${quiz.slug}`}>
               <Card className="flex items-center justify-between transition-all hover:-translate-y-0.5 hover:shadow-md">

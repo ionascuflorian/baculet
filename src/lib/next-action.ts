@@ -124,7 +124,7 @@ export async function getNextBestActionForSubject(userId: string, subjectSlug: s
   return {
     type: "PRACTICE",
     title: "Exersează concepte stăpânite",
-    description: "Alege un capitol să-ți menții forma.",
+    description: "Alege un modul să-ți menții forma.",
     href: `/materii/${subject.slug}`,
     meta: "Practică",
     priority: 6,

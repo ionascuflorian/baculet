@@ -24,10 +24,12 @@ export function QuestionForm({
   quizId,
   questionId,
   initial,
+  redirectTo,
 }: {
   quizId: string;
   questionId: string | null;
   initial: QuestionFormValues;
+  redirectTo?: string;
 }) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -39,19 +41,27 @@ export function QuestionForm({
         if (value) options.push(value);
       }
       if (options.length < 2) return { error: "Adaugă cel puțin 2 variante de răspuns." };
-      const res = await saveQuestion(questionId, {
-        quizId,
-        text: String(formData.get("text") ?? ""),
-        options,
-        correctIndex: Number(formData.get("correctIndex") ?? 0),
-        explanation: String(formData.get("explanation") ?? ""),
-        type: String(formData.get("type") ?? "SINGLE") as "SINGLE" | "CLOZE" | "FLASHCARD" | "DRAG_DROP",
-        concept: String(formData.get("concept") ?? ""),
-        order: Number(formData.get("order") ?? 0),
-      });
+      const res = await saveQuestion(
+        questionId,
+        {
+          quizId,
+          text: String(formData.get("text") ?? ""),
+          options,
+          correctIndex: Number(formData.get("correctIndex") ?? 0),
+          explanation: String(formData.get("explanation") ?? ""),
+          type: String(formData.get("type") ?? "SINGLE") as "SINGLE" | "CLOZE" | "FLASHCARD" | "DRAG_DROP",
+          concept: String(formData.get("concept") ?? ""),
+          order: Number(formData.get("order") ?? 0),
+        },
+        { revalidate: redirectTo ? [redirectTo] : undefined }
+      );
       if (!res?.id) return { error: "Eroare la salvare" };
-      showToast(questionId ? "Întrebarea a fost salvată." : "Întrebarea a fost adăugată.");
-      router.push(`/admin/teste/${quizId}`);
+      showToast(questionId ? "Exercițiul a fost salvat." : "Exercițiul a fost adăugat.");
+      if (redirectTo) {
+        router.refresh();
+      } else {
+        router.push(`/admin/teste/${quizId}`);
+      }
       return { error: "" };
     },
     { error: "" }

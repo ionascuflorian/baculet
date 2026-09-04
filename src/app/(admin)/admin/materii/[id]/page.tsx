@@ -46,6 +46,12 @@ export default async function AdminSubjectDetailPage({
               <h1 className="text-2xl font-extrabold text-ink">{subject.name}</h1>
               <p className="text-sm text-subtle">Editează detaliile materiei</p>
             </div>
+            <PendingLink
+              href={`/admin/materii/${subject.id}/harta`}
+              className="ml-auto inline-flex items-center gap-1 text-xs font-bold text-accent hover:underline"
+            >
+              Harta cursului <ChevronRight className="h-3.5 w-3.5" />
+            </PendingLink>
           </div>
           <SubjectForm
             subjectId={subject.id}
@@ -65,7 +71,7 @@ export default async function AdminSubjectDetailPage({
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-extrabold text-ink">
-            Capitole ({subject.chapters.length})
+            Module ({subject.chapters.length})
           </h2>
         </div>
 
@@ -96,7 +102,7 @@ export default async function AdminSubjectDetailPage({
         <Card>
           <CardContent className="p-5">
             <p className="mb-4 flex items-center gap-2 text-lg font-bold text-ink">
-              <Plus className="h-5 w-5" /> Adaugă un capitol nou
+              <Plus className="h-5 w-5" /> Adaugă un modul nou
             </p>
             <ChapterForm
               subjectId={subject.id}

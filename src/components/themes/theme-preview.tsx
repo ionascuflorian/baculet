@@ -24,7 +24,7 @@ export function ThemePreview({
         </span>
         <div className="min-w-0">
           <p className="truncate text-sm font-bold text-ink">Titlul lecției</p>
-          <p className="truncate text-xs text-subtle">Capitolul · subtitlu</p>
+          <p className="truncate text-xs text-subtle">Modulul · subtitlu</p>
         </div>
         <span className="ml-auto rounded-full bg-warning/15 px-2.5 py-1 text-xs font-bold text-warning">
           7 zile

@@ -38,7 +38,7 @@ export function ChapterForm({
         order: Number(formData.get("order") ?? 0),
       });
       if (!res?.id) return { error: "Eroare la salvare" };
-      showToast(chapterId ? "Capitolul a fost salvat." : "Capitolul a fost adăugat.");
+      showToast(chapterId ? "Modulul a fost salvat." : "Modulul a fost adăugat.");
       router.push(`/admin/materii/${subjectId}`);
       return { error: "" };
     },
@@ -72,7 +72,7 @@ export function ChapterForm({
       </div>
       <Button type="submit" disabled={pending}>
         {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
-        {pending ? "Se salvează…" : chapterId ? "Salvează capitolul" : "Adaugă capitolul"}
+        {pending ? "Se salvează…" : chapterId ? "Salvează modulul" : "Adaugă modulul"}
       </Button>
     </form>
   );

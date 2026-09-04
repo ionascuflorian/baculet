@@ -31,7 +31,7 @@ const features = [
   {
     icon: BookOpen,
     title: "Materii și lecții",
-    text: "Conținut structurat pe materii și capitole, acoperind toate profilele de BAC.",
+    text: "Conținut structurat pe materii și module, acoperind toate profilele de BAC.",
   },
   {
     icon: ListChecks,
@@ -51,7 +51,7 @@ const features = [
   {
     icon: TrendingUp,
     title: "Progres vizibil",
-    text: "Urmărește ce capitole ai parcurs și cum evoluează scorurile tale la teste.",
+    text: "Urmărește ce module ai parcurs și cum evoluează scorurile tale la teste.",
   },
   {
     icon: GraduationCap,
@@ -69,7 +69,7 @@ const steps = [
   {
     icon: BookOpen,
     title: "Învață pas cu pas",
-    text: "Parcurge lecții structurate pe materii și capitole, cu ritmul tău.",
+    text: "Parcurge lecții structurate pe materii și module, cu ritmul tău.",
   },
   {
     icon: PenLine,
@@ -141,7 +141,7 @@ export default async function Home() {
             </h1>
             <p className="animate-slide-up max-w-2xl text-lg text-subtle sm:text-xl [animation-delay:160ms]">
               Lecții, teste grilă și subiecte oficiale — structurate pe materii și
-              capitole, cu progresul salvat și seria ta zilnică de studiu.
+              module, cu progresul salvat și seria ta zilnică de studiu.
             </p>
             <div className="animate-slide-up flex flex-col gap-3 sm:flex-row [animation-delay:240ms]">
               <Button asChild size="lg" variant="default">

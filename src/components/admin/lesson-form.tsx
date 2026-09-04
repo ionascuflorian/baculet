@@ -18,6 +18,7 @@ export interface LessonFormValues {
   videoUrl: string;
   pdfUrl: string;
   order: number;
+  difficulty: number;
 }
 
 function slugify(input: string): string {
@@ -62,6 +63,7 @@ export function LessonForm({
         videoUrl: String(formData.get("videoUrl") ?? ""),
         pdfUrl: String(formData.get("pdfUrl") ?? ""),
         order: Number(formData.get("order") ?? 0),
+        difficulty: Number(formData.get("difficulty") ?? 1),
       });
       if (!res?.id) return { error: "Eroare la salvare" };
       showToast(lessonId ? "Lecția a fost salvată." : "Lecția a fost adăugată.");
@@ -93,9 +95,24 @@ export function LessonForm({
             onChange={() => setSlugTouched(true)}
           />
         </div>
-        <div>
-          <Label htmlFor="order">Ordine</Label>
-          <Input id="order" name="order" type="number" defaultValue={initial.order} />
+        <div className="grid grid-cols-2 gap-2 sm:col-span-1 sm:flex sm:flex-col">
+          <div>
+            <Label htmlFor="order">Ordine</Label>
+            <Input id="order" name="order" type="number" defaultValue={initial.order} />
+          </div>
+          <div>
+            <Label htmlFor="difficulty">Dificultate</Label>
+            <select
+              id="difficulty"
+              name="difficulty"
+              defaultValue={initial.difficulty}
+              className="h-10 w-full rounded-xl border border-feather bg-card px-3 text-sm font-semibold text-ink"
+            >
+              <option value={1}>Ușor</option>
+              <option value={2}>Mediu</option>
+              <option value={3}>Greu</option>
+            </select>
+          </div>
         </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">

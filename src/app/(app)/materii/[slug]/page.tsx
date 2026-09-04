@@ -63,7 +63,7 @@ export default async function SubjectPage({
 
   const nextAction = await getNextBestActionForSubject(userId, subject.slug);
 
-  // pentru fiecare capitol, calculează learning path cu unități
+  // pentru fiecare modul, calculează learning path cu unități
   const chaptersWithPath = await Promise.all(
     subject.chapters.map(async (ch) => {
       const units = await getLearningPathForChapter(userId, ch.id);
@@ -118,7 +118,7 @@ export default async function SubjectPage({
         {chaptersWithPath.length === 0 && (
           <Card>
             <CardContent className="py-8 text-center text-sm text-subtle">
-              Capitolele pentru această materie se pregătesc.
+              Modulele pentru această materie se pregătesc.
             </CardContent>
           </Card>
         )}

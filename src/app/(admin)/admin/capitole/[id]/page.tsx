@@ -93,6 +93,7 @@ export default async function AdminChapterDetailPage({
                 videoUrl: "",
                 pdfUrl: "",
                 order: chapter.lessons.length + 1,
+                difficulty: 1,
               }}
             />
           </CardContent>

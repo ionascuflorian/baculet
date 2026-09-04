@@ -49,7 +49,7 @@ export default async function AdminSubjectsPage() {
                   <div>
                     <p className="text-lg font-extrabold text-ink">{subject.name}</p>
                     <p className="text-xs text-subtle">
-                      {subject._count.chapters} capitole · {subject.slug}
+                      {subject._count.chapters} module · {subject.slug}
                     </p>
                     <div className="mt-1 flex flex-wrap gap-1">
                       {subject.subjectProfiles.map((p) => (

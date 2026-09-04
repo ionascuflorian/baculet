@@ -52,7 +52,7 @@ export async function searchSiteContent(query: string): Promise<SearchResult[]> 
         out.push({
           title: ch.title,
           href: `/materii/${s.slug}/${ch.slug}`,
-          type: `Capitol · ${s.name}`,
+          type: `Modul · ${s.name}`,
           snippet: `${ch.lessons.length} lecții`,
         });
       }
@@ -125,7 +125,7 @@ export async function getPageContext(pathname: string): Promise<PageContext | nu
     });
     if (chapter) {
       const content = [
-        `Capitolul „${chapter.title}" din materia ${chapter.subject.name}.`,
+        `Modulul „${chapter.title}" din materia ${chapter.subject.name}.`,
         "Lecții:",
         ...chapter.lessons.map((l) => `- ${l.title}`),
       ].join("\n");

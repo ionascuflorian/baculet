@@ -12,7 +12,7 @@ const sections = [
   },
   {
     title: "2. Serviciul oferit",
-    body: "Baculet este o platformă de învățare pentru examenul de bacalaureat: lecții structurate pe materii și capitole, teste grilă cu corectare automată, subiecte oficiale arhivate și asistență prin asistentul automat Siera. Serviciul este gratuit în forma sa curentă; ne rezervăm dreptul de a introduce funcționalități sau planuri plătite în viitor, cu anunț prealabil.",
+    body: "Baculet este o platformă de învățare pentru examenul de bacalaureat: lecții structurate pe materii și module, teste grilă cu corectare automată, subiecte oficiale arhivate și asistență prin asistentul automat Siera. Serviciul este gratuit în forma sa curentă; ne rezervăm dreptul de a introduce funcționalități sau planuri plătite în viitor, cu anunț prealabil.",
   },
   {
     title: "3. Contul tău",

@@ -80,9 +80,9 @@ export const sieraTopics: SieraTopic[] = [
 ];
 
 export const sieraGeneric: string[] = [
-  "Bună idee! Am reținut întrebarea ta. Pe site, Siera îți răspunde instant, cu trimiteri directe la lecții și capitole — aici e doar o demonstrație.",
+  "Bună idee! Am reținut întrebarea ta. Pe site, Siera îți răspunde instant, cu trimiteri directe la lecții și module — aici e doar o demonstrație.",
   "Interesant! Încearcă să-mi pui o întrebare din sugestiile de mai sus ca să vezi cum funcționează conversația cu Siera.",
-  "Hmm, întrebare bună! Pe site îți răspund cu exemple din lecții și cu trimiteri exacte la capitole. Aici e doar o demonstrație — încearcă sugestiile de mai jos ca să vezi cum merge.",
+  "Hmm, întrebare bună! Pe site îți răspund cu exemple din lecții și cu trimiteri exacte la module. Aici e doar o demonstrație — încearcă sugestiile de mai jos ca să vezi cum merge.",
 ];
 
 export interface DemoBoardRow {

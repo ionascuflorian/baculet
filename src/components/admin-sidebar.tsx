@@ -13,6 +13,7 @@ import {
   CalendarDays,
   ArrowLeft,
   Loader2,
+  Sparkles,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ const links = [
   { href: "/admin/subiecte", label: "Subiecte BAC", icon: GraduationCap },
   { href: "/admin/bac", label: "Calendar BAC", icon: CalendarDays },
   { href: "/admin/teme", label: "Teme", icon: Palette },
+  { href: "/admin/ai", label: "AI", icon: Sparkles },
   { href: "/admin/utilizatori", label: "Utilizatori", icon: Users },
 ];
 

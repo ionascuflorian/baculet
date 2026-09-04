@@ -10,6 +10,7 @@ async function requireAdmin() {
   if (!session?.user || session.user.role !== "ADMIN") {
     throw new Error("Acces interzis");
   }
+  return session;
 }
 
 function slugify(input: string): string {
@@ -19,6 +20,37 @@ function slugify(input: string): string {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)+/g, "");
+}
+
+// ─── AI settings (per-admin API key) ───────────────────────────
+const aiSettingsSchema = z.object({
+  provider: z.enum(["google", "openai", "anthropic"]).default("google"),
+  apiKey: z.string().min(1),
+});
+
+export async function saveAiSettings(input: z.input<typeof aiSettingsSchema>) {
+  const session = await requireAdmin();
+  const data = aiSettingsSchema.parse(input);
+  const { encryptApiKey } = await import("@/lib/ai-keys");
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: {
+      aiProvider: data.provider,
+      aiApiKeyEnc: encryptApiKey(data.apiKey),
+    },
+  });
+  revalidatePath("/admin/ai");
+  return { ok: true };
+}
+
+export async function clearAiSettings() {
+  const session = await requireAdmin();
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: { aiProvider: null, aiApiKeyEnc: null },
+  });
+  revalidatePath("/admin/ai");
+  return { ok: true };
 }
 
 // ─── Subjects ──────────────────────────────────────────────────
@@ -132,6 +164,7 @@ const lessonSchema = z.object({
   videoUrl: z.string().optional().default(""),
   pdfUrl: z.string().optional().default(""),
   order: z.coerce.number().int().default(0),
+  difficulty: z.coerce.number().int().min(1).max(3).default(1),
 });
 
 export async function saveLesson(
@@ -154,6 +187,7 @@ export async function saveLesson(
             videoUrl: data.videoUrl || null,
             pdfUrl: data.pdfUrl || null,
             order: data.order,
+            difficulty: data.difficulty,
           },
         })
       : await prisma.lesson.create({
@@ -165,6 +199,7 @@ export async function saveLesson(
             videoUrl: data.videoUrl || null,
             pdfUrl: data.pdfUrl || null,
             order: data.order,
+            difficulty: data.difficulty,
           },
         });
   } catch (err) {
@@ -190,6 +225,248 @@ export async function deleteLesson(id: string) {
   await prisma.lesson.delete({ where: { id } });
   revalidatePath("/admin");
   revalidatePath("/materii");
+}
+
+// ─── Lesson sections (Hybrid Constructor) ──────────────────────
+const sectionSchema = z.object({
+  title: z.string().optional().nullable().default(null),
+  content: z.string().min(1),
+  stepType: z.string().optional().default("DESCOPERĂ"),
+  minReadTime: z.coerce.number().int().min(0).default(15),
+  quizId: z.string().nullable().optional().default(null),
+});
+
+async function nextStepOrder(lessonId: string) {
+  const last = await prisma.lessonStep.findFirst({
+    where: { lessonId },
+    orderBy: { order: "desc" },
+    select: { order: true },
+  });
+  return (last?.order ?? -1) + 1;
+}
+
+async function renumberStepOrders(lessonId: string) {
+  const steps = await prisma.lessonStep.findMany({
+    where: { lessonId },
+    orderBy: { order: "asc" },
+    select: { id: true, order: true },
+  });
+  const SHIFT = 100000;
+  for (const s of steps) {
+    await prisma.lessonStep.update({ where: { id: s.id }, data: { order: s.order + SHIFT } });
+  }
+  for (let i = 0; i < steps.length; i++) {
+    await prisma.lessonStep.update({ where: { id: steps[i].id }, data: { order: i } });
+  }
+}
+
+export async function createSection(
+  lessonId: string,
+  input: z.input<typeof sectionSchema>
+) {
+  await requireAdmin();
+  const data = sectionSchema.parse(input);
+
+  // quizId e unique pe LessonStep: un exercițiu nu poate fi folosit în două secțiuni
+  if (data.quizId) {
+    const taken = await prisma.lessonStep.findUnique({
+      where: { quizId: data.quizId },
+      select: { id: true, lessonId: true },
+    });
+    if (taken) {
+      throw new Error("Acest exercițiu este deja atașat unei alte secțiuni.");
+    }
+  }
+
+  const order = await nextStepOrder(lessonId);
+  const step = await prisma.lessonStep.create({
+    data: {
+      lessonId,
+      order,
+      title: data.title ?? null,
+      content: data.content,
+      stepType: data.stepType,
+      minReadTime: data.minReadTime,
+      quizId: data.quizId ?? null,
+      manual: true,
+    },
+  });
+
+  await revalidateSectionPaths(lessonId);
+  return { id: step.id };
+}
+
+export async function updateSection(
+  stepId: string,
+  lessonId: string,
+  input: z.input<typeof sectionSchema>
+) {
+  await requireAdmin();
+  const data = sectionSchema.parse(input);
+
+  const existing = await prisma.lessonStep.findUnique({
+    where: { id: stepId },
+    select: { lessonId: true, quizId: true },
+  });
+  if (!existing || existing.lessonId !== lessonId) throw new Error("Secțiune inexistentă");
+
+  if (data.quizId && data.quizId !== existing.quizId) {
+    const taken = await prisma.lessonStep.findUnique({
+      where: { quizId: data.quizId },
+      select: { id: true },
+    });
+    if (taken && taken.id !== stepId) {
+      throw new Error("Acest exercițiu este deja atașat unei alte secțiuni.");
+    }
+  }
+
+  await prisma.lessonStep.update({
+    where: { id: stepId },
+    data: {
+      title: data.title ?? null,
+      content: data.content,
+      stepType: data.stepType,
+      minReadTime: data.minReadTime,
+      quizId: data.quizId ?? null,
+      manual: true,
+    },
+  });
+
+  await revalidateSectionPaths(lessonId);
+  return { id: stepId };
+}
+
+export async function deleteSection(stepId: string, lessonId: string) {
+  await requireAdmin();
+  const step = await prisma.lessonStep.findUnique({
+    where: { id: stepId },
+    select: { lessonId: true, quiz: { select: { id: true } } },
+  });
+  if (!step || step.lessonId !== lessonId) throw new Error("Secțiune inexistentă");
+
+  await prisma.lessonStep.delete({ where: { id: stepId } });
+  await renumberStepOrders(lessonId);
+
+  await revalidateSectionPaths(lessonId);
+  return { ok: true };
+}
+
+export async function reorderLessonSteps(lessonId: string, orderedIds: string[]) {
+  await requireAdmin();
+  const steps = await prisma.lessonStep.findMany({
+    where: { lessonId },
+    select: { id: true, order: true },
+  });
+  const validIds = new Set(steps.map((s) => s.id));
+  if (orderedIds.length !== steps.length || orderedIds.some((id) => !validIds.has(id))) {
+    throw new Error("Lista de secțiuni e incompletă.");
+  }
+
+  const SHIFT = 100000;
+  for (const s of steps) {
+    await prisma.lessonStep.update({ where: { id: s.id }, data: { order: s.order + SHIFT } });
+  }
+  for (let i = 0; i < orderedIds.length; i++) {
+    await prisma.lessonStep.update({ where: { id: orderedIds[i] }, data: { order: i } });
+  }
+
+  await revalidateSectionPaths(lessonId);
+  return { ok: true };
+}
+
+async function revalidateSectionPaths(lessonId: string) {
+  const lesson = await prisma.lesson.findUnique({
+    where: { id: lessonId },
+    select: {
+      slug: true,
+      chapter: { select: { slug: true, subject: { select: { slug: true } } } },
+    },
+  });
+  revalidatePath(`/admin/lectii/${lessonId}/constructor`);
+  revalidatePath(`/admin/lectii/${lessonId}`);
+  revalidatePath("/admin/materii");
+  revalidatePath("/materii");
+  revalidatePath("/dashboard");
+  revalidatePath("/progres");
+  if (lesson?.chapter?.subject?.slug && lesson.chapter.slug && lesson.slug) {
+    revalidatePath(`/materii/${lesson.chapter.subject.slug}/${lesson.chapter.slug}/${lesson.slug}`);
+  }
+}
+
+const quickQuestionSchema = z.object({
+  text: z.string().min(2),
+  options: z.array(z.string()).min(2),
+  correctIndex: z.coerce.number().int().min(0),
+  explanation: z.string().optional().default(""),
+  type: z.enum(["SINGLE", "CLOZE", "FLASHCARD", "DRAG_DROP"]).default("SINGLE"),
+});
+
+const quickQuizSchema = z.object({
+  title: z.string().min(2),
+  questions: z.array(quickQuestionSchema).min(1),
+});
+
+export async function createQuickQuiz(
+  lessonId: string,
+  input: z.input<typeof quickQuizSchema>
+) {
+  await requireAdmin();
+  const data = quickQuizSchema.parse(input);
+  const lesson = await prisma.lesson.findUnique({
+    where: { id: lessonId },
+    select: {
+      id: true,
+      chapterId: true,
+      chapter: { select: { subjectId: true } },
+    },
+  });
+  if (!lesson) throw new Error("Lecția nu există");
+
+  for (const q of data.questions) {
+    if (q.correctIndex >= q.options.length) {
+      throw new Error("Indexul răspunsului corect este în afara variantelor.");
+    }
+  }
+
+  // slug unic pe materie
+  let slug = slugify(data.title) || "exercitiu";
+  let suffix = 1;
+  while (
+    await prisma.quiz.findUnique({
+      where: { subjectId_slug: { subjectId: lesson.chapter.subjectId, slug } },
+    })
+  ) {
+    slug = `${slugify(data.title) || "exercitiu"}-${suffix++}`;
+  }
+
+  const order = await nextStepOrder(lessonId);
+  const quiz = await prisma.quiz.create({
+    data: {
+      subjectId: lesson.chapter.subjectId,
+      chapterId: lesson.chapterId,
+      title: data.title,
+      slug,
+      description: "Exercițiu creat rapid din Constructorul de lecție",
+      difficulty: 1,
+      published: true,
+      order,
+    },
+  });
+  await prisma.question.createMany({
+    data: data.questions.map((q, i) => ({
+      quizId: quiz.id,
+      text: q.text,
+      options: q.options,
+      correctIndex: q.correctIndex,
+      explanation: q.explanation || null,
+      type: q.type as unknown as never,
+      order: i,
+    })),
+  });
+
+  revalidatePath("/admin/teste");
+  revalidatePath("/materii");
+  return { quizId: quiz.id };
 }
 
 // ─── Quizzes ───────────────────────────────────────────────────
@@ -263,7 +540,8 @@ const questionSchema = z.object({
 
 export async function saveQuestion(
   id: string | null,
-  input: z.input<typeof questionSchema>
+  input: z.input<typeof questionSchema>,
+  opts?: { revalidate?: string[] }
 ) {
   await requireAdmin();
   const data = questionSchema.parse(input);
@@ -301,13 +579,55 @@ export async function saveQuestion(
 
   revalidatePath(`/admin/teste/${data.quizId}`);
   revalidatePath("/materii");
+  const extra = opts?.revalidate ?? [];
+  for (const p of extra) revalidatePath(p);
   return { id: question.id };
 }
 
-export async function deleteQuestion(id: string) {
+export async function deleteQuestion(id: string, opts?: { revalidate?: string[] }) {
   await requireAdmin();
   await prisma.question.delete({ where: { id } });
   revalidatePath("/admin/teste");
+  const extra = opts?.revalidate ?? [];
+  for (const p of extra) revalidatePath(p);
+}
+
+const generatedQuestionSchema = z.object({
+  text: z.string().min(2),
+  options: z.array(z.string()).min(2),
+  correctIndex: z.coerce.number().int().min(0),
+  explanation: z.string().optional().default(""),
+  type: z.enum(["SINGLE", "CLOZE", "FLASHCARD", "DRAG_DROP"]).default("SINGLE"),
+  concept: z.string().optional().default(""),
+});
+
+export async function saveGeneratedQuestions(
+  quizId: string,
+  inputs: z.input<typeof generatedQuestionSchema>[],
+  opts?: { revalidate?: string[] }
+) {
+  await requireAdmin();
+  const data = inputs.map((i) => generatedQuestionSchema.parse(i));
+
+  const existingCount = await prisma.question.count({ where: { quizId } });
+  await prisma.question.createMany({
+    data: data.map((q, i) => ({
+      quizId,
+      text: q.text,
+      options: q.options,
+      correctIndex: q.correctIndex,
+      explanation: q.explanation || null,
+      type: q.type as unknown as never,
+      concept: q.concept || null,
+      order: existingCount + i,
+    })),
+  });
+
+  revalidatePath(`/admin/teste/${quizId}`);
+  revalidatePath("/materii");
+  const extra = opts?.revalidate ?? [];
+  for (const p of extra) revalidatePath(p);
+  return { count: data.length };
 }
 
 // ─── Official exams ────────────────────────────────────────────

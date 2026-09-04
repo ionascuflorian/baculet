@@ -118,7 +118,7 @@ export function ResumeWidget({
           </div>
           <Progress value={pct} />
           <p className="mt-1.5 text-xs font-semibold text-subtle">
-            {chaptersDone}/{totalChapters} capitole parcurse
+            {chaptersDone}/{totalChapters} module parcurse
           </p>
         </div>
       </div>

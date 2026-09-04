@@ -169,8 +169,8 @@ export function DashboardSkeleton() {
     <div aria-busy className="space-y-5">
       <div className="flex items-center justify-between gap-3">
         <div className="space-y-2">
-          <SkeletonLine className="h-7 w-44 max-w-full" />
-          <SkeletonLine className="h-3.5 w-64 max-w-full" />
+          <SkeletonLine className="h-8 w-44 max-w-full" />
+          <SkeletonLine className="h-4 w-64 max-w-full" />
         </div>
         <SkeletonCircle className="size-9" />
       </div>

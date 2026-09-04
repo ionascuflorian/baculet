@@ -53,12 +53,12 @@ export function getSieraGreeting(pathname: string): SieraGreeting {
   const chapter = p.match(/^\/materii\/([^/]+)\/([^/]+)$/);
   if (chapter) {
     return {
-      title: "Un capitol întreg de explorat.",
+      title: "Un modul întreg de explorat.",
       text: "Îți propun câteva idei pentru sesiunea de azi:",
       suggestions: [
-        { label: "Rezumă capitolul", message: "Rezumă capitolul curent", icon: "summary" },
-        { label: "Test pe acest capitol", message: "Generează un test grilă pe capitolul curent", icon: "quiz" },
-        { label: "Explică un concept", message: "Explică-mi un concept din acest capitol", icon: "concept" },
+        { label: "Rezumă modulul", message: "Rezumă modulul curent", icon: "summary" },
+        { label: "Test pe acest modul", message: "Generează un test grilă pe modulul curent", icon: "quiz" },
+        { label: "Explică un concept", message: "Explică-mi un concept din acest modul", icon: "concept" },
         { label: "Caută prin materie", message: "Caută: exemple", icon: "search" },
       ],
     };

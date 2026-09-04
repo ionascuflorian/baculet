@@ -1,5 +1,5 @@
-import { ListPageSkeleton } from "@/components/skeletons/page-skeletons";
+import { SubjectGridSkeleton } from "@/components/skeletons/page-skeletons";
 
 export default function Loading() {
-  return <ListPageSkeleton columns={3} items={6} />;
+  return <SubjectGridSkeleton />;
 }

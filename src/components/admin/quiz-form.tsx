@@ -114,14 +114,14 @@ export function QuizForm({
           </select>
         </div>
         <div>
-          <Label htmlFor="chapterId">Capitol (opțional)</Label>
+          <Label htmlFor="chapterId">Modul (opțional)</Label>
           <select
             id="chapterId"
             name="chapterId"
             defaultValue={initialChapterId ?? ""}
-            className="h-12 w-full rounded-2xl border-2 border-feather bg-card px-4 text-sm font-semibold text-ink focus:outline-none"
+            className="h-10 w-full rounded-xl border border-feather bg-card px-3 text-sm font-semibold text-ink"
           >
-            <option value="">Fără capitol (global)</option>
+            <option value="">Fără modul (global)</option>
             {chapters.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.title}
