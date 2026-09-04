@@ -374,6 +374,25 @@ export async function reorderLessonSteps(lessonId: string, orderedIds: string[])
   return { ok: true };
 }
 
+// Generează/actualizează automat secțiunile lecției din conținutul ei (markdown).
+// Cu paragraphFallback, textul fără anteturi ## se împarte pe paragrafe. Pașii
+// manuali (din Constructor) sunt protejați, iar re-generarea e idempotentă.
+export async function generateSectionsFromLesson(lessonId: string) {
+  await requireAdmin();
+  const lesson = await prisma.lesson.findUnique({
+    where: { id: lessonId },
+    select: { id: true, content: true },
+  });
+  if (!lesson) throw new Error("Lecția nu există.");
+
+  const { syncLessonSteps } = await import("@/lib/lesson-steps");
+  await syncLessonSteps(lesson.id, lesson.content, { paragraphFallback: true });
+
+  const count = await prisma.lessonStep.count({ where: { lessonId } });
+  await revalidateSectionPaths(lessonId);
+  return { count };
+}
+
 async function revalidateSectionPaths(lessonId: string) {
   const lesson = await prisma.lesson.findUnique({
     where: { id: lessonId },

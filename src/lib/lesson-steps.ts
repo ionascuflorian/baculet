@@ -52,8 +52,45 @@ export function parseLessonSteps(content: string): { title: string | null; conte
   return sections.filter((s) => s.content.length > 0);
 }
 
-export async function syncLessonSteps(lessonId: string, content: string) {
-  const steps = parseLessonSteps(content);
+// Titlu scurt pentru o secțiune generată din conținut: primul rând, fără marcaje markdown.
+function titleFromFirstLine(text: string): string | null {
+  const first = text.split("\n").map((l) => l.trim()).find((l) => l.length > 0 && !l.startsWith("---"));
+  if (!first) return null;
+  const clean = first.replace(/^#+\s*/, "").replace(/^(?:[-*]|>\s*)/, "").replace(/[*_`[\]()~]/g, "").trim();
+  if (!clean) return null;
+  return clean.length > 60 ? `${clean.slice(0, 57)}…` : clean;
+}
+
+// Fallback pentru conținut fără anteturi ##: fiecare paragraf devine o secțiune.
+export function parseParagraphSteps(content: string): { title: string | null; content: string; stepType: string }[] {
+  const blocks = content
+    .split(/\n\s*\n/)
+    .map((b) => b.trim())
+    .filter((b) => b.length > 0 && !/^---+$/.test(b));
+  return blocks.map((block, idx) => {
+    const title = titleFromFirstLine(block);
+    return { title, content: block, stepType: inferStepType(idx, title) };
+  });
+}
+
+export function parseLessonStepsSmart(
+  content: string,
+  opts?: { paragraphFallback?: boolean }
+): { title: string | null; content: string; stepType: string }[] {
+  const hasHeadings = (content.match(/^##\s+/gm)?.length ?? 0) > 0;
+  if (!hasHeadings && opts?.paragraphFallback) {
+    const parsed = parseParagraphSteps(content);
+    if (parsed.length > 0) return parsed;
+  }
+  return parseLessonSteps(content);
+}
+
+export async function syncLessonSteps(
+  lessonId: string,
+  content: string,
+  opts?: { paragraphFallback?: boolean }
+) {
+  const steps = parseLessonStepsSmart(content, opts);
 
   const existing = await prisma.lessonStep.findMany({
     where: { lessonId },

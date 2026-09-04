@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   DragDropProvider,
@@ -17,8 +17,8 @@ import {
   type PointerSensorOptions,
   type Sensors,
 } from "@dnd-kit/dom";
-import { GripVertical, Plus, Pencil, Trash2, Clock, FileText } from "lucide-react";
-import { reorderLessonSteps, deleteSection } from "@/lib/actions/admin";
+import { GripVertical, Plus, Pencil, Trash2, Clock, FileText, Wand2 } from "lucide-react";
+import { reorderLessonSteps, deleteSection, generateSectionsFromLesson } from "@/lib/actions/admin";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { SectionForm } from "@/components/admin/section-form";
@@ -60,12 +60,17 @@ export function SectionConstructor({
   const { showToast } = useToast();
   const [sectionsState, setSectionsState] = useState<SectionDto[]>(sections);
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSectionsState(sections);
+  }, [sections]);
   const [formState, setFormState] = useState<
     | { type: "create" }
     | { type: "edit"; section: SectionDto }
     | null
   >(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [generating, startGenerating] = useTransition();
 
   const pointerSensorOptions: PointerSensorOptions = {
     activationConstraints: () => [new PointerActivationConstraints.Distance({ value: 5 })],
@@ -122,8 +127,44 @@ export function SectionConstructor({
 
   const sectionsForOverlay = sectionsState;
 
+  function handleGenerate() {
+    startGenerating(async () => {
+      try {
+        const res = await generateSectionsFromLesson(lessonId);
+        showToast(`S-au generat/actualizat ${res.count} secțiuni.`);
+        router.refresh();
+      } catch (e) {
+        showToast(e instanceof Error ? e.message : "Eroare la generarea secțiunilor.");
+      }
+    });
+  }
+
   return (
     <div className="space-y-4">
+      {lessonContent.trim() && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-accent/20 bg-accent/5 p-3">
+          <div className="min-w-0">
+            <p className="text-xs font-extrabold uppercase tracking-widest text-accent">
+              Conținutul lecției
+            </p>
+            <p className="mt-0.5 text-xs font-semibold text-subtle">
+              Textul din editor, fără anteturi <code className="rounded bg-card px-1">##</code>, se
+              împarte automat în secțiuni pe paragrafe. Secțiunile construite manual nu se ating.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="accent"
+            size="sm"
+            className="shrink-0"
+            disabled={generating}
+            onClick={handleGenerate}
+          >
+            <Wand2 className="h-4 w-4" /> {generating ? "Generez…" : "Generează secțiuni"}
+          </Button>
+        </div>
+      )}
+
       <DragDropProvider
         sensors={dragSensors}
         onDragStart={handleDragStart}
