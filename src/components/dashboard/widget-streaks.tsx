@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { memo, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { Flame, CalendarCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WidgetShell } from "@/components/dashboard/widget-shell";
@@ -77,7 +77,11 @@ interface HeatmapProps {
   todayDate: Date;
 }
 
-function Heatmap({ activities, todayKey, todayDate }: HeatmapProps) {
+const Heatmap = memo(function Heatmap({
+  activities,
+  todayKey,
+  todayDate,
+}: HeatmapProps) {
   // 53 săptămâni înapoi (an GitHub), începând cu ultima zi de duminică.
   const weeks = useMemo(() => {
     const sunday = addDays(todayDate, -todayDate.getDay());
@@ -94,6 +98,18 @@ function Heatmap({ activities, todayKey, todayDate }: HeatmapProps) {
   }, [todayDate]);
 
   const dayKey = (d: Date) => d.toISOString().slice(0, 10);
+
+  // Etichetele de dată pentru cele 371 de celule se calculează O DATĂ pe zi
+  // (când se schimbă `weeks`), nu la fiecare re-render (tick-ul de 30s).
+  const dayLabels = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const col of weeks) {
+      for (const d of col) {
+        m.set(dayKey(d), d.toLocaleDateString("ro-RO"));
+      }
+    }
+    return m;
+  }, [weeks]);
 
   const monthLabels = useMemo(
     () =>
@@ -142,8 +158,8 @@ function Heatmap({ activities, todayKey, todayDate }: HeatmapProps) {
                       isFuture
                         ? undefined
                         : count > 0
-                          ? `${d.toLocaleDateString("ro-RO")} · ${count} ${count === 1 ? "acțiune" : "acțiuni"}`
-                          : d.toLocaleDateString("ro-RO")
+                          ? `${dayLabels.get(key) ?? ""} · ${count} ${count === 1 ? "acțiune" : "acțiuni"}`
+                          : dayLabels.get(key)
                     }
                     className={cn(
                       CELL,
@@ -167,7 +183,7 @@ function Heatmap({ activities, todayKey, todayDate }: HeatmapProps) {
       </div>
     </div>
   );
-}
+});
 
 export function StreakWidget({
   streakCount,

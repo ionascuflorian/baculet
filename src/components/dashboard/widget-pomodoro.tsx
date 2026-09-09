@@ -51,6 +51,46 @@ function nextPhaseInfo(phase: Phase, round: number): { phase: Phase; round: numb
   return { phase: "focus", round: phase === "longBreak" ? 0 : round };
 }
 
+// Ceasul viu (tick la 1s) trăiește într-un sub-component izolat, ca re-renderul
+// lui zilnic să nu re-randeze întreg cardul Pomodoro și dependențele lui.
+function LiveClock() {
+  const [now, setNow] = useState<Date>(() => new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const hh = pad(now.getHours());
+  const mm = pad(now.getMinutes());
+  const ss = pad(now.getSeconds());
+  const dateText = now.toLocaleDateString("ro-RO", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+
+  return (
+    <div className="inset mb-3 rounded-xl p-3 text-center">
+      <p
+        className="text-3xl font-extrabold tabular-nums tracking-tight text-ink"
+        suppressHydrationWarning
+      >
+        {hh}:{mm}
+        <span className="text-accent" suppressHydrationWarning>
+          :{ss}
+        </span>
+      </p>
+      <p
+        className="mt-0.5 text-xs font-semibold text-subtle capitalize"
+        suppressHydrationWarning
+      >
+        {dateText}
+      </p>
+    </div>
+  );
+}
+
 interface Persisted {
   settings?: Partial<Settings>;
   phase?: Phase;
@@ -71,7 +111,6 @@ export function PomodoroWidget() {
   const [round, setRound] = useState(0);
   const [touched, setTouched] = useState(false);
   const [notifyOn, setNotifyOn] = useState(false);
-  const [clock, setClock] = useState<Date>(() => new Date());
 
   const audioRef = useRef<AudioContext | null>(null);
   const baseTitleRef = useRef<string | null>(null);
@@ -79,11 +118,6 @@ export function PomodoroWidget() {
   const shown = touched ? secondsLeft : settings[phase] * 60;
   const currentFull = settings[phase] * 60;
   const progress = currentFull > 0 ? 1 - shown / currentFull : 0;
-
-  useEffect(() => {
-    const id = setInterval(() => setClock(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -264,14 +298,6 @@ export function PomodoroWidget() {
   }
 
   const timeText = formatTotal(shown);
-  const hh = pad(clock.getHours());
-  const mm = pad(clock.getMinutes());
-  const ss = pad(clock.getSeconds());
-  const dateText = clock.toLocaleDateString("ro-RO", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
 
   return (
     <WidgetShell
@@ -290,23 +316,7 @@ export function PomodoroWidget() {
         </button>
       }
     >
-      <div className="inset mb-3 rounded-xl p-3 text-center">
-        <p
-          className="text-3xl font-extrabold tabular-nums tracking-tight text-ink"
-          suppressHydrationWarning
-        >
-          {hh}:{mm}
-          <span className="text-accent" suppressHydrationWarning>
-            :{ss}
-          </span>
-        </p>
-        <p
-          className="mt-0.5 text-xs font-semibold text-subtle capitalize"
-          suppressHydrationWarning
-        >
-          {dateText}
-        </p>
-      </div>
+      <LiveClock />
 
       <div className="flex items-center justify-between gap-3">
         <span className={cn("rounded-full px-2.5 py-1 text-xs font-bold", PHASE_BADGE[phase])}>

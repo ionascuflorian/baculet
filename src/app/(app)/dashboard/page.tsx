@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { after } from "next/server";
+import { Suspense } from "react";
 import { currentUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { normalizePrefs, visibleWidgets } from "@/lib/dashboard-widgets";
@@ -16,6 +17,7 @@ import { PomodoroWidget } from "@/components/dashboard/widget-pomodoro";
 import { TodoWidget } from "@/components/dashboard/widget-todo";
 import { StreakWidget } from "@/components/dashboard/widget-streaks";
 import { LeaderboardWidget } from "@/components/dashboard/widget-leaderboard";
+import { LeaderboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { WidgetSettings } from "@/components/dashboard/widget-settings";
 import { DashboardGrid } from "@/components/dashboard/dashboard-grid";
 import { syncCalendarEvents } from "@/lib/calendar-sync";
@@ -32,7 +34,7 @@ export default async function DashboardPage() {
   if (!sessionUser) redirect("/login");
   const userId = sessionUser.id;
 
-  const [user, subjects, completedLessons, recentAttempts, quizCount, todoItems, studyActivities, dueReviews, globalAction, weakMastery, allConcepts] =
+  const [user, subjects, completedLessons, recentAttempts, quizCount, todoItems, studyActivities, dueReviews, globalAction, weakMastery, allConcepts, calendarEvents, bacSchedule] =
     await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
@@ -101,6 +103,12 @@ export default async function DashboardPage() {
           },
         },
       }),
+      prisma.calendarEvent.findMany({
+        where: { userId },
+        orderBy: { date: "asc" },
+        select: { id: true, date: true, title: true, color: true, kind: true },
+      }),
+      getBacSchedule(),
     ]);
 
   const prefs = normalizePrefs(user?.dashboardWidgets);
@@ -114,12 +122,6 @@ export default async function DashboardPage() {
       lessonsDone: completedLessons.length,
       quizCount,
     });
-  });
-
-  const calendarEvents = await prisma.calendarEvent.findMany({
-    where: { userId },
-    orderBy: { date: "asc" },
-    select: { id: true, date: true, title: true, color: true, kind: true },
   });
 
   const completedIds = new Set(completedLessons.map((l) => l.lessonId));
@@ -146,8 +148,6 @@ export default async function DashboardPage() {
   const nextLesson = allLessons.find((l) => !completedIds.has(l.id));
   const firstName = user?.name?.split(" ")[0] ?? "";
   const streak = user?.streakCount ?? 0;
-
-  const bacSchedule = await getBacSchedule();
 
   // Mastery mediu per materie, din progresul pe concepte.
   const masteryBySubject = new Map<string, { sum: number; count: number }>();
@@ -321,7 +321,11 @@ export default async function DashboardPage() {
             case "leaderboard":
               return {
                 id,
-                node: <LeaderboardWidget userId={userId} />,
+                node: (
+                  <Suspense fallback={<LeaderboardSkeleton />}>
+                    <LeaderboardWidget userId={userId} />
+                  </Suspense>
+                ),
               };
             default:
               return [];

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -67,24 +67,34 @@ export function CalendarWidget({
   const todayKey = localDateKey(now);
   const isCurrentMonth = year === now.getFullYear() && month === now.getMonth();
 
-  const eventsByDay = new Map<string, CalendarEventItem[]>();
-  for (const ev of events) {
-    const key = localDateKey(new Date(ev.date));
-    if (key.startsWith(`${year}-${String(month + 1).padStart(2, "0")}`)) {
-      const list = eventsByDay.get(key) ?? [];
-      list.push(ev);
-      eventsByDay.set(key, list);
+  const eventsByDay = useMemo(() => {
+    const map = new Map<string, CalendarEventItem[]>();
+    const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
+    for (const ev of events) {
+      const key = localDateKey(new Date(ev.date));
+      if (key.startsWith(monthKey)) {
+        const list = map.get(key) ?? [];
+        list.push(ev);
+        map.set(key, list);
+      }
     }
-  }
+    return map;
+  }, [events, year, month]);
 
-  const cells: (number | null)[] = [
-    ...Array.from({ length: startOffset }, () => null),
-    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-  ];
-  while (cells.length % 7 !== 0) cells.push(null);
+  const cells = useMemo(() => {
+    const list: (number | null)[] = [
+      ...Array.from({ length: startOffset }, () => null),
+      ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+    ];
+    while (list.length % 7 !== 0) list.push(null);
+    return list;
+  }, [startOffset, daysInMonth]);
 
-  const monthEvents = Array.from(eventsByDay.values()).flat().sort((a, b) =>
-    a.date.localeCompare(b.date)
+  const monthEvents = useMemo(
+    () => Array.from(eventsByDay.values()).flat().sort((a, b) =>
+      a.date.localeCompare(b.date)
+    ),
+    [eventsByDay]
   );
 
   const go = (dir: number) => {

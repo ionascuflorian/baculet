@@ -164,6 +164,29 @@ function CalendarSkeleton() {
   );
 }
 
+export function LeaderboardSkeleton() {
+  return (
+    <SkeletonCard title>
+      <div className="space-y-2">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="flex items-center gap-2.5 rounded-xl px-2 py-1.5">
+            <Skeleton className="size-4" />
+            <SkeletonCircle className="size-7" />
+            <div className="flex-1 space-y-1.5">
+              <SkeletonLine className="h-3 w-2/3" />
+            </div>
+            <SkeletonLine className="h-3 w-10" />
+          </div>
+        ))}
+        <div className="flex items-center justify-between rounded-xl bg-accent/10 px-3 py-2">
+          <SkeletonLine className="h-3.5 w-8" />
+          <SkeletonLine className="h-3.5 w-12" />
+        </div>
+      </div>
+    </SkeletonCard>
+  );
+}
+
 export function DashboardSkeleton() {
   return (
     <div aria-busy className="space-y-5">

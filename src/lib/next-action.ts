@@ -34,9 +34,18 @@ export async function getNextBestActionForSubject(userId: string, subjectSlug: s
     };
   }
 
-  // parcurge capitolele în ordine, găsește prima unitate nefinalizată
-  for (const ch of subject.chapters) {
-    const path = await getLearningPathForChapter(userId, ch.id);
+  // Learning path-ul fiecărui capitol e citit O SINGURĂ DATĂ, în paralel,
+  // și refolosit în toate trecerile de mai jos (înainte era citit de până la
+  // 3 ori per capitol, secvențial — N+1 masiv pe dashboard).
+  const chapterPaths = await Promise.all(
+    subject.chapters.map(async (ch) => ({
+      ch,
+      path: await getLearningPathForChapter(userId, ch.id),
+    }))
+  );
+
+  // 2. parcurge capitolele în ordine, găsește prima unitate nefinalizată
+  for (const { ch, path } of chapterPaths) {
     for (const unit of path) {
       if (unit.status === "IN_PROGRESS") {
         const lesson = unit.lessons[0];
@@ -78,8 +87,7 @@ export async function getNextBestActionForSubject(userId: string, subjectSlug: s
   }
 
   // 4. următoarea lecție disponibilă
-  for (const ch of subject.chapters) {
-    const path = await getLearningPathForChapter(userId, ch.id);
+  for (const { ch, path } of chapterPaths) {
     const next = path.find((u) => u.status === "AVAILABLE");
     if (next && next.lessons[0]) {
       // dacă e checkpoint/recap, tratează ca checkpoint
@@ -105,8 +113,7 @@ export async function getNextBestActionForSubject(userId: string, subjectSlug: s
   }
 
   // 5. checkpoint disponibil
-  for (const ch of subject.chapters) {
-    const path = await getLearningPathForChapter(userId, ch.id);
+  for (const { ch, path } of chapterPaths) {
     const cp = path.find((u) => u.type === "CHECKPOINT" && u.status === "AVAILABLE");
     if (cp) {
       return {
@@ -133,18 +140,18 @@ export async function getNextBestActionForSubject(userId: string, subjectSlug: s
 
 export async function getGlobalNextAction(userId: string): Promise<NextAction | null> {
   const subjects = await prisma.subject.findMany({ orderBy: { order: "asc" } });
-  // găsește prima materie cu progres sau prima
+  // Materiile se evaluează în paralel (înainte erau evaluare secvențială).
+  const actions = await Promise.all(
+    subjects.map((s) => getNextBestActionForSubject(userId, s.slug))
+  );
+  // găsește cea mai bună acțiune non-PRACTICE (prioritate minimă), tie → prima materie
   let best: NextAction | null = null;
-  for (const s of subjects) {
-    const action = await getNextBestActionForSubject(userId, s.slug);
+  for (const action of actions) {
     if (action && action.type !== "PRACTICE") {
       if (!best || action.priority < best.priority) best = action;
     }
   }
   if (best) return best;
-  // fallback: prima materie
-  if (subjects[0]) {
-    return getNextBestActionForSubject(userId, subjects[0].slug);
-  }
-  return null;
+  // fallback: prima materie (rezultatul a fost deja calculat în paralel)
+  return actions[0] ?? null;
 }
