@@ -4,7 +4,12 @@ import { Prisma } from "@/generated/prisma/client";
 // XP compozit (anti-farming: contează doar cel mai bun scor per test):
 //   - test: +10 XP per răspuns corect în cel mai bun attempt per test
 //   - lecție completată: +25 XP (o dată)
+//   - pas de lecție: +5 XP
 //   - bonus streak: +5 XP × streak-ul curent (doar „tot timpul")
+//
+// Singura implementare a formulei este `xpSelectSql`: breakdown-ul unui
+// utilizator, clasamentul și rangul citesc toți aceeași subinterogare, ca
+// formula XP să nu derive în implementări paralele.
 
 export const XP_PER_ANSWER = 10;
 export const XP_PER_LESSON = 25;
@@ -30,75 +35,25 @@ export interface XpBreakdowns {
   week: XpBreakdown;
 }
 
-export async function getXpBreakdowns(userId: string): Promise<XpBreakdowns> {
-  const weekStart = startOfWeekUtc();
-  const [attempts, lessons, steps, streak] = await Promise.all([
-    prisma.quizAttempt.findMany({
-      where: { userId },
-      select: { quizId: true, score: true, createdAt: true },
-    }),
-    prisma.lessonProgress.findMany({
-      where: { userId },
-      select: { completedAt: true },
-    }),
-    prisma.lessonStepProgress.findMany({
-      where: { userId },
-      select: { completedAt: true },
-    }),
-    prisma.user.findUnique({
-      where: { id: userId },
-      select: { streakCount: true },
-    }),
-  ]);
-
-  const best = new Map<string, number>();
-  const bestWeek = new Map<string, number>();
-  for (const a of attempts) {
-    const key = a.quizId;
-    const cur = best.get(key) ?? -1;
-    if (a.score > cur) best.set(key, a.score);
-    if (a.createdAt >= weekStart && a.score > (bestWeek.get(key) ?? -1))
-      bestWeek.set(key, a.score);
-  }
-
-  const quizXp = [...best.values()].reduce((s, v) => s + v, 0) * XP_PER_ANSWER;
-  const quizXpWeek =
-    [...bestWeek.values()].reduce((s, v) => s + v, 0) * XP_PER_ANSWER;
-  const lessonXp = lessons.length * XP_PER_LESSON;
-  const lessonXpWeek =
-    lessons.filter((l) => l.completedAt >= weekStart).length * XP_PER_LESSON;
-  const stepXp = steps.length * XP_PER_STEP;
-  const stepXpWeek = steps.filter((s) => s.completedAt >= weekStart).length * XP_PER_STEP;
-  const streakXp = (streak?.streakCount ?? 0) * XP_PER_STREAK;
-
-  const allTime = {
-    quizXp,
-    lessonXp: lessonXp + stepXp,
-    streakXp,
-    total: quizXp + lessonXp + stepXp + streakXp,
-  };
-  const week = {
-    quizXp: quizXpWeek,
-    lessonXp: lessonXpWeek + stepXpWeek,
-    streakXp: 0,
-    total: quizXpWeek + lessonXpWeek + stepXpWeek,
-  };
-  return { allTime, week };
+interface XpSqlRow {
+  quiz_xp: bigint | number;
+  lesson_xp: bigint | number;
+  step_xp: bigint | number;
+  streak_xp: bigint | number;
+  xp: bigint | number;
 }
 
-export interface BoardRow {
-  id: string;
-  name: string;
-  username: string | null;
-  image: string | null;
-  xp: number;
-}
-
-// Subquery comun: xp per utilizator (fără streak pe „săptămâna asta”).
+// XP pe utilizator. `weekStart` dat filtrează la săptămâna curentă și
+// elimină bonusul de streak („săptămâna asta" nu include seria).
 function xpSelectSql(weekStart: Date | null) {
   return Prisma.sql`
     (SELECT u.id, u.name, u.username, u.image,
-       (COALESCE(q.xp, 0) + COALESCE(l.xp, 0) + COALESCE(st.xp, 0) + ${weekStart ? Prisma.sql`0` : Prisma.sql`COALESCE(s."streakCount" * ${XP_PER_STREAK}, 0)`}) AS xp
+       (COALESCE(q.xp, 0) + COALESCE(l.xp, 0) + COALESCE(st.xp, 0)
+        + ${weekStart ? Prisma.sql`0` : Prisma.sql`COALESCE(u."streakCount" * ${XP_PER_STREAK}, 0)`}) AS xp,
+       COALESCE(q.xp, 0) AS quiz_xp,
+       COALESCE(l.xp, 0) AS lesson_xp,
+       COALESCE(st.xp, 0) AS step_xp,
+       ${weekStart ? Prisma.sql`0` : Prisma.sql`COALESCE(u."streakCount" * ${XP_PER_STREAK}, 0)`} AS streak_xp
      FROM "User" u
      LEFT JOIN (
        SELECT "userId", SUM("best") * ${XP_PER_ANSWER} AS xp FROM (
@@ -119,8 +74,43 @@ function xpSelectSql(weekStart: Date | null) {
        FROM "LessonStepProgress"
        ${weekStart ? Prisma.sql`WHERE "completedAt" >= ${weekStart}` : Prisma.empty}
        GROUP BY "userId"
-     ) st ON st."userId" = u.id
-     LEFT JOIN "User" s ON s.id = u.id)`;
+     ) st ON st."userId" = u.id)`;
+}
+
+async function xpRow(userId: string, weekStart: Date | null): Promise<XpSqlRow> {
+  const [row] = await prisma.$queryRaw<XpSqlRow[]>`
+    SELECT t.quiz_xp, t.lesson_xp, t.step_xp, t.streak_xp, t.xp
+    FROM ${xpSelectSql(weekStart)} t
+    WHERE t.id = ${userId}
+  `;
+  const { quiz_xp = 0, lesson_xp = 0, step_xp = 0, streak_xp = 0, xp = 0 } = row ?? {};
+  return { quiz_xp, lesson_xp, step_xp, streak_xp, xp };
+}
+
+function toBreakdown(row: XpSqlRow): XpBreakdown {
+  return {
+    quizXp: Number(row.quiz_xp),
+    lessonXp: Number(row.lesson_xp) + Number(row.step_xp),
+    streakXp: Number(row.streak_xp),
+    total: Number(row.xp),
+  };
+}
+
+export async function getXpBreakdowns(userId: string): Promise<XpBreakdowns> {
+  const weekStart = startOfWeekUtc();
+  const [allTime, week] = await Promise.all([
+    xpRow(userId, null),
+    xpRow(userId, weekStart),
+  ]);
+  return { allTime: toBreakdown(allTime), week: toBreakdown(week) };
+}
+
+export interface BoardRow {
+  id: string;
+  name: string;
+  username: string | null;
+  image: string | null;
+  xp: number;
 }
 
 export async function getLeaderboard(opts: {

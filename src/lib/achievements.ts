@@ -50,7 +50,7 @@ export function allBadges(stats: AchievementStats & { stepsDone?: number; chapte
 }
 
 export const ACHIEVEMENT_COLOR = "#34c759";
-export const EXAM_COLOR = "#0a7cff";
+export const EXAM_COLOR = "#2456e0";
 
 export interface ReasonedEvent {
   key: string;

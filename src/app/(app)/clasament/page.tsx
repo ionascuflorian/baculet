@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Trophy, Users } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { currentUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { getFriendIds } from "@/lib/actions/friends";
 import { getLeaderboard, getUserRank, startOfWeekUtc } from "@/lib/xp";
@@ -14,17 +14,17 @@ export const metadata = { title: "Clasament · Baculet" };
 export const revalidate = 120;
 
 export default async function LeaderboardPage() {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  const sessionUser = await currentUser();
+  if (!sessionUser) redirect("/login");
 
   const me = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: sessionUser.id },
     select: { username: true },
   });
   if (!me) redirect("/login");
 
   const weekStart = startOfWeekUtc();
-  const friendIds = await getFriendIds(session.user.id);
+  const friendIds = await getFriendIds(sessionUser.id);
 
   const [weekGlobalRows, allGlobalRows, weekFriendRows, allFriendRows, weekRank, allRank] =
     await Promise.all([
@@ -32,8 +32,8 @@ export default async function LeaderboardPage() {
       getLeaderboard({ weekStart: null, limit: 100 }),
       getLeaderboard({ weekStart, friendIds, limit: 100 }),
       getLeaderboard({ weekStart: null, friendIds, limit: 100 }),
-      getUserRank({ userId: session.user.id, weekStart }),
-      getUserRank({ userId: session.user.id, weekStart: null }),
+      getUserRank({ userId: sessionUser.id, weekStart }),
+      getUserRank({ userId: sessionUser.id, weekStart: null }),
     ]);
 
   const toBoard = (
@@ -46,11 +46,11 @@ export default async function LeaderboardPage() {
     allGlobal: toBoard(allGlobalRows, allRank),
     weekFriends: toBoard(
       weekFriendRows,
-      weekFriendRows.findIndex((r) => r.id === session.user.id) + 1 || null
+      weekFriendRows.findIndex((r) => r.id === sessionUser.id) + 1 || null
     ),
     allFriends: toBoard(
       allFriendRows,
-      allFriendRows.findIndex((r) => r.id === session.user.id) + 1 || null
+      allFriendRows.findIndex((r) => r.id === sessionUser.id) + 1 || null
     ),
   };
 
@@ -75,7 +75,7 @@ export default async function LeaderboardPage() {
         </Link>
       </section>
 
-      <Leaderboard boards={boards} myUserId={session.user.id} />
+      <Leaderboard boards={boards} myUserId={sessionUser.id} />
     </div>
   );
 }

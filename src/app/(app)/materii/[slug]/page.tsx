@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, ListChecks } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { currentUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,9 +22,9 @@ export default async function SubjectPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
-  const userId = session.user.id;
+  const sessionUser = await currentUser();
+  if (!sessionUser) redirect("/login");
+  const userId = sessionUser.id;
 
   const subject = await prisma.subject.findUnique({
     where: { slug },
@@ -98,7 +98,7 @@ export default async function SubjectPage({
       </div>
 
       {nextAction && (
-        <Card className="border-accent/20 bg-gradient-to-br from-accent/5 to-accent-dark/5">
+        <Card className="border-accent/20 bg-accent/5">
           <CardContent className="p-5">
             <p className="text-xs font-extrabold uppercase tracking-widest text-accent">{nextAction.meta}</p>
             <h3 className="mt-1 text-lg font-extrabold text-ink">{nextAction.title}</h3>

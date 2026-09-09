@@ -1,7 +1,7 @@
 "use server";
 
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { currentUser } from "@/lib/access";
 import { notifyUser } from "@/lib/notify";
 
 export interface FriendUser {
@@ -15,8 +15,8 @@ export interface FriendUser {
 }
 
 export async function searchUsers(query: string): Promise<FriendUser[]> {
-  const session = await auth();
-  if (!session?.user?.id) return [];
+  const user = await currentUser();
+  if (!user) return [];
 
   // Acceptăm și "@username" — pragul "@" se elimină înainte de căutare.
   const q = query.trim().replace(/^@+/, "");
@@ -25,7 +25,7 @@ export async function searchUsers(query: string): Promise<FriendUser[]> {
   const users = await prisma.user.findMany({
     where: {
       AND: [
-        { id: { not: session.user.id } },
+        { id: { not: user.id } },
         {
           OR: [
             { username: { contains: q.toLowerCase(), mode: "insensitive" } },
@@ -50,11 +50,11 @@ export async function searchUsers(query: string): Promise<FriendUser[]> {
   const ids = users.map((u) => u.id);
   const [following, followedBy] = await Promise.all([
     prisma.follow.findMany({
-      where: { followerId: session.user.id, followingId: { in: ids } },
+      where: { followerId: user.id, followingId: { in: ids } },
       select: { followingId: true },
     }),
     prisma.follow.findMany({
-      where: { followerId: { in: ids }, followingId: session.user.id },
+      where: { followerId: { in: ids }, followingId: user.id },
       select: { followerId: true },
     }),
   ]);
@@ -69,16 +69,16 @@ export async function searchUsers(query: string): Promise<FriendUser[]> {
 }
 
 export async function followUser(targetId: string): Promise<{ ok: boolean }> {
-  const session = await auth();
-  if (!session?.user?.id || session.user.id === targetId) return { ok: false };
+  const user = await currentUser();
+  if (!user || user.id === targetId) return { ok: false };
 
   try {
     await prisma.follow.create({
-      data: { followerId: session.user.id, followingId: targetId },
+      data: { followerId: user.id, followingId: targetId },
     });
     // Notificare instant către cel urmărit (fire-and-forget, respectă
     // preferințele lui din setări).
-    notifyFollow(session.user.id, targetId);
+    notifyFollow(user.id, targetId);
     return { ok: true };
   } catch {
     return { ok: false };
@@ -109,20 +109,20 @@ async function notifyFollow(followerId: string, targetId: string) {
 }
 
 export async function unfollowUser(targetId: string): Promise<{ ok: boolean }> {
-  const session = await auth();
-  if (!session?.user?.id) return { ok: false };
+  const user = await currentUser();
+  if (!user) return { ok: false };
 
   await prisma.follow.deleteMany({
-    where: { followerId: session.user.id, followingId: targetId },
+    where: { followerId: user.id, followingId: targetId },
   });
   return { ok: true };
 }
 
 export async function getFriends(_userId: string): Promise<FriendUser[]> {
-  const session = await auth();
-  if (!session?.user?.id) return [];
+  const user = await currentUser();
+  if (!user) return [];
   // Doar propriii prieteni — nu permite enumerarea prietenilor altor utilizatori.
-  const me = session.user.id;
+  const me = user.id;
   const [following, followedBy] = await Promise.all([
     prisma.follow.findMany({
       where: { followerId: me },
@@ -162,10 +162,10 @@ export async function getFriends(_userId: string): Promise<FriendUser[]> {
 }
 
 export async function getFriendIds(_userId: string): Promise<string[]> {
-  const session = await auth();
-  if (!session?.user?.id) return [];
+  const user = await currentUser();
+  if (!user) return [];
   // Doar propriii prieteni.
-  const me = session.user.id;
+  const me = user.id;
   const [following, followedBy] = await Promise.all([
     prisma.follow.findMany({
       where: { followerId: me },

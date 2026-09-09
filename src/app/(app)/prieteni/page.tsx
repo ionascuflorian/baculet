@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { Users } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { currentUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { getFriends } from "@/lib/actions/friends";
 import { FriendsPanel } from "@/components/friends/friends-panel";
@@ -8,16 +8,16 @@ import { FriendsPanel } from "@/components/friends/friends-panel";
 export const metadata = { title: "Prieteni · Baculet" };
 
 export default async function FriendsPage() {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  const sessionUser = await currentUser();
+  if (!sessionUser) redirect("/login");
 
   const me = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: sessionUser.id },
     select: { username: true },
   });
   if (!me) redirect("/login");
 
-  const friends = await getFriends(session.user.id);
+  const friends = await getFriends(sessionUser.id);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { CheckCircle2, Circle, ChevronRight, ArrowLeft, ListChecks, Lock } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { CheckCircle2, Circle, ChevronRight, ArrowLeft, ListChecks } from "lucide-react";
+import { currentUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,9 +14,9 @@ export default async function ChapterPage({
   params: Promise<{ slug: string; chapterSlug: string }>;
 }) {
   const { slug, chapterSlug } = await params;
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
-  const userId = session.user.id;
+  const sessionUser = await currentUser();
+  if (!sessionUser) redirect("/login");
+  const userId = sessionUser.id;
 
   const chapter = await prisma.chapter.findFirst({
     where: { slug: chapterSlug, subject: { slug } },

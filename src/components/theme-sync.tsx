@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { syncUserThemeCookie } from "@/lib/actions/themes";
+import { THEME_READY_EVENT, THEME_READY_FLAG } from "@/lib/theme-constants";
 
 export function ThemeSync() {
   useEffect(() => {
@@ -19,9 +20,8 @@ export function ThemeSync() {
 
     sync().finally(() => {
       if (!cancelled) {
-        (window as unknown as { __BACULET_THEME_READY?: boolean }).__BACULET_THEME_READY =
-          true;
-        window.dispatchEvent(new Event("baculet:theme-ready"));
+        (window as unknown as Record<string, unknown>)[THEME_READY_FLAG] = true;
+        window.dispatchEvent(new Event(THEME_READY_EVENT));
       }
     });
 

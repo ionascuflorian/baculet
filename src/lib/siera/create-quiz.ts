@@ -38,6 +38,11 @@ export async function createQuizForUser(
   if (!input.questions.length) {
     throw new Error("Testul nu are întrebări.");
   }
+  for (const q of input.questions) {
+    if (q.correctIndex < 0 || q.correctIndex >= q.options.length) {
+      throw new Error("Indexul răspunsului corect este în afara variantelor.");
+    }
+  }
 
   const base = slugify(input.title) || "test-siera";
   const slug = `${base}-${Math.random().toString(36).slice(2, 6)}`;

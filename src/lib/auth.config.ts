@@ -7,7 +7,8 @@ import { prisma } from "@/lib/db";
 import {
   otpVerifyRateLimit,
   otpVerifyRateLimitSuccess,
-} from "@/lib/otp-rate-limit";
+  clientIp,
+} from "@/lib/rate-limit";
 import { buildUsername, uniqueUsername } from "@/lib/username";
 
 const credentialsSchema = z.object({
@@ -76,9 +77,7 @@ export const authConfig = {
         const code = String(credentials?.code ?? "").trim();
         if (!email || !/^\d{6}$/.test(code)) return null;
 
-        const ip =
-          request?.headers?.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-          "unknown";
+        const ip = clientIp(request?.headers ?? { get: () => null });
         if (!(await otpVerifyRateLimit(email, ip))) return null;
 
         // Consumul e atomic (deleteMany): două cereri concurente cu același cod

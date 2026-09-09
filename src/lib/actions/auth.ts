@@ -8,7 +8,7 @@ import { z } from "zod";
 import { signIn, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { sendOtpEmail } from "@/lib/mail";
-import { registerRateLimit } from "@/lib/otp-rate-limit";
+import { registerRateLimit, clientIp } from "@/lib/rate-limit";
 import { buildUsername, uniqueUsername } from "@/lib/username";
 import { generateOtpCode } from "@/lib/utils";
 
@@ -71,11 +71,7 @@ export async function register(
     return { error: "Verifică datele introduse (parolă minim 6 caractere)." };
   }
 
-  const hdrs = await headers();
-  const ip =
-    hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    hdrs.get("x-real-ip") ||
-    "unknown";
+  const ip = clientIp(await headers());
   if (!(await registerRateLimit(ip))) {
     return {
       error: "Prea multe încercări. Încearcă din nou în jumătate de oră.",

@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Flame, BookOpen, ListChecks, Trophy, Award, Brain } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { currentUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -11,8 +12,9 @@ import { getDueReviews, getWeakConcepts } from "@/lib/spaced-repetition";
 import { Button } from "@/components/ui/button";
 
 export default async function ProgressPage() {
-  const session = await auth();
-  const userId = session!.user.id;
+  const sessionUser = await currentUser();
+  if (!sessionUser) redirect("/login");
+  const userId = sessionUser.id;
 
   const [user, subjects, attempts, allDone, stepDone, dueReviews, weak, totalQuizCount] = await Promise.all([
     prisma.user.findUnique({

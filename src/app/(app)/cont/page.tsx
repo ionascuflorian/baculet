@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Flame, ShieldCheck, UserRound } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { currentUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
+import { getEnabledThemes } from "@/lib/themes";
 import { AccountSettings } from "@/components/account/account-settings";
 import { GoogleIcon } from "@/components/google-icon";
 import { hasPassword } from "@/lib/user";
@@ -12,11 +13,11 @@ export default async function AccountPage({
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  const sessionUser = await currentUser();
+  if (!sessionUser) redirect("/login");
 
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: sessionUser.id },
     select: {
       name: true,
       email: true,
@@ -38,11 +39,7 @@ export default async function AccountPage({
 
   if (!user) redirect("/login");
 
-  const themes = await prisma.theme.findMany({
-    where: { enabled: true },
-    orderBy: { order: "asc" },
-    select: { slug: true, name: true, light: true, dark: true },
-  });
+  const themes = await getEnabledThemes();
 
   const { tab } = await searchParams;
   const initial = user.name.charAt(0).toUpperCase();

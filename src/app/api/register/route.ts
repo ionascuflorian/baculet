@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { registerRateLimit } from "@/lib/otp-rate-limit";
+import { registerRateLimit, clientIp } from "@/lib/rate-limit";
 
 const registerSchema = z.object({
   name: z.string().min(2).max(80),
@@ -11,14 +11,8 @@ const registerSchema = z.object({
   termsAccepted: z.boolean(),
 });
 
-function clientIp(request: NextRequest): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim() || "unknown";
-  return request.headers.get("x-real-ip") ?? "unknown";
-}
-
 export async function POST(request: NextRequest) {
-  if (!(await registerRateLimit(clientIp(request)))) {
+  if (!(await registerRateLimit(clientIp(request.headers)))) {
     return NextResponse.json(
       { error: "Prea multe încercări. Încearcă din nou în jumătate de oră." },
       { status: 429 }

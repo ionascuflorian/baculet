@@ -1,7 +1,7 @@
 import { generateObject } from "ai";
 import { google } from "@ai-sdk/google";
 import { z } from "zod/v4";
-import { auth } from "@/lib/auth";
+import { currentUser, isAdmin } from "@/lib/access";
 
 export const dynamic = "force-dynamic";
 
@@ -27,8 +27,8 @@ const themeSchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
+  const user = await currentUser();
+  if (!user || !isAdmin(user)) {
     return new Response(JSON.stringify({ error: "Neautorizat" }), {
       status: 401,
     });

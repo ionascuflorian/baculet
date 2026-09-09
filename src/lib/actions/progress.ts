@@ -1,16 +1,15 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { requireUser } from "@/lib/access";
 import { nextStreak } from "@/lib/streak";
 import { recordStudyActivity } from "@/lib/study-activity";
 import { XP_PER_STEP } from "@/lib/xp";
 import { updateConceptMastery } from "@/lib/mastery";
+import { revalidateLearning } from "@/lib/revalidate";
 
 export async function toggleLessonComplete(lessonId: string, path: string) {
-  const session = await auth();
-  if (!session?.user) throw new Error("Neautorizat");
+  const user = await requireUser();
 
   const lesson = await prisma.lesson.findUnique({
     where: { id: lessonId },
@@ -21,23 +20,23 @@ export async function toggleLessonComplete(lessonId: string, path: string) {
   // Toggle atomic: șterge toate rândurile existente; dacă n-a existat niciunul,
   // creează unul nou. Evită duplicate pe cereri concurente.
   const deleted = await prisma.lessonProgress.deleteMany({
-    where: { userId: session.user.id, lessonId },
+    where: { userId: user.id, lessonId },
   });
 
   if (deleted.count === 0) {
     try {
       await prisma.lessonProgress.create({
-        data: { userId: session.user.id, lessonId },
+        data: { userId: user.id, lessonId },
       });
 
-      const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
+      const dbUser = await prisma.user.findUnique({
+        where: { id: user.id },
         select: { lastActiveAt: true, streakCount: true },
       });
-      if (user) {
-        const streak = nextStreak(user.lastActiveAt, user.streakCount);
+      if (dbUser) {
+        const streak = nextStreak(dbUser.lastActiveAt, dbUser.streakCount);
         await prisma.user.update({
-          where: { id: session.user.id },
+          where: { id: user.id },
           data: {
             lastActiveAt: streak.lastActiveAt,
             streakCount: streak.streakCount,
@@ -45,15 +44,13 @@ export async function toggleLessonComplete(lessonId: string, path: string) {
         });
       }
 
-      await recordStudyActivity(session.user.id);
+      await recordStudyActivity(user.id);
     } catch (err) {
       if ((err as { code?: string }).code !== "P2002") throw err;
     }
   }
 
-  revalidatePath(path);
-  revalidatePath("/dashboard");
-  revalidatePath("/progres");
+  revalidateLearning(path);
 }
 
 export async function completeLessonStep(
@@ -61,17 +58,16 @@ export async function completeLessonStep(
   lessonId: string,
   path: string
 ) {
-  const session = await auth();
-  if (!session?.user) throw new Error("Neautorizat");
+  const user = await requireUser();
   const step = await prisma.lessonStep.findUnique({
     where: { id: stepId },
     select: { id: true, lessonId: true, order: true },
   });
   if (!step || step.lessonId !== lessonId) throw new Error("Pas inexistent");
 
-  await assertPrevStepsDone(session.user.id, step.order, lessonId);
+  await assertPrevStepsDone(user.id, step.order, lessonId);
 
-  return markStepDone(session.user.id, step, path);
+  return markStepDone(user.id, step, path);
 }
 
 export async function markStepRead(
@@ -80,8 +76,7 @@ export async function markStepRead(
   path: string,
   timeSpent: number
 ) {
-  const session = await auth();
-  if (!session?.user) throw new Error("Neautorizat");
+  const user = await requireUser();
   const step = await prisma.lessonStep.findUnique({
     where: { id: stepId },
     select: { id: true, lessonId: true, order: true, quizId: true, minReadTime: true },
@@ -98,9 +93,9 @@ export async function markStepRead(
     );
   }
 
-  await assertPrevStepsDone(session.user.id, step.order, lessonId);
+  await assertPrevStepsDone(user.id, step.order, lessonId);
 
-  return markStepDone(session.user.id, step, path);
+  return markStepDone(user.id, step, path);
 }
 
 async function assertPrevStepsDone(
@@ -193,23 +188,17 @@ async function markStepDone(
     if (created.count > 0) lessonCompleted = true;
   }
 
-  revalidatePath(path);
-  revalidatePath("/dashboard");
-  revalidatePath("/progres");
-  revalidatePath("/materii");
+  revalidateLearning(path);
   return { already: false, lessonCompleted, xp: XP_PER_STEP };
 }
 
 export async function uncompleteLessonStep(stepId: string, lessonId: string, path: string) {
-  const session = await auth();
-  if (!session?.user) throw new Error("Neautorizat");
+  const user = await requireUser();
   const prog = await prisma.lessonStepProgress.findUnique({
-    where: { userId_stepId: { userId: session.user.id, stepId } },
+    where: { userId_stepId: { userId: user.id, stepId } },
   });
   if (prog) await prisma.lessonStepProgress.delete({ where: { id: prog.id } });
   // la undo, scoatem și progresul lecției
-  await prisma.lessonProgress.deleteMany({ where: { userId: session.user.id, lessonId } });
-  revalidatePath(path);
-  revalidatePath("/dashboard");
-  revalidatePath("/progres");
+  await prisma.lessonProgress.deleteMany({ where: { userId: user.id, lessonId } });
+  revalidateLearning(path);
 }

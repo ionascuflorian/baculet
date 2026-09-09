@@ -18,7 +18,7 @@ import { Logo } from "@/components/logo";
 import { SiteFooter } from "@/components/site-footer";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { auth } from "@/lib/auth";
+import { currentUser } from "@/lib/access";
 import { DemoSection } from "@/components/landing/demo-section";
 import { Reveal } from "@/components/landing/reveal";
 import { DemoQuiz } from "@/components/landing/demo-quiz";
@@ -88,8 +88,8 @@ const stats = [
 const trustPoints = ["Gratuit", "Fără card", "Datele tale rămân ale tale"];
 
 export default async function Home() {
-  const session = await auth();
-  const isLoggedIn = !!session?.user;
+  const sessionUser = await currentUser();
+  const isLoggedIn = !!sessionUser;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -123,10 +123,6 @@ export default async function Home() {
       <main className="flex-1">
         {/* Hero */}
         <section className="relative overflow-hidden">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute left-1/2 top-[-14rem] -z-10 h-[34rem] w-[54rem] -translate-x-1/2 rounded-full bg-gradient-to-r from-accent/15 via-brand/10 to-warning/10 blur-3xl"
-          />
           <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-6 px-4 pb-14 pt-14 text-center sm:pt-20">
             <div className="animate-slide-up flex items-center gap-2 rounded-full border border-feather/70 bg-card/60 px-4 py-2 text-sm font-semibold text-warning backdrop-blur">
               <Flame className="h-4 w-4 text-warning" />
@@ -134,7 +130,7 @@ export default async function Home() {
             </div>
             <h1 className="animate-slide-up max-w-3xl text-4xl font-bold leading-tight tracking-tight text-ink sm:text-6xl [animation-delay:80ms]">
               Toate resursele pentru{" "}
-              <span className="bg-gradient-to-r from-accent to-brand-dark bg-clip-text text-transparent">
+              <span className="text-accent">
                 BAC
               </span>
               , într-un singur loc.
@@ -257,7 +253,7 @@ export default async function Home() {
               {steps.map((s, i) => (
                 <Reveal key={s.title} delay={i * 0.1}>
                   <div className="surface surface-hover relative h-full rounded-[1.5rem] p-6">
-                    <span className="absolute right-5 top-5 bg-gradient-to-br from-accent to-brand-dark bg-clip-text text-4xl font-black text-transparent opacity-20">
+                    <span className="absolute right-5 top-5 text-4xl font-black text-accent opacity-20">
                       {i + 1}
                     </span>
                     <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-accent/10">
@@ -294,7 +290,7 @@ export default async function Home() {
         {/* CTA */}
         <section className="mx-auto w-full max-w-6xl px-4 pb-20">
           <Reveal>
-            <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-r from-accent to-brand-dark p-8 text-center text-white sm:p-12">
+            <div className="relative overflow-hidden rounded-[2rem] bg-accent p-8 text-center text-white sm:p-12">
               <div
                 aria-hidden
                 className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/10 blur-2xl"

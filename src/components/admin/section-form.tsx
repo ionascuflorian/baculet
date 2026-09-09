@@ -18,6 +18,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/components/ui/toast";
 import {
   KIND_META,
+  STEP_TYPE_FOR_KIND,
   sectionKind,
   type QuizOptionDto,
   type SectionDto,
@@ -91,7 +92,7 @@ export function SectionForm({
   );
 
   const stepTypeFor =
-    kind === "exercise" ? "EXERSEAZĂ" : kind === "example" ? "VEZI UN EXEMPLU" : section?.stepType || "DESCOPERĂ";
+    kind !== "theory" ? STEP_TYPE_FOR_KIND[kind] : section?.stepType || STEP_TYPE_FOR_KIND.theory;
 
   const availableQuizzes = quizzes.filter((q) => !q.usedByOther);
 

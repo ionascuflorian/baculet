@@ -3,8 +3,9 @@
 import { AuthError } from "next-auth";
 import { prisma } from "@/lib/db";
 import { signIn } from "@/lib/auth";
+import { currentUser } from "@/lib/access";
 import { sendOtpEmail, showInAppCode } from "@/lib/mail";
-import { otpRequestRateLimit } from "@/lib/otp-rate-limit";
+import { otpRequestRateLimit } from "@/lib/rate-limit";
 import { generateOtpCode } from "@/lib/utils";
 
 export type OtpState = { error?: string; email?: string; devCode?: string };
@@ -63,6 +64,11 @@ export async function verifyCode(
 export async function getDevCode(email: string): Promise<{ code: string | null }> {
   const clean = String(email ?? "").toLowerCase().trim();
   if (!showInAppCode() || !clean) return { code: null };
+  // Doar proprietarul contului își poate afla codul, nu oricine pe email.
+  const user = await currentUser();
+  if (!user?.email || user.email.toLowerCase() !== clean) {
+    return { code: null };
+  }
   const token = await prisma.verificationToken.findFirst({
     where: { email: clean },
     orderBy: { createdAt: "desc" },

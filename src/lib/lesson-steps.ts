@@ -85,6 +85,34 @@ export function parseLessonStepsSmart(
   return parseLessonSteps(content);
 }
 
+export const STEP_ORDER_SHIFT = 100000;
+
+/**
+ * Resecventează 0..n toți pașii unei lecții. Deplasarea temporară cu
+ * STEP_ORDER_SHIFT evită conflictele pe @@unique([lessonId, order]).
+ * Fără `orderedIds`, păstrează ordinea curentă; cu `orderedIds`, impune-o.
+ */
+export async function resequenceStepOrders(lessonId: string, orderedIds?: string[]) {
+  const steps = await prisma.lessonStep.findMany({
+    where: { lessonId },
+    orderBy: { order: "asc" },
+    select: { id: true, order: true },
+  });
+  if (orderedIds) {
+    const valid = new Set(steps.map((s) => s.id));
+    if (orderedIds.length !== steps.length || orderedIds.some((id) => !valid.has(id))) {
+      throw new Error("Lista de secțiuni e incompletă.");
+    }
+  }
+  for (const s of steps) {
+    await prisma.lessonStep.update({ where: { id: s.id }, data: { order: s.order + STEP_ORDER_SHIFT } });
+  }
+  const ordering = orderedIds ?? steps.map((s) => s.id);
+  for (let i = 0; i < ordering.length; i++) {
+    await prisma.lessonStep.update({ where: { id: ordering[i] }, data: { order: i } });
+  }
+}
+
 export async function syncLessonSteps(
   lessonId: string,
   content: string,
@@ -102,9 +130,8 @@ export async function syncLessonSteps(
   const nonManual = existing.filter((s) => !s.manual).sort((a, b) => a.order - b.order);
 
   // faza 1: mută temporar pașii auto pentru a evita conflicte pe @@unique([lessonId, order])
-  const SHIFT = 100000;
   for (const s of nonManual) {
-    await prisma.lessonStep.update({ where: { id: s.id }, data: { order: s.order + SHIFT } });
+    await prisma.lessonStep.update({ where: { id: s.id }, data: { order: s.order + STEP_ORDER_SHIFT } });
   }
 
   // sloturile de order rămase după ce manualii și-au ocupat pozițiile

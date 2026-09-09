@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { currentUser } from "@/lib/access";
 import { AdminSidebar } from "@/components/admin-sidebar";
 import { ToastProvider } from "@/components/ui/toast";
 
@@ -8,8 +8,8 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
+  const sessionUser = await currentUser();
+  if (!sessionUser || sessionUser.role !== "ADMIN") {
     redirect("/dashboard");
   }
 

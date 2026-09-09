@@ -4,19 +4,18 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import * as access from "@/lib/access";
 import { sendOtpEmail, showInAppCode } from "@/lib/mail";
 import { hasPassword } from "@/lib/user";
 import { RESERVED_USERNAMES } from "@/lib/username";
 import { generateOtpCode } from "@/lib/utils";
 
 async function requireUser() {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Neautorizat");
-  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
-  if (!user) throw new Error("Contul nu a fost găsit");
-  return user;
+  const user = await access.requireUser();
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+  if (!dbUser) throw new Error("Contul nu a fost găsit");
+  return dbUser;
 }
 
 export type ProfileState = { error?: string; ok?: boolean; pendingEmail?: string; devCode?: string };

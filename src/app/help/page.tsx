@@ -5,7 +5,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { HelpForm } from "@/components/help/help-form";
 import { Faq } from "@/components/help/faq";
 import { SiteFooter } from "@/components/site-footer";
-import { auth } from "@/lib/auth";
+import { currentUser } from "@/lib/access";
 
 const faqItems = [
   {
@@ -41,14 +41,14 @@ const faqItems = [
 ];
 
 export default async function HelpPage() {
-  const session = await auth();
-  const userEmail = session?.user?.email ?? "";
+  const sessionUser = await currentUser();
+  const userEmail = sessionUser?.email ?? "";
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <header className="relative mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-2 px-4">
         <Link
-          href={session?.user ? "/dashboard" : "/"}
+          href={sessionUser ? "/dashboard" : "/"}
           className="flex items-center gap-2 text-sm font-semibold text-subtle transition-colors hover:text-ink"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -92,7 +92,7 @@ export default async function HelpPage() {
         </section>
       </main>
 
-      <SiteFooter homeHref={session?.user ? "/dashboard" : "/"} />
+      <SiteFooter homeHref={sessionUser ? "/dashboard" : "/"} />
     </div>
   );
 }

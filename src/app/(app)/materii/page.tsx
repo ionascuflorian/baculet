@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { currentUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { isProfileId } from "@/lib/profile";
 import { SubjectCard, type SubjectCardData } from "@/components/materii/subject-card";
@@ -41,9 +41,9 @@ function toCardData(
 }
 
 export default async function SubjectsPage() {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
-  const userId = session.user.id;
+  const sessionUser = await currentUser();
+  if (!sessionUser) redirect("/login");
+  const userId = sessionUser.id;
 
   const [user, subjects, completedLessons] = await Promise.all([
     prisma.user.findUnique({

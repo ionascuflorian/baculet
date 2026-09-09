@@ -116,7 +116,7 @@ export function DemoDashboard() {
             </div>
             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-ink/10">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-accent to-brand-dark"
+                className="h-full rounded-full bg-accent"
                 style={{ width: "60%" }}
               />
             </div>

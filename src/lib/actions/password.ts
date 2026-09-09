@@ -6,7 +6,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { signIn } from "@/lib/auth";
 import { sendOtpEmail, showInAppCode } from "@/lib/mail";
-import { otpRequestRateLimit, otpVerifyRateLimit } from "@/lib/otp-rate-limit";
+import { otpRequestRateLimit, otpVerifyRateLimit } from "@/lib/rate-limit";
 import { generateOtpCode } from "@/lib/utils";
 
 export type ResetState = {

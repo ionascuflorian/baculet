@@ -3,7 +3,7 @@ import { ShieldCheck, ArrowLeft } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SiteFooter } from "@/components/site-footer";
-import { auth } from "@/lib/auth";
+import { currentUser } from "@/lib/access";
 
 const sections = [
   {
@@ -37,8 +37,8 @@ const sections = [
 ];
 
 export default async function PrivacyPage() {
-  const session = await auth();
-  const backHref = session?.user ? "/dashboard" : "/";
+  const sessionUser = await currentUser();
+  const backHref = sessionUser ? "/dashboard" : "/";
 
   return (
     <div className="flex min-h-screen flex-col bg-background">

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Flame, AtSign, Trophy, CalendarDays, ShieldCheck, Settings } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { currentUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { getXpBreakdowns } from "@/lib/xp";
 import { FollowButton } from "@/components/friends/follow-button";
@@ -30,7 +30,7 @@ export default async function UserProfilePage({
   params: Promise<{ username: string }>;
 }) {
   const { username } = await params;
-  const session = await auth();
+  const sessionUser = await currentUser();
 
   const user = await prisma.user.findUnique({
     where: { username: username.toLowerCase() },
@@ -50,11 +50,11 @@ export default async function UserProfilePage({
 
   const [xp, myFollow] = await Promise.all([
     getXpBreakdowns(user.id),
-    session?.user?.id
+    sessionUser?.id
       ? prisma.follow.findUnique({
           where: {
             followerId_followingId: {
-              followerId: session.user.id,
+              followerId: sessionUser.id,
               followingId: user.id,
             },
           },
@@ -63,8 +63,8 @@ export default async function UserProfilePage({
       : Promise.resolve(null),
   ]);
 
-  const isSelf = session?.user?.id === user.id;
-  const isLoggedIn = Boolean(session?.user?.id);
+  const isSelf = sessionUser?.id === user.id;
+  const isLoggedIn = Boolean(sessionUser?.id);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">

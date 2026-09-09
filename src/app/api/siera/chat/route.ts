@@ -10,9 +10,9 @@ import {
 } from "ai";
 import { google } from "@ai-sdk/google";
 import { z } from "zod/v4";
-import { auth } from "@/lib/auth";
+import { currentUser } from "@/lib/access";
 import { searchSiteContent, getPageContext } from "@/lib/siera/site";
-import { checkRateLimit, consumeRateLimit } from "@/lib/siera/rate-limit";
+import { checkRateLimit, consumeRateLimit } from "@/lib/rate-limit";
 import { createQuizForUser } from "@/lib/siera/create-quiz";
 
 export const dynamic = "force-dynamic";
@@ -20,13 +20,13 @@ export const dynamic = "force-dynamic";
 const MODEL = process.env.SIERA_MODEL || "gemini-3.5-flash-lite";
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const user = await currentUser();
+  if (!user) {
     return new Response(JSON.stringify({ error: "Neautorizat" }), {
       status: 401,
     });
   }
-  const userId = session.user.id;
+  const userId = user.id;
 
   const body = (await req.json().catch(() => null)) as {
     messages?: UIMessage[];

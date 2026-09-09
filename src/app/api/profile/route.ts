@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
+import { currentUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { PROFILE_IDS } from "@/lib/profile";
 
@@ -9,8 +9,8 @@ const profileSchema = z.object({
 });
 
 export async function PATCH(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const user = await currentUser();
+  if (!user) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }
 
@@ -26,7 +26,7 @@ export async function PATCH(request: NextRequest) {
 
   try {
     await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: user.id },
       data: { profile: parsed.data.profile },
     });
 

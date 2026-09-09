@@ -233,35 +233,35 @@ async function main() {
         options: ["x = 2", "x = 3", "x = -3", "x = 6"],
         correctIndex: 1,
         explanation: "2x - 6 = 0 ⇒ 2x = 6 ⇒ x = 3.",
-        concept: "functii-grad1-radacina",
+        concept: "functii-de-gradul-i-aplicare",
       },
       {
         text: "Pentru ce valoare a lui a funcția f(x) = ax + 3 are rădăcina x = 1?",
         options: ["a = -3", "a = 3", "a = 1", "a = 0"],
         correctIndex: 0,
         explanation: "a·1 + 3 = 0 ⇒ a = -3.",
-        concept: "functii-grad1-parametru",
+        concept: "functii-de-gradul-i-aplicare",
       },
       {
         text: "Discriminantul ecuației x² + 4x + 4 = 0 este:",
         options: ["Δ = 0", "Δ = 16", "Δ = 4", "Δ = 8"],
         correctIndex: 0,
         explanation: "Δ = 16 - 16 = 0, deci ecuația are o rădăcină dublă.",
-        concept: "ecuatii-grad2-discriminant",
+        concept: "ecuatii-de-gradul-al-ii-lea-aplicare",
       },
       {
         text: "Suma rădăcinilor ecuației x² - 7x + 12 = 0 este:",
         options: ["7", "12", "-7", "-12"],
         correctIndex: 0,
         explanation: "Din relațiile lui Viète, S = -b/a = 7.",
-        concept: "ecuatii-grad2-viete-suma",
+        concept: "ecuatii-de-gradul-al-ii-lea-aplicare",
       },
       {
         text: "Produsul rădăcinilor ecuației x² - 7x + 12 = 0 este:",
         options: ["7", "12", "-12", "6"],
         correctIndex: 1,
         explanation: "P = c/a = 12/1 = 12.",
-        concept: "ecuatii-grad2-viete-produs",
+        concept: "ecuatii-de-gradul-al-ii-lea-aplicare",
       },
     ],
   });
@@ -279,7 +279,7 @@ async function main() {
         correctIndex: 1,
         explanation: "Graficul este o dreaptă.",
         type: "FLASHCARD",
-        concept: "functii-grad1-grafic",
+        concept: "functii-de-gradul-i-aplicare",
       },
       {
         text: "Rădăcina lui f(x)=2x-4 este x = __.",
@@ -287,7 +287,7 @@ async function main() {
         correctIndex: 1,
         explanation: "2x-4=0 ⇒ x=2.",
         type: "CLOZE",
-        concept: "functii-grad1-radacina",
+        concept: "functii-de-gradul-i-aplicare",
       },
     ],
   });
@@ -303,21 +303,21 @@ async function main() {
         options: ["0", "1", "2", "sin2α"],
         correctIndex: 1,
         explanation: "Identitatea fundamentală.",
-        concept: "trigonometrie-identitate",
+        concept: "elemente-de-trigonometrie-aplicare",
       },
       {
         text: "Teorema sinusurilor: a/sinA = ?",
         options: ["2R", "R", "2r", "r"],
         correctIndex: 0,
         explanation: "a/sinA = 2R (raza cercului circumscris).",
-        concept: "teorema-sinusurilor",
+        concept: "triunghiul-teoreme-esentiale-aplicare",
       },
       {
         text: "Valoarea lui cos 60° este:",
         options: ["0", "1/2", "√3/2", "1"],
         correctIndex: 1,
         explanation: "cos 60° = 1/2.",
-        concept: "valori-trigonometrice",
+        concept: "elemente-de-trigonometrie-aplicare",
       },
     ],
   });
@@ -333,21 +333,21 @@ async function main() {
         options: ["10", "20", "5", "15"],
         correctIndex: 0,
         explanation: "C₅² = 10.",
-        concept: "combinari",
+        concept: "permutari-aranjamente-combinari-aplicare",
       },
       {
         text: "Panta dreptei prin A(0,0) și B(2,4) este:",
         options: ["1", "2", "1/2", "4"],
         correctIndex: 1,
         explanation: "m=(4-0)/(2-0)=2.",
-        concept: "panta-dreptei",
+        concept: "reper-si-ecuatia-dreptei-aplicare",
       },
       {
         text: "Două drepte sunt perpendiculare dacă:",
         options: ["m₁=m₂", "m₁·m₂=-1", "m₁·m₂=1", "m₁=-m₂"],
         correctIndex: 1,
         explanation: "Perpendicularitate: m₁·m₂=-1.",
-        concept: "perpendicularitate",
+        concept: "reper-si-ecuatia-dreptei-aplicare",
       },
     ],
   });
@@ -363,21 +363,21 @@ async function main() {
         options: ["-2", "2", "10", "-10"],
         correctIndex: 0,
         explanation: "1·4-2·3=-2.",
-        concept: "determinant-2x2",
+        concept: "matrice-determinanti-aplicare",
       },
       {
         text: "O matrice pătratică e inversabilă dacă:",
         options: ["det=0", "det≠0", "det=1", "det>0"],
         correctIndex: 1,
         explanation: "Inversabilă iff det≠0.",
-        concept: "inversabilitate",
+        concept: "matrice-determinanti-aplicare",
       },
       {
         text: "Sistem Cramer are soluție unică dacă:",
         options: ["detA=0", "detA≠0", "detA=1", "B=0"],
         correctIndex: 1,
         explanation: "Cramer: detA≠0 → unică.",
-        concept: "cramer",
+        concept: "sisteme-de-ecuatii-aplicare",
       },
     ],
   });
@@ -393,21 +393,21 @@ async function main() {
         options: ["3x²", "x²", "3x", "x³"],
         correctIndex: 0,
         explanation: "(xⁿ)'=n xⁿ⁻¹.",
-        concept: "derivata-putere",
+        concept: "derivate-si-studiu-aplicare",
       },
       {
         text: "Ecuația tangentei în x₀ este:",
         options: ["y-f(x₀)=f'(x₀)(x-x₀)", "y = f'(x)", "y = mx+n", "y = f(x₀)+x"],
         correctIndex: 0,
         explanation: "Formula tangentei.",
-        concept: "tangenta",
+        concept: "derivate-si-studiu-aplicare",
       },
       {
         text: "Dacă f'(x)>0 pe interval, f este:",
         options: ["descrescătoare", "crescătoare", "constantă", "concavă"],
         correctIndex: 1,
         explanation: "f'>0 → crescătoare.",
-        concept: "monotonie",
+        concept: "derivate-si-studiu-aplicare",
       },
     ],
   });
@@ -423,21 +423,21 @@ async function main() {
         options: ["ec. grad 1", "ec. grad 2", "ec. grad 3", "sisteme"],
         correctIndex: 1,
         explanation: "Pentru ax²+bx+c, S = -b/a.",
-        concept: "viete-grad2",
+        concept: "ecuatii-de-gradul-al-ii-lea-aplicare",
       },
       {
         text: "∫ x² dx = ?",
         options: ["x³/3 + C", "x³ + C", "2x + C", "x²/2 + C"],
         correctIndex: 0,
         explanation: "∫ xⁿ = xⁿ⁺¹/(n+1).",
-        concept: "primitiva-putere",
+        concept: "primitive-integrala-aplicare",
       },
       {
         text: "Formula Leibniz-Newton: ∫ₐᵇ f(x)dx = ?",
         options: ["F(b)-F(a)", "F(a)-F(b)", "f(b)-f(a)", "0"],
         correctIndex: 0,
         explanation: "F(b)-F(a).",
-        concept: "leibniz-newton",
+        concept: "primitive-integrala-aplicare",
       },
     ],
   });
@@ -636,8 +636,8 @@ await upsertExam(istorie.id, {
         ink: "#1d1d1f",
         subtle: "#56565a",
         feather: "#d2d2d7",
-        accent: "#0a7cff",
-        accentDark: "#0060df",
+        accent: "#2456e0",
+        accentDark: "#1d3fc4",
         onAccent: "#ffffff",
       },
       dark: {
@@ -647,8 +647,8 @@ await upsertExam(istorie.id, {
         ink: "#f5f5f7",
         subtle: "#acacb2",
         feather: "#3a3a3c",
-        accent: "#0a7cff",
-        accentDark: "#0060df",
+        accent: "#4a79f5",
+        accentDark: "#8ab0ff",
         onAccent: "#ffffff",
       },
     },
@@ -1010,6 +1010,14 @@ async function upsertQuiz(
   for (const q of existing) {
     await prisma.question.delete({ where: { id: q.id } });
   }
+  // Leagă întrebările de conceptele reale (la seed-time), ca mastery să meargă prin FK.
+  const conceptIdBySlug = new Map<string, string>();
+  for (const q of data.questions) {
+    if (q.concept && !conceptIdBySlug.has(q.concept)) {
+      const c = await prisma.concept.findFirst({ where: { slug: q.concept } });
+      if (c) conceptIdBySlug.set(q.concept, c.id);
+    }
+  }
   await prisma.question.createMany({
     data: data.questions.map((q, i) => ({
       quizId: quiz.id,
@@ -1020,6 +1028,9 @@ async function upsertQuiz(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       type: ((q as any).type ?? "SINGLE") as any,
       concept: (q as { concept?: string }).concept ?? null,
+      conceptId: (q as { concept?: string }).concept
+        ? (conceptIdBySlug.get((q as { concept?: string }).concept!) ?? null)
+        : null,
       order: i,
     })),
   });

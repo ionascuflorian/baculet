@@ -62,8 +62,8 @@ export function defaultPalette(): Palette {
     ink: "#1d1d1f",
     subtle: "#56565a",
     feather: "#d2d2d7",
-    accent: "#0a7cff",
-    accentDark: "#0060df",
+    accent: "#2456e0",
+    accentDark: "#1d3fc4",
     onAccent: "#ffffff",
   };
 }
@@ -76,8 +76,8 @@ export function defaultDarkPalette(): Palette {
     ink: "#f5f5f7",
     subtle: "#acacb2",
     feather: "#3a3a3c",
-    accent: "#0a7cff",
-    accentDark: "#7bb3ff",
+    accent: "#4a79f5",
+    accentDark: "#8ab0ff",
     onAccent: "#ffffff",
   };
 }

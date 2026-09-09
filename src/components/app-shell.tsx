@@ -165,7 +165,7 @@ export function AppShell({
       </header>
 
       <NextTopLoader
-        color="#0a7cff"
+        color="var(--accent)"
         height={3}
         showSpinner={false}
         shadow={false}

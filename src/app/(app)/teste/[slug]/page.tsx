@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Trophy, History } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { currentUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { QuizClient } from "@/components/quiz-client";
 import { Button } from "@/components/ui/button";
@@ -13,8 +13,9 @@ export default async function QuizPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const session = await auth();
-  const userId = session!.user.id;
+  const sessionUser = await currentUser();
+  if (!sessionUser) redirect("/login");
+  const userId = sessionUser!.id;
 
   const quiz = await prisma.quiz.findFirst({
     where: {

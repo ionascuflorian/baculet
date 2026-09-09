@@ -1,14 +1,14 @@
 import { Sparkles } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { currentUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { AiSettingsForm } from "@/components/admin/ai-settings-form";
 
 export default async function AdminAiPage() {
-  const session = await auth();
-  if (!session?.user) return null;
+  const sessionUser = await currentUser();
+  if (!sessionUser) return null;
 
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: sessionUser.id },
     select: { aiProvider: true, aiApiKeyEnc: true },
   });
 
@@ -31,7 +31,7 @@ export default async function AdminAiPage() {
           <p className="font-extrabold text-ink">Cum funcționează</p>
           <p className="mt-1 font-semibold text-subtle">
             Alege un provider de AI, salvezi cheia ta, apoi în pagina unei lecții apesei
-            „Generează exerciții cu AI". Generatorul folosește conținutul lecției ca
+            „Generează exerciții cu AI&rdquo;. Generatorul folosește conținutul lecției ca
             sursă și trimite rezultatul în panou pentru verificare înainte de salvare.
           </p>
         </div>

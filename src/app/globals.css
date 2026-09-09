@@ -7,15 +7,15 @@
   --ink: #1d1d1f;
   --subtle: #56565a;
   --feather: #d2d2d7;
-  --accent: #0a7cff;
-  --accent-dark: #0060df;
-  --accent-soft: #0a7cff;
+  --accent: #2456e0;
+  --accent-dark: #1d3fc4;
+  --accent-soft: #2456e0;
   --danger: #ff3b30;
   --warning: #ff9500;
   --success: #34c759;
-  --brand: #0a7cff;
-  --brand-dark: #0060df;
-  --brand-light: #e7f1ff;
+  --brand: #2456e0;
+  --brand-dark: #1d3fc4;
+  --brand-light: #e6edff;
   --on-accent: #ffffff;
 }
 
@@ -26,6 +26,12 @@
   --ink: #f5f5f7;
   --subtle: #acacb2;
   --feather: #3a3a3c;
+  --accent: #4a79f5;
+  --accent-dark: #8ab0ff;
+  --accent-soft: #4a79f5;
+  --brand: #4a79f5;
+  --brand-dark: #8ab0ff;
+  --brand-light: #e6edff;
   --on-accent: #ffffff;
 }
 
@@ -66,7 +72,7 @@
 }
 
 @theme {
-  /* Apple classic blue */
+  /* Albastru oficial de examen */
   --color-accent: var(--accent);
   --color-accent-dark: var(--accent-dark);
   --color-accent-soft: var(--accent-soft);
@@ -284,16 +290,6 @@ body {
       transform: translateY(0);
     }
   }
-  @keyframes confetti-fall {
-    0% {
-      transform: translateY(-10vh) rotate(0deg);
-      opacity: 1;
-    }
-    100% {
-      transform: translateY(110vh) rotate(720deg);
-      opacity: 0;
-    }
-  }
   @keyframes shimmer {
     0% {
       background-position: -400px 0;
@@ -311,9 +307,6 @@ body {
   }
   .animate-slide-up {
     animation: slide-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
-  .animate-confetti {
-    animation: confetti-fall linear both;
   }
   .animate-shimmer {
     background-image: linear-gradient(

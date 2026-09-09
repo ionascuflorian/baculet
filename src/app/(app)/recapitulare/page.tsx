@@ -1,14 +1,15 @@
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { currentUser } from "@/lib/access";
 import { getDueReviews } from "@/lib/spaced-repetition";
-import { prisma } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Brain } from "lucide-react";
 
 export default async function RecapPage() {
-  const session = await auth();
-  const userId = session!.user.id;
+  const sessionUser = await currentUser();
+  if (!sessionUser) redirect("/login");
+  const userId = sessionUser.id;
 
   const due = await getDueReviews(userId, 20);
 

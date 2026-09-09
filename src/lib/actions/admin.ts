@@ -2,16 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-
-async function requireAdmin() {
-  const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
-    throw new Error("Acces interzis");
-  }
-  return session;
-}
+import { currentUser, isAdmin, requireAdmin } from "@/lib/access";
+import { resequenceStepOrders, syncLessonSteps } from "@/lib/lesson-steps";
 
 function slugify(input: string): string {
   return input
@@ -29,11 +22,11 @@ const aiSettingsSchema = z.object({
 });
 
 export async function saveAiSettings(input: z.input<typeof aiSettingsSchema>) {
-  const session = await requireAdmin();
+  const user = await requireAdmin();
   const data = aiSettingsSchema.parse(input);
   const { encryptApiKey } = await import("@/lib/ai-keys");
   await prisma.user.update({
-    where: { id: session.user.id },
+    where: { id: user.id },
     data: {
       aiProvider: data.provider,
       aiApiKeyEnc: encryptApiKey(data.apiKey),
@@ -44,9 +37,9 @@ export async function saveAiSettings(input: z.input<typeof aiSettingsSchema>) {
 }
 
 export async function clearAiSettings() {
-  const session = await requireAdmin();
+  const user = await requireAdmin();
   await prisma.user.update({
-    where: { id: session.user.id },
+    where: { id: user.id },
     data: { aiProvider: null, aiApiKeyEnc: null },
   });
   revalidatePath("/admin/ai");
@@ -210,7 +203,6 @@ export async function saveLesson(
   }
 
   // sincronizează pașii bite-sized din markdown (## secțiuni)
-  const { syncLessonSteps } = await import("@/lib/lesson-steps");
   await syncLessonSteps(lesson.id, data.content);
 
   // revalidare corectă (path-uri reale, nu literal cu [id])
@@ -246,18 +238,7 @@ async function nextStepOrder(lessonId: string) {
 }
 
 async function renumberStepOrders(lessonId: string) {
-  const steps = await prisma.lessonStep.findMany({
-    where: { lessonId },
-    orderBy: { order: "asc" },
-    select: { id: true, order: true },
-  });
-  const SHIFT = 100000;
-  for (const s of steps) {
-    await prisma.lessonStep.update({ where: { id: s.id }, data: { order: s.order + SHIFT } });
-  }
-  for (let i = 0; i < steps.length; i++) {
-    await prisma.lessonStep.update({ where: { id: steps[i].id }, data: { order: i } });
-  }
+  await resequenceStepOrders(lessonId);
 }
 
 export async function createSection(
@@ -353,22 +334,7 @@ export async function deleteSection(stepId: string, lessonId: string) {
 
 export async function reorderLessonSteps(lessonId: string, orderedIds: string[]) {
   await requireAdmin();
-  const steps = await prisma.lessonStep.findMany({
-    where: { lessonId },
-    select: { id: true, order: true },
-  });
-  const validIds = new Set(steps.map((s) => s.id));
-  if (orderedIds.length !== steps.length || orderedIds.some((id) => !validIds.has(id))) {
-    throw new Error("Lista de secțiuni e incompletă.");
-  }
-
-  const SHIFT = 100000;
-  for (const s of steps) {
-    await prisma.lessonStep.update({ where: { id: s.id }, data: { order: s.order + SHIFT } });
-  }
-  for (let i = 0; i < orderedIds.length; i++) {
-    await prisma.lessonStep.update({ where: { id: orderedIds[i] }, data: { order: i } });
-  }
+  await resequenceStepOrders(lessonId, orderedIds);
 
   await revalidateSectionPaths(lessonId);
   return { ok: true };
@@ -385,7 +351,6 @@ export async function generateSectionsFromLesson(lessonId: string) {
   });
   if (!lesson) throw new Error("Lecția nu există.");
 
-  const { syncLessonSteps } = await import("@/lib/lesson-steps");
   await syncLessonSteps(lesson.id, lesson.content, { paragraphFallback: true });
 
   const count = await prisma.lessonStep.count({ where: { lessonId } });
@@ -717,16 +682,16 @@ export async function makeAdmin(userId: string) {
 export async function deleteUser(
   userId: string
 ): Promise<{ ok: boolean; error?: string }> {
-  const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
+  const user = await currentUser();
+  if (!user || !isAdmin(user)) {
     return { ok: false, error: "Acces interzis." };
   }
-  if (session.user.id === userId) {
+  if (user.id === userId) {
     return { ok: false, error: "Nu poți șterge propriul cont." };
   }
 
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) {
+  const target = await prisma.user.findUnique({ where: { id: userId } });
+  if (!target) {
     return { ok: false, error: "Contul nu a fost găsit." };
   }
 

@@ -100,8 +100,8 @@ export function ThemePicker({
               <span
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-black/10 shadow-inner"
                 style={{
-                  background: `linear-gradient(135deg, ${theme.light.accent ?? "#0a7cff"}, ${
-                    theme.light.accentDark ?? theme.light.accent ?? "#0a7cff"
+                  background: `linear-gradient(135deg, ${theme.light.accent ?? "#2456e0"}, ${
+                    theme.light.accentDark ?? theme.light.accent ?? "#1d3fc4"
                   })`,
                 }}
               >

@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { currentUser } from "@/lib/access";
 import type { Prisma } from "@/generated/prisma/client";
 import {
   isWeatherLocation,
@@ -14,8 +14,8 @@ export type WeatherState = { error?: string; ok?: boolean };
 export async function saveWeatherLocation(
   location: WeatherLocation
 ): Promise<WeatherState> {
-  const session = await auth();
-  if (!session?.user?.id) return { error: "Neautorizat" };
+  const user = await currentUser();
+  if (!user) return { error: "Neautorizat" };
 
   if (!isWeatherLocation(location)) {
     return { error: "Locație invalidă." };
@@ -23,7 +23,7 @@ export async function saveWeatherLocation(
 
   try {
     await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: user.id },
       data: {
         weatherLocation: {
           lat: location.lat,

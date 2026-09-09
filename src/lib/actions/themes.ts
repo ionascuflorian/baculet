@@ -1,29 +1,16 @@
 "use server";
 
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { currentUser, requireAdmin, requireUser } from "@/lib/access";
+import { revalidateTheme } from "@/lib/revalidate";
+import { THEME_COOKIE } from "@/lib/theme-constants";
 import {
   defaultDarkPalette,
   defaultPalette,
 } from "@/components/themes/palette";
-
-const THEME_COOKIE = "baculet-theme";
-
-async function requireAdmin() {
-  const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
-    throw new Error("Acces interzis");
-  }
-}
-
-async function requireUser() {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Neautorizat");
-  return session.user.id;
-}
 
 function slugify(input: string): string {
   return input
@@ -89,9 +76,7 @@ export async function saveTheme(
       ? await prisma.theme.update({ where: { id }, data: payload })
       : await prisma.theme.create({ data: payload });
 
-    revalidatePath("/admin/teme");
-    revalidatePath("/cont");
-    revalidateTag("themes", "max");
+    revalidateTheme();
     return { id: theme.id };
   } catch (err) {
     console.error("saveTheme failed:", err);
@@ -109,21 +94,17 @@ export async function saveTheme(
 export async function deleteTheme(id: string) {
   await requireAdmin();
   await prisma.theme.delete({ where: { id } });
-  revalidatePath("/admin/teme");
-  revalidatePath("/cont");
-  revalidateTag("themes", "max");
+  revalidateTheme();
 }
 
 export async function setThemeEnabled(id: string, enabled: boolean) {
   await requireAdmin();
   await prisma.theme.update({ where: { id }, data: { enabled } });
-  revalidatePath("/admin/teme");
-  revalidatePath("/cont");
-  revalidateTag("themes", "max");
+  revalidateTheme();
 }
 
 export async function setUserTheme(slug: string | null) {
-  const userId = await requireUser();
+  const user = await requireUser();
 
   if (slug) {
     const theme = await prisma.theme.findUnique({ where: { slug } });
@@ -132,7 +113,7 @@ export async function setUserTheme(slug: string | null) {
     slug = null;
   }
 
-  await prisma.user.update({ where: { id: userId }, data: { themeSlug: slug } });
+  await prisma.user.update({ where: { id: user.id }, data: { themeSlug: slug } });
 
   const cookieStore = await cookies();
   if (slug) {
@@ -153,13 +134,13 @@ export async function syncUserThemeCookie(): Promise<string> {
 
   let slug = "default";
   try {
-    const session = await auth();
-    if (session?.user?.id) {
-      const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
+    const user = await currentUser();
+    if (user) {
+      const u = await prisma.user.findUnique({
+        where: { id: user.id },
         select: { themeSlug: true },
       });
-      slug = user?.themeSlug ?? "default";
+      slug = u?.themeSlug ?? "default";
     }
   } catch {
     slug = "default";

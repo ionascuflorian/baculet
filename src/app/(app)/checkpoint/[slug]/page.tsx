@@ -1,12 +1,9 @@
 import { notFound } from "next/navigation";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { CheckpointFlow } from "@/components/checkpoint/checkpoint-flow";
 
 export default async function CheckpointPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const session = await auth();
-  const userId = session!.user.id;
 
   const checkpoint = await prisma.checkpoint.findUnique({
     where: { slug },

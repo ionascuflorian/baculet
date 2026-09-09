@@ -1,14 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { currentUser } from "@/lib/access";
 
 export async function acceptTerms(): Promise<{ ok: boolean }> {
-  const session = await auth();
-  if (!session?.user?.id) return { ok: false };
+  const user = await currentUser();
+  if (!user) return { ok: false };
   await prisma.user.update({
-    where: { id: session.user.id },
+    where: { id: user.id },
     data: { termsAcceptedAt: new Date() },
   });
   revalidatePath("/onboarding");
@@ -16,10 +16,10 @@ export async function acceptTerms(): Promise<{ ok: boolean }> {
 }
 
 export async function completeOnboarding(): Promise<{ ok: boolean }> {
-  const session = await auth();
-  if (!session?.user?.id) return { ok: false };
+  const user = await currentUser();
+  if (!user) return { ok: false };
   await prisma.user.update({
-    where: { id: session.user.id },
+    where: { id: user.id },
     data: { onboardingDone: true },
   });
   revalidatePath("/dashboard");

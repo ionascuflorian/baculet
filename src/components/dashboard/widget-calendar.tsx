@@ -21,12 +21,12 @@ import {
 const WEEKDAYS = ["L", "M", "M", "J", "V", "S", "D"];
 
 const KIND_COLORS: Record<string, string> = {
-  USER: "#0a7cff",
+  USER: "#2456e0",
   ACHIEVEMENT: "#34c759",
   EXAM: "#ff9500",
 };
 
-const SWATCHES = ["#0a7cff", "#ff3b30", "#ff9500", "#34c759", "#af52de", "#5e5ce6"];
+const SWATCHES = ["#2456e0", "#ff3b30", "#ff9500", "#34c759", "#af52de", "#5e5ce6"];
 
 export interface CalendarEventItem {
   id: string;

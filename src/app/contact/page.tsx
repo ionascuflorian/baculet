@@ -4,12 +4,12 @@ import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SiteFooter } from "@/components/site-footer";
 import { HelpForm } from "@/components/help/help-form";
-import { auth } from "@/lib/auth";
+import { currentUser } from "@/lib/access";
 
 export default async function ContactPage() {
-  const session = await auth();
-  const backHref = session?.user ? "/dashboard" : "/";
-  const userEmail = session?.user?.email ?? "";
+  const sessionUser = await currentUser();
+  const backHref = sessionUser ? "/dashboard" : "/";
+  const userEmail = sessionUser?.email ?? "";
 
   return (
     <div className="flex min-h-screen flex-col bg-background">

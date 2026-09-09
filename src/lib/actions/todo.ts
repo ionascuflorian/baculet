@@ -1,34 +1,34 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { currentUser } from "@/lib/access";
 
 export type TodoState = { error?: string; ok?: boolean };
 
 export async function addTodo(text: string): Promise<TodoState> {
-  const session = await auth();
-  if (!session?.user?.id) return { error: "Neautorizat" };
+  const user = await currentUser();
+  if (!user) return { error: "Neautorizat" };
 
   const trimmed = text?.trim();
   if (!trimmed || trimmed.length > 200) return { error: "Text invalid." };
 
   try {
     await prisma.$transaction(async (tx) => {
-      const hash = `todo:${session.user.id}`;
+      const hash = `todo:${user.id}`;
       const lock = [...hash].reduce(
         (acc, c) => (acc * 31 + c.charCodeAt(0)) >>> 0,
         0
       );
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(${lock}::bigint)`;
       const last = await tx.todoItem.findFirst({
-        where: { userId: session.user.id },
+        where: { userId: user.id },
         orderBy: { order: "desc" },
         select: { order: true },
       });
       await tx.todoItem.create({
         data: {
-          userId: session.user.id,
+          userId: user.id,
           text: trimmed,
           order: (last?.order ?? 0) + 1,
         },
@@ -42,12 +42,12 @@ export async function addTodo(text: string): Promise<TodoState> {
 }
 
 export async function toggleTodo(id: string): Promise<TodoState> {
-  const session = await auth();
-  if (!session?.user?.id) return { error: "Neautorizat" };
+  const user = await currentUser();
+  if (!user) return { error: "Neautorizat" };
 
   try {
     const item = await prisma.todoItem.findUnique({ where: { id } });
-    if (!item || item.userId !== session.user.id) return { error: "Nu există." };
+    if (!item || item.userId !== user.id) return { error: "Nu există." };
     await prisma.todoItem.update({
       where: { id },
       data: { done: !item.done },
@@ -60,12 +60,12 @@ export async function toggleTodo(id: string): Promise<TodoState> {
 }
 
 export async function deleteTodo(id: string): Promise<TodoState> {
-  const session = await auth();
-  if (!session?.user?.id) return { error: "Neautorizat" };
+  const user = await currentUser();
+  if (!user) return { error: "Neautorizat" };
 
   try {
     await prisma.todoItem.deleteMany({
-      where: { id, userId: session.user.id },
+      where: { id, userId: user.id },
     });
     revalidatePath("/dashboard");
     return { ok: true };

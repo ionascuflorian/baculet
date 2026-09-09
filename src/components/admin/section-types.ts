@@ -26,6 +26,12 @@ export function sectionKind(s: SectionDto): SectionKind {
   return "theory";
 }
 
+export const STEP_TYPE_FOR_KIND: Record<SectionKind, string> = {
+  theory: "DESCOPERĂ",
+  example: "VEZI UN EXEMPLU",
+  exercise: "EXERSEAZĂ",
+};
+
 export const KIND_META: Record<
   SectionKind,
   { label: string; border: string; tint: string; badge: string }

@@ -1,15 +1,16 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { currentUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
+import { getEnabledThemes } from "@/lib/themes";
 import type { Palette } from "@/components/themes/palette";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 
 export default async function OnboardingPage() {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  const sessionUser = await currentUser();
+  if (!sessionUser) redirect("/login");
 
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: sessionUser.id },
     select: {
       name: true,
       image: true,
@@ -23,11 +24,7 @@ export default async function OnboardingPage() {
   if (!user) redirect("/login");
   if (user.onboardingDone) redirect("/dashboard");
 
-  const themes = await prisma.theme.findMany({
-    where: { enabled: true },
-    orderBy: { order: "asc" },
-    select: { slug: true, name: true, light: true, dark: true },
-  });
+  const themes = await getEnabledThemes();
 
   return (
     <OnboardingWizard

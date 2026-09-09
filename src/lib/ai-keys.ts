@@ -4,7 +4,10 @@ const ALGO = "aes-256-gcm";
 const IV_LEN = 12;
 
 function key(): Buffer {
-  const secret = process.env.AUTH_SECRET ?? process.env.CRON_SECRET ?? "baculet-dev-secret";
+  const secret = process.env.AUTH_SECRET ?? process.env.CRON_SECRET;
+  if (!secret) {
+    throw new Error("AUTH_SECRET sau CRON_SECRET trebuie setate pentru criptarea cheilor AI.");
+  }
   return createHash("sha256").update(secret).digest();
 }
 

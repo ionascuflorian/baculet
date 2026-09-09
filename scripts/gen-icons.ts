@@ -5,7 +5,7 @@ import { readFileSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import fontkit from "fontkit";
 
-const ACCENT = "#0a7cff"; // punctul din „b."
+const ACCENT = "#2456e0"; // punctul din „b."
 const DARK = "#1e1e1e"; // fundal
 const WHITE = "#ffffff"; // litera „b"
 

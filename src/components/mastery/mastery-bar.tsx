@@ -7,7 +7,7 @@ export function MasteryBar({ mastery }: { mastery: number }) {
   const level = masteryLevel(mastery);
   const label = masteryLabel(level);
   const color =
-    mastery < 30 ? "bg-danger" : mastery < 60 ? "bg-warning" : mastery < 80 ? "bg-accent" : mastery < 95 ? "bg-success" : "bg-gradient-to-r from-success to-accent";
+    mastery < 30 ? "bg-danger" : mastery < 60 ? "bg-warning" : mastery < 80 ? "bg-accent" : mastery < 95 ? "bg-success" : "bg-success";
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between text-xs font-bold">

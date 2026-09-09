@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { THEME_READY_EVENT, THEME_READY_FLAG } from "@/lib/theme-constants";
 
 const MIN_VISIBLE_MS = 800;
 const MAX_VISIBLE_MS = 6000;
@@ -14,8 +15,7 @@ export function AppSplash() {
     let loaded = document.readyState === "complete";
     let minDone = false;
     let themeReady =
-      (window as unknown as { __BACULET_THEME_READY?: boolean })
-        .__BACULET_THEME_READY === true;
+      (window as unknown as Record<string, unknown>)[THEME_READY_FLAG] === true;
 
     const maybeHide = () => {
       if (loaded && minDone && themeReady) setHidden(true);
@@ -39,13 +39,13 @@ export function AppSplash() {
     const capTimer = setTimeout(() => setHidden(true), MAX_VISIBLE_MS);
 
     window.addEventListener("load", onLoad);
-    window.addEventListener("baculet:theme-ready", onThemeReady);
+    window.addEventListener(THEME_READY_EVENT, onThemeReady);
 
     return () => {
       clearTimeout(minTimer);
       clearTimeout(capTimer);
       window.removeEventListener("load", onLoad);
-      window.removeEventListener("baculet:theme-ready", onThemeReady);
+      window.removeEventListener(THEME_READY_EVENT, onThemeReady);
     };
   }, []);
 

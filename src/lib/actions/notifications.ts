@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { currentUser } from "@/lib/access";
 
 const prefsSchema = z.object({
   emailNotifs: z.boolean().default(true),
@@ -18,8 +18,8 @@ export async function saveNotifPrefs(
   prev: NotifPrefsSaveState,
   formData: FormData
 ): Promise<NotifPrefsSaveState> {
-  const session = await auth();
-  if (!session?.user?.id) return { error: "Neautorizat" };
+  const user = await currentUser();
+  if (!user) return { error: "Neautorizat" };
 
   const reminderRaw = formData.get("reminderHour");
   let reminderHour: number | null = null;
@@ -38,7 +38,7 @@ export async function saveNotifPrefs(
 
   try {
     await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: user.id },
       data: parsed.data,
     });
   } catch (err) {

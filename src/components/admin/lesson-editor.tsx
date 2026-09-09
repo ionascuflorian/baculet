@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   BlockNoteEditor,
   BlockNoteSchema,
@@ -21,6 +21,7 @@ import {
   preprocessMath,
   promoteDisplayToEquation,
   resolveMarkers,
+  type Block,
 } from "@/lib/math-bridge";
 
 const schema = BlockNoteSchema.create({
@@ -35,35 +36,23 @@ export function LessonEditor({
   initialMarkdown: string;
   onChange: (markdown: string) => void;
 }) {
-  const [editor, setEditor] = useState<
-    BlockNoteEditor<
-      typeof schema.blockSchema,
-      typeof schema.inlineContentSchema,
-      typeof schema.styleSchema
-    > | null
-  >(null);
-
-  useEffect(() => {
-    const editorInstance = BlockNoteEditor.create({ schema });
+  const [editor] = useState(() => {
+    const instance = BlockNoteEditor.create({ schema });
     if (initialMarkdown.trim()) {
       const { md, eqs } = preprocessMath(initialMarkdown);
-      const blocks = editorInstance.tryParseMarkdownToBlocks(md);
-      const resolved = promoteDisplayToEquation(resolveMarkers(blocks, eqs));
+      const blocks = instance.tryParseMarkdownToBlocks(md);
+      // Granița BlockNote ↔ modulul nostru: blocurile proprietare rămân la
+      // intrare, bridge-ul returnează structura noastră serializabilă.
+      const resolved = promoteDisplayToEquation(resolveMarkers(blocks as unknown as Block[], eqs));
       if (resolved.length > 0) {
-        editorInstance.replaceBlocks(editorInstance.document, resolved);
+        instance.replaceBlocks(
+          instance.document,
+          resolved as unknown as Parameters<typeof instance.replaceBlocks>[1]
+        );
       }
     }
-    setEditor(editorInstance);
-    return () => {
-      (editorInstance as any)._tiptapEditor.destroy();
-    };
-  }, []);
-
-  if (!editor) {
-    return (
-      <div className="h-64 animate-pulse rounded-2xl border-2 border-feather bg-card" />
-    );
-  }
+    return instance;
+  });
 
   return (
     <div className="lesson-editor rounded-2xl border-2 border-[#262626] bg-black">
@@ -72,10 +61,14 @@ export function LessonEditor({
         theme="dark"
         slashMenu={false}
         onChange={() => {
-          const { blocks, eqs } = collectAndMask(editor.document as any);
+          const { blocks, eqs } = collectAndMask(
+            editor.document as unknown as Block[]
+          );
           onChange(
             postprocessMath(
-              editor.blocksToMarkdownLossy(blocks as any),
+              editor.blocksToMarkdownLossy(
+                blocks as unknown as Parameters<typeof editor.blocksToMarkdownLossy>[0]
+              ),
               eqs
             )
           );

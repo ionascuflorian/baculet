@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { after } from "next/server";
-import { auth } from "@/lib/auth";
+import { currentUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { normalizePrefs, visibleWidgets } from "@/lib/dashboard-widgets";
 import { GreetingWidget } from "@/components/dashboard/widget-greeting";
@@ -28,8 +28,9 @@ import { RecapWidget } from "@/components/recap/recap-widget";
 import { getGlobalNextAction } from "@/lib/next-action";
 
 export default async function DashboardPage() {
-  const session = await auth();
-  const userId = session!.user.id;
+  const sessionUser = await currentUser();
+  if (!sessionUser) redirect("/login");
+  const userId = sessionUser.id;
 
   const [user, subjects, completedLessons, recentAttempts, quizCount, todoItems, studyActivities, dueReviews, globalAction, weakMastery, allConcepts] =
     await Promise.all([

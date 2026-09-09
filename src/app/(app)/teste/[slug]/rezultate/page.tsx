@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { currentUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,8 +19,9 @@ export default async function QuizResultsPage({
 }) {
   const { slug } = await params;
   const { attempt: attemptId } = await searchParams;
-  const session = await auth();
-  const userId = session!.user.id;
+  const sessionUser = await currentUser();
+  if (!sessionUser) redirect("/login");
+  const userId = sessionUser!.id;
 
   if (!attemptId) redirect(`/teste/${slug}`);
 

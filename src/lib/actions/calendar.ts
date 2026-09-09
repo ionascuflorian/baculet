@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { currentUser } from "@/lib/access";
 
 export type CalendarState = { error?: string; ok?: boolean };
 
@@ -24,8 +24,8 @@ export interface AddEventInput {
 export async function addCalendarEvent(
   input: AddEventInput
 ): Promise<CalendarState> {
-  const session = await auth();
-  if (!session?.user?.id) return { error: "Neautorizat" };
+  const user = await currentUser();
+  if (!user) return { error: "Neautorizat" };
 
   const title = input.title?.trim();
   const date = toUtcDate(input.date);
@@ -38,7 +38,7 @@ export async function addCalendarEvent(
   try {
     await prisma.calendarEvent.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         title,
         date,
         color: input.color || null,
@@ -53,12 +53,12 @@ export async function addCalendarEvent(
 }
 
 export async function deleteCalendarEvent(id: string): Promise<CalendarState> {
-  const session = await auth();
-  if (!session?.user?.id) return { error: "Neautorizat" };
+  const user = await currentUser();
+  if (!user) return { error: "Neautorizat" };
 
   try {
     await prisma.calendarEvent.deleteMany({
-      where: { id, userId: session.user.id, kind: "USER" },
+      where: { id, userId: user.id, kind: "USER" },
     });
     revalidatePath("/dashboard");
     return { ok: true };

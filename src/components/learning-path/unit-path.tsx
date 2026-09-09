@@ -43,7 +43,7 @@ const statusStyles: Record<string, string> = {
   AVAILABLE: "bg-card border-accent text-accent hover:border-accent/60 hover:shadow-md",
   IN_PROGRESS: "bg-warning/10 border-warning/40 text-warning",
   COMPLETED: "bg-success/10 border-success/40 text-success",
-  MASTERED: "bg-gradient-to-br from-success/20 to-accent/10 border-success text-success",
+  MASTERED: "bg-success/15 border-success/60 text-success",
   NEEDS_REVIEW: "bg-warning/15 border-warning text-warning",
 };
 

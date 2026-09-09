@@ -220,7 +220,7 @@ export function AvatarEditor({
               step={0.05}
               value={zoom}
               onChange={(e) => setZoom(Number(e.target.value))}
-              className="w-full accent-[#0a7cff]"
+              className="w-full accent-[var(--accent)]"
             />
           </label>
           <label className="block">
@@ -235,7 +235,7 @@ export function AvatarEditor({
               step={1}
               value={rotation}
               onChange={(e) => setRotation(Number(e.target.value))}
-              className="w-full accent-[#0a7cff]"
+              className="w-full accent-[var(--accent)]"
             />
           </label>
           <div className="flex items-center gap-2">

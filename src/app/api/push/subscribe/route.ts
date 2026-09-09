@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
+import { currentUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 
@@ -16,8 +16,8 @@ const subscribeSchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const user = await currentUser();
+  if (!user) {
     return NextResponse.json({ error: "Neautorizat" }, { status: 401 });
   }
 
@@ -34,13 +34,13 @@ export async function POST(req: Request) {
     await prisma.pushSubscription.upsert({
       where: { endpoint },
       update: {
-        userId: session.user.id,
+        userId: user.id,
         keys: keysJson,
         enabled: true,
         ...(timezone ? { timezone } : {}),
       },
       create: {
-        userId: session.user.id,
+        userId: user.id,
         endpoint,
         keys: keysJson,
         enabled: true,
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
     // Actualizăm timezone-ul utilizatorului (folosit de cron-ul de streak).
     if (timezone) {
       await prisma.user.update({
-        where: { id: session.user.id },
+        where: { id: user.id },
         data: { timezone },
       });
     }
@@ -64,8 +64,8 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const user = await currentUser();
+  if (!user) {
     return NextResponse.json({ error: "Neautorizat" }, { status: 401 });
   }
 
@@ -77,7 +77,7 @@ export async function DELETE(req: Request) {
 
   try {
     await prisma.pushSubscription.deleteMany({
-      where: { userId: session.user.id, endpoint },
+      where: { userId: user.id, endpoint },
     });
 
     return NextResponse.json({ ok: true });

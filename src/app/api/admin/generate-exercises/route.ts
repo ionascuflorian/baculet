@@ -3,7 +3,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod/v4";
-import { auth } from "@/lib/auth";
+import { currentUser, isAdmin } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { decryptApiKey } from "@/lib/ai-keys";
 
@@ -45,21 +45,21 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
+  const user = await currentUser();
+  if (!user || !isAdmin(user)) {
     return new Response(JSON.stringify({ error: "Neautorizat" }), { status: 401 });
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.id },
     select: { aiProvider: true, aiApiKeyEnc: true },
   });
 
-  const provider = (user?.aiProvider as ProviderName) || "google";
+  const provider = (dbUser?.aiProvider as ProviderName) || "google";
   let apiKey: string | null = null;
-  if (user?.aiApiKeyEnc) {
+  if (dbUser?.aiApiKeyEnc) {
     try {
-      apiKey = decryptApiKey(user.aiApiKeyEnc);
+      apiKey = decryptApiKey(dbUser.aiApiKeyEnc);
     } catch {
       apiKey = null;
     }

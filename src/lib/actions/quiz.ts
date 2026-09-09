@@ -1,7 +1,7 @@
 "use server";
 
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { requireUser } from "@/lib/access";
 import { nextStreak } from "@/lib/streak";
 import { recordStudyActivity } from "@/lib/study-activity";
 import { recordReview } from "@/lib/spaced-repetition";
@@ -11,8 +11,7 @@ export async function submitQuiz(
   quizId: string,
   answers: Record<string, number>
 ): Promise<{ attemptId: string }> {
-  const session = await auth();
-  if (!session?.user) throw new Error("Neautorizat");
+  const user = await requireUser();
 
   const quiz = await prisma.quiz.findUnique({
     where: { id: quizId },
@@ -28,7 +27,7 @@ export async function submitQuiz(
   });
   if (!quiz) throw new Error("Testul nu există");
   if (!quiz.published) throw new Error("Testul nu este disponibil");
-  if (quiz.userId && quiz.userId !== session.user.id)
+  if (quiz.userId && quiz.userId !== user.id)
     throw new Error("Neautorizat");
   if (quiz.questions.length === 0) throw new Error("Testul nu are întrebări");
 
@@ -38,7 +37,7 @@ export async function submitQuiz(
 
   const attempt = await prisma.quizAttempt.create({
     data: {
-      userId: session.user.id,
+      userId: user.id,
       quizId: quiz.id,
       score,
       maxScore: quiz.questions.length,
@@ -46,14 +45,14 @@ export async function submitQuiz(
     },
   });
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.id },
     select: { lastActiveAt: true, streakCount: true },
   });
-  if (user) {
-    const streak = nextStreak(user.lastActiveAt, user.streakCount);
+  if (dbUser) {
+    const streak = nextStreak(dbUser.lastActiveAt, dbUser.streakCount);
     await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: user.id },
       data: {
         lastActiveAt: streak.lastActiveAt,
         streakCount: streak.streakCount,
@@ -61,13 +60,13 @@ export async function submitQuiz(
     });
   }
 
-  await recordStudyActivity(session.user.id);
+  await recordStudyActivity(user.id);
 
   // spaced repetition + mastery: înregistrează fiecare răspuns
   for (const q of quiz.questions) {
     const correct = answers[q.id] === q.correctIndex;
     try {
-      await recordReview(session.user.id, q.id, correct);
+      await recordReview(user.id, q.id, correct);
     } catch (err) {
       console.error("submitQuiz: recordReview failed:", err);
     }
@@ -75,7 +74,7 @@ export async function submitQuiz(
     const conceptId = (q as unknown as { conceptId: string | null }).conceptId;
     if (conceptId) {
       try {
-        await updateConceptMastery(session.user.id, conceptId, correct, 1, { isCheckpoint: false });
+        await updateConceptMastery(user.id, conceptId, correct, 1, { isCheckpoint: false });
       } catch (err) {
         console.error("submitQuiz: mastery update failed:", err);
       }
@@ -83,7 +82,7 @@ export async function submitQuiz(
       // fallback: găsește concept după slug dacă nu are FK
       try {
         const c = await prisma.concept.findFirst({ where: { slug: q.concept } });
-        if (c) await updateConceptMastery(session.user.id, c.id, correct, 1);
+        if (c) await updateConceptMastery(user.id, c.id, correct, 1);
       } catch (err) {
         console.error("submitQuiz: concept fallback failed:", err);
       }

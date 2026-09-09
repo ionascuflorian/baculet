@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, ArrowRight, Video, FileText } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { currentUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,9 +16,9 @@ export default async function LessonPage({
   params: Promise<{ slug: string; chapterSlug: string; lessonSlug: string }>;
 }) {
   const { slug, chapterSlug, lessonSlug } = await params;
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
-  const userId = session.user.id;
+  const sessionUser = await currentUser();
+  if (!sessionUser) redirect("/login");
+  const userId = sessionUser.id;
 
   const chapter = await prisma.chapter.findFirst({
     where: { slug: chapterSlug, subject: { slug } },

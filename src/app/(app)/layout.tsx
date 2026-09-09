@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { currentUser } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { AppShell } from "@/components/app-shell";
 import { ToastProvider } from "@/components/ui/toast";
@@ -9,11 +9,11 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
-  if (!session?.user) redirect("/login");
+  const sessionUser = await currentUser();
+  if (!sessionUser) redirect("/login");
 
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: sessionUser.id },
     select: {
       name: true,
       email: true,

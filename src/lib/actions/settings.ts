@@ -1,9 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { currentUser, isAdmin } from "@/lib/access";
+import { revalidateBacSchedule } from "@/lib/revalidate";
 
 const SETTING_KEY = "bacSchedule";
 
@@ -27,8 +27,8 @@ export async function saveBacSchedule(
   input: z.input<typeof bacScheduleSchema>
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const session = await auth();
-    if (!session?.user || session.user.role !== "ADMIN") {
+    const user = await currentUser();
+    if (!user || !isAdmin(user)) {
       return { ok: false, error: "Acces interzis" };
     }
 
@@ -40,8 +40,7 @@ export async function saveBacSchedule(
       create: { key: SETTING_KEY, value: data },
     });
 
-    revalidatePath("/admin/bac");
-    revalidatePath("/dashboard");
+    revalidateBacSchedule();
     return { ok: true };
   } catch (err) {
     console.error("saveBacSchedule failed:", err);

@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { headers } from "next/headers";
 import { sendSupportEmail } from "@/lib/mail";
-import { feedbackRateLimit } from "@/lib/otp-rate-limit";
+import { feedbackRateLimit, clientIp } from "@/lib/rate-limit";
 
 export type FeedbackState = { error?: string; ok?: boolean };
 
@@ -34,9 +34,7 @@ export async function submitFeedback(
     return { error: "Verifică datele introduse (mesaj de minim 10 caractere)." };
   }
 
-  const h = await headers();
-  const ip =
-    h.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const ip = clientIp(await headers());
   if (!(await feedbackRateLimit(ip))) {
     return {
       error: "Prea multe mesaje. Încearcă din nou în câteva minute.",

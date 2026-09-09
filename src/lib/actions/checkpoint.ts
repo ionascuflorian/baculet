@@ -1,9 +1,9 @@
 "use server";
 
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { requireUser } from "@/lib/access";
 import { updateConceptMastery } from "@/lib/mastery";
-import { revalidatePath } from "next/cache";
+import { revalidateLearning } from "@/lib/revalidate";
 
 export interface CheckpointQuestion {
   id: string;
@@ -26,9 +26,8 @@ export async function submitCheckpoint(
   weakConcepts: { conceptId: string; name: string }[];
   masteryUpdates: { conceptId: string; mastery: number }[];
 }> {
-  const session = await auth();
-  if (!session?.user) throw new Error("Neautorizat");
-  const userId = session.user.id;
+  const user = await requireUser();
+  const userId = user.id;
 
   const checkpoint = await prisma.checkpoint.findUnique({
     where: { slug: checkpointSlug },
@@ -149,10 +148,7 @@ export async function submitCheckpoint(
     return att;
   });
 
-  revalidatePath(`/checkpoint/${checkpointSlug}`);
-  revalidatePath("/materii");
-  revalidatePath("/dashboard");
-  revalidatePath("/progres");
+  revalidateLearning(`/checkpoint/${checkpointSlug}`);
 
   return { attemptId: attempt.id, score, maxScore, pct, weakConcepts, masteryUpdates };
 }

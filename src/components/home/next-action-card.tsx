@@ -32,7 +32,7 @@ export function NextActionCard({ action, progress }: { action: NextAction; progr
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-[1.5rem] border-2 border-accent/20 bg-gradient-to-br from-accent/10 via-accent/5 to-card p-6 shadow-sm"
+      className="rounded-[1.5rem] border-2 border-accent/20 bg-accent/5 p-6 shadow-sm"
     >
       <p className="text-xs font-extrabold uppercase tracking-widest text-accent">{action.meta}</p>
       <div className="mt-1 flex items-start gap-3">
