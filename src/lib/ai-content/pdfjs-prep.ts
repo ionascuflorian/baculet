@@ -11,6 +11,15 @@
 //    unsupported type”. Nefăcând transfer decât clonare, rămâne corect
 //    funcțional și evită eroarea.
 import * as pdfjsWorker from "pdfjs-dist/legacy/build/pdf.worker.mjs";
+import DOMMatrixPolyfill from "dommatrix";
+
+// pdfjs (via pdf-parse ESM) accesează `DOMMatrix` chiar la module-evaluation;
+// Node nu îl expune ca global, iar polyfill-ul din pdfjs sosește prea târziu în
+// ordinea de instanțiere a bundle-ului Turbopack ("ReferenceError: DOMMatrix is
+// not defined" doar pe build-ul de producție). Îl furnizăm noi, dinainte.
+if (!(globalThis as { DOMMatrix?: unknown }).DOMMatrix) {
+  (globalThis as unknown as { DOMMatrix: unknown }).DOMMatrix = DOMMatrixPolyfill;
+}
 
 (globalThis as { pdfjsWorker?: { WorkerMessageHandler: unknown } }).pdfjsWorker = {
   WorkerMessageHandler: pdfjsWorker.WorkerMessageHandler,
