@@ -1,11 +1,9 @@
 import { generateObject } from "ai";
-import { google } from "@ai-sdk/google";
 import { z } from "zod/v4";
 import { currentUser, isAdmin } from "@/lib/access";
+import { resolveSiteModel } from "@/lib/site-ai";
 
 export const dynamic = "force-dynamic";
-
-const MODEL = process.env.SIERA_MODEL || "gemini-3.5-flash-lite";
 
 const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 
@@ -41,8 +39,9 @@ export async function POST(req: Request) {
       : "";
 
   try {
+    const { model } = await resolveSiteModel();
     const { object } = await generateObject({
-      model: google(MODEL),
+      model,
       schema: themeSchema,
       system:
         "Ești un designer de interfețe pentru 'Baculet', o aplicație românească de învățat pentru Bacalaureat. " +

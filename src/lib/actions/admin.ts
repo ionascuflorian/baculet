@@ -17,8 +17,9 @@ function slugify(input: string): string {
 
 // ─── AI settings (per-admin API key) ───────────────────────────
 const aiSettingsSchema = z.object({
-  provider: z.enum(["google", "openai", "anthropic"]).default("google"),
+  provider: z.enum(["google", "openai", "anthropic", "openrouter"]).default("google"),
   apiKey: z.string().min(1),
+  model: z.string().trim().optional().default(""),
 });
 
 export async function saveAiSettings(input: z.input<typeof aiSettingsSchema>) {
@@ -30,6 +31,7 @@ export async function saveAiSettings(input: z.input<typeof aiSettingsSchema>) {
     data: {
       aiProvider: data.provider,
       aiApiKeyEnc: encryptApiKey(data.apiKey),
+      aiModel: data.model || null,
     },
   });
   revalidatePath("/admin/ai");
@@ -40,10 +42,124 @@ export async function clearAiSettings() {
   const user = await requireAdmin();
   await prisma.user.update({
     where: { id: user.id },
-    data: { aiProvider: null, aiApiKeyEnc: null },
+    data: { aiProvider: null, aiApiKeyEnc: null, aiModel: null },
   });
   revalidatePath("/admin/ai");
   return { ok: true };
+}
+
+// ─── Site AI settings (Siera + theme generator, global) ────────
+const siteAiSettingsSchema = z.object({
+  provider: z.enum(["google", "openai", "anthropic", "openrouter"]).default("google"),
+  apiKey: z.string().min(1),
+  model: z.string().trim().min(1, "Scrie modelul dorit."),
+});
+
+export async function saveSiteAiSettings(input: z.input<typeof siteAiSettingsSchema>) {
+  await requireAdmin();
+  const data = siteAiSettingsSchema.parse(input);
+  const { encryptApiKey } = await import("@/lib/ai-keys");
+  await prisma.siteSetting.upsert({
+    where: { key: "siteAiConfig" },
+    update: { value: { provider: data.provider, apiKeyEnc: encryptApiKey(data.apiKey), model: data.model.trim() } },
+    create: { key: "siteAiConfig", value: { provider: data.provider, apiKeyEnc: encryptApiKey(data.apiKey), model: data.model.trim() } },
+  });
+  revalidatePath("/admin/ai");
+  return { ok: true };
+}
+
+export async function clearSiteAiSettings() {
+  await requireAdmin();
+  await prisma.siteSetting.deleteMany({ where: { key: "siteAiConfig" } });
+  revalidatePath("/admin/ai");
+  return { ok: true };
+}
+
+export interface TestAiResult {
+  ok: boolean;
+  ms: number;
+  model: string;
+  error?: string;
+}
+
+export type TestAiProvider = "google" | "openai" | "anthropic" | "openrouter";
+
+export interface TestAiSettingsArgs {
+  provider: TestAiProvider;
+  apiKey: string;
+  model: string;
+}
+
+const testAiSchema = z.object({
+  provider: z.enum(["google", "openai", "anthropic", "openrouter"]).default("google"),
+  apiKey: z.string().optional().default(""),
+  model: z.string().trim().optional().default(""),
+});
+
+// Testează modelul scris în formularul de AI conținut (fără a salva).
+export async function testAiSettings(input: TestAiSettingsArgs): Promise<TestAiResult> {
+  const user = await requireAdmin();
+  const data = testAiSchema.parse(input);
+  const { buildLanguageModel, testLanguageModel } = await import("@/lib/ai-model");
+  const { DEFAULT_MODELS } = await import("@/lib/ai-content/provider");
+  const { decryptApiKey } = await import("@/lib/ai-keys");
+
+  let apiKey = data.apiKey.trim();
+  if (!apiKey && data.provider !== "google") {
+    // Câmpul de cheie gol + config salvat pentru același provider: folosim cheia salvată.
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { aiProvider: true, aiApiKeyEnc: true },
+    });
+    if (dbUser?.aiApiKeyEnc && dbUser.aiProvider === data.provider) {
+      try {
+        apiKey = decryptApiKey(dbUser.aiApiKeyEnc);
+      } catch {
+        apiKey = "";
+      }
+    }
+  }
+  if (!apiKey && data.provider !== "google") {
+    return { ok: false, ms: 0, model: data.model || "-", error: "Introdu cheia API a providerului." };
+  }
+  if (!apiKey) apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY ?? "";
+
+  const modelId = data.model.trim() || DEFAULT_MODELS[data.provider];
+  const test = await testLanguageModel(buildLanguageModel(data.provider, apiKey, modelId));
+  return {
+    ok: test.ok,
+    ms: test.ms,
+    model: modelId,
+    error: test.error,
+  };
+}
+
+// Testează modelul scris în formularul de AI site (fără a salva).
+export async function testSiteAiSettings(input: TestAiSettingsArgs): Promise<TestAiResult> {
+  await requireAdmin();
+  const data = testAiSchema.parse(input);
+  const { buildLanguageModel, testLanguageModel } = await import("@/lib/ai-model");
+  const { readSiteAiConfig } = await import("@/lib/site-ai");
+
+  let apiKey = data.apiKey.trim();
+  if (!apiKey && data.provider !== "google") {
+    // Câmpul de cheie gol + config salvat pentru același provider: folosim cheia salvată.
+    const config = await readSiteAiConfig();
+    if (config?.provider === data.provider) apiKey = config.apiKey;
+  }
+  if (!apiKey && data.provider !== "google") {
+    return { ok: false, ms: 0, model: data.model.trim() || "-", error: "Introdu cheia API a providerului." };
+  }
+  if (!apiKey) apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY ?? "";
+
+  const modelId = data.model.trim() || process.env.SIERA_MODEL || "gemini-3.5-flash-lite";
+  const test = await testLanguageModel(buildLanguageModel(data.provider, apiKey, modelId));
+  return {
+    ok: test.ok,
+    ms: test.ms,
+    model: modelId,
+    error: test.error,
+  };
 }
 
 // ─── Subjects ──────────────────────────────────────────────────

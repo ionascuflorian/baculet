@@ -47,6 +47,36 @@ const MODE_LABELS: Record<SieraMode, string> = {
 const MIN_W = 340;
 const MAX_W = 640;
 
+const FAB_SIZE = 80;
+// Prag de mișcare: sub el considerăm un "tap" (deschide/închide), peste el un drag.
+const FAB_DRAG_THRESHOLD = 5;
+
+const FAB_CORNERS = ["topLeft", "topRight", "bottomRight", "bottomLeft"] as const;
+type FabCorner = (typeof FAB_CORNERS)[number];
+
+interface ViewportInfo {
+  w: number;
+  h: number;
+  safeT: number;
+  safeB: number;
+}
+
+// Citeste dimensiunile viewport-ului + inserele safe-area (pentru marginile
+// de colț pe dispozitive cu notch), măsurate dintr-un element probe.
+function measureViewport(): ViewportInfo {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const probe = document.createElement("div");
+  probe.style.cssText =
+    "position:fixed;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);";
+  document.body.appendChild(probe);
+  const computed = getComputedStyle(probe);
+  const safeT = parseFloat(computed.paddingTop) || 0;
+  const safeB = parseFloat(computed.paddingBottom) || 0;
+  probe.remove();
+  return { w, h, safeT, safeB };
+}
+
 const PANEL_WRAP: Record<SieraMode, string> = {
   sidebar: "fixed inset-y-0 right-0 z-[70]",
   floating: "fixed bottom-6 right-6 z-[70]",
@@ -283,13 +313,34 @@ export function Siera() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [happy, setHappy] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
-  // SSR-safe: valoarea reală se setează în useEffect după mount.
-  const [mobile, setMobile] = useState(false);
+  // Client-only (mounted via dynamic import cu ssr: false) → putem citi media
+  // query direct în initializare; schimbările ulterioare vin din listener-ul de mai jos.
+  const [mobile, setMobile] = useState(() =>
+    typeof window !== "undefined"
+      ? window.matchMedia("(max-width: 767px)").matches
+      : false
+  );
 
   // Mod de afișare pe desktop/tabletă: ales de utilizator (persistat), default
   // tableta → plutitor, desktop → panou lateral.
   const [mode, setMode] = useState<SieraMode>("sidebar");
   const [width, setWidth] = useState<number>(440);
+
+  // Poziția băștii plutitoare: drag manual + snap la cel mai apropiat colț (stil iOS PiP).
+  const [fabCorner, setFabCorner] = useState<FabCorner>("bottomRight");
+  const [vp, setVp] = useState<ViewportInfo>(() => measureViewport());
+  // Offset-ul curent de drag al bulei (null = în repaus, ancorată pe colț).
+  const [fabDrag, setFabDrag] = useState<{ x: number; y: number } | null>(null);
+  const fabMoveRef = useRef<{
+    startPX: number;
+    startPY: number;
+    startLeft: number;
+    startTop: number;
+  } | null>(null);
+  // Mirror al offset-ului curent, pentru a nu depinde de batching-ul React la pointerup.
+  const fabOffsetRef = useRef({ x: 0, y: 0 });
+  // True când utilizatorul a mișcat bula peste prag (drag real, nu tap).
+  const fabDraggedRef = useRef(false);
 
   // Mobile: foaie de jos, la jumătate de ecran, extensibilă prin tragerea barei.
   const [sheetH, setSheetH] = useState<number>(0);
@@ -302,8 +353,6 @@ export function Siera() {
 
   // Citește valorile browser-only o singură dată (după hidratare).
   useEffect(() => {
-    const mq = window.matchMedia("(max-width: 767px)");
-    setMobile(mq.matches);
     setSheetH(Math.round(window.innerHeight * 0.5));
     try {
       const saved = localStorage.getItem("siera:mode");
@@ -318,7 +367,19 @@ export function Siera() {
       }
       const w = Number(localStorage.getItem("siera:w"));
       if (Number.isFinite(w) && w >= MIN_W && w <= MAX_W) setWidth(w);
+      const fab = localStorage.getItem("siera:fab");
+      if (fab && (FAB_CORNERS as readonly string[]).includes(fab)) setFabCorner(fab as FabCorner);
     } catch {}
+  }, []);
+
+  useEffect(() => {
+    const update = () => setVp(measureViewport());
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+    };
   }, []);
 
   useEffect(() => {
@@ -355,6 +416,12 @@ export function Siera() {
       localStorage.setItem("siera:w", String(width));
     } catch {}
   }, [width]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("siera:fab", fabCorner);
+    } catch {}
+  }, [fabCorner]);
 
   const [editorOpen, setEditorOpen] = useState(false);
 
@@ -403,6 +470,104 @@ export function Siera() {
   const greeting = getSieraGreeting(pathname);
 
   const shown = open && !editorOpen;
+
+  const fabMarginX = mobile ? 16 : 24;
+  const fabBottomInset = mobile ? 96 + vp.safeB : 24;
+  const fabTopInset = 16 + vp.safeT;
+  const cornerCenters: Record<FabCorner, { x: number; y: number }> = {
+    topLeft: { x: fabMarginX + FAB_SIZE / 2, y: fabTopInset + FAB_SIZE / 2 },
+    topRight: { x: vp.w - fabMarginX - FAB_SIZE / 2, y: fabTopInset + FAB_SIZE / 2 },
+    bottomLeft: {
+      x: fabMarginX + FAB_SIZE / 2,
+      y: vp.h - fabBottomInset - FAB_SIZE / 2,
+    },
+    bottomRight: {
+      x: vp.w - fabMarginX - FAB_SIZE / 2,
+      y: vp.h - fabBottomInset - FAB_SIZE / 2,
+    },
+  };
+  const fabPos = {
+    topLeft: { left: fabMarginX, top: fabTopInset },
+    topRight: { left: vp.w - FAB_SIZE - fabMarginX, top: fabTopInset },
+    bottomLeft: { left: fabMarginX, top: vp.h - FAB_SIZE - fabBottomInset },
+    bottomRight: { left: vp.w - FAB_SIZE - fabMarginX, top: vp.h - FAB_SIZE - fabBottomInset },
+  }[fabCorner];
+  // Clamp care ține minim 12px din bulă vizibili pe ecran, indiferent de drag.
+  const clampFabDrag = (x: number, y: number) => {
+    const dx = Math.min(Math.max(x, -fabPos.left + 12), vp.w - 12 - fabPos.left);
+    const dy = Math.min(Math.max(y, -fabPos.top + 12), vp.h - 12 - fabPos.top);
+    return { x: dx, y: dy };
+  };
+
+  const handleFabPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    fabMoveRef.current = {
+      startPX: e.clientX,
+      startPY: e.clientY,
+      startLeft: fabPos.left,
+      startTop: fabPos.top,
+    };
+    fabDraggedRef.current = false;
+    fabOffsetRef.current = { x: 0, y: 0 };
+    setFabDrag({ x: 0, y: 0 });
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handleFabPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const start = fabMoveRef.current;
+    if (!start) return;
+    if (e.pointerType === "mouse" && e.buttons === 0) {
+      handleFabPointerUp(e);
+      return;
+    }
+    const raw = { x: e.clientX - start.startPX, y: e.clientY - start.startPY };
+    if (Math.abs(raw.x) + Math.abs(raw.y) > FAB_DRAG_THRESHOLD) {
+      fabDraggedRef.current = true;
+    }
+    const clamped = clampFabDrag(raw.x, raw.y);
+    fabOffsetRef.current = clamped;
+    setFabDrag(clamped);
+  };
+
+  const handleFabPointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const start = fabMoveRef.current;
+    fabMoveRef.current = null;
+    if (!start) return;
+    try {
+      e.currentTarget.releasePointerCapture?.(e.pointerId);
+    } catch {}
+    const offset = fabOffsetRef.current;
+    fabOffsetRef.current = { x: 0, y: 0 };
+    setFabDrag(null);
+    const cx = start.startLeft + offset.x + FAB_SIZE / 2;
+    const cy = start.startTop + offset.y + FAB_SIZE / 2;
+    let best: FabCorner = fabCorner;
+    let bestD = Infinity;
+    for (const c of FAB_CORNERS) {
+      const dx = cx - cornerCenters[c].x;
+      const dy = cy - cornerCenters[c].y;
+      const d = dx * dx + dy * dy;
+      if (d < bestD) {
+        bestD = d;
+        best = c;
+      }
+    }
+    setFabCorner(best);
+  };
+
+  const handleFabPointerCancel = () => {
+    fabMoveRef.current = null;
+    fabOffsetRef.current = { x: 0, y: 0 };
+    setFabDrag(null);
+  };
+
+  const handleFabClick = () => {
+    if (fabDraggedRef.current) {
+      fabDraggedRef.current = false;
+      return;
+    }
+    setOpen((v) => !v);
+  };
 
   // Companion pe desktop: doar în modul sidebar site-ul cedează lățimea panoului.
   useEffect(() => {
@@ -764,27 +929,53 @@ export function Siera() {
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {!shown && !editorOpen && (
-          <motion.button
-            key="fab"
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            whileHover={{ scale: 1.06 }}
-            whileTap={{ scale: 0.94 }}
-            transition={{ type: "spring", stiffness: 300, damping: 22 }}
-            onClick={() => setOpen((v) => !v)}
-            title={open ? "Închide Siera" : "Deschide Siera"}
-            aria-label={open ? "Închide Siera" : "Deschide Siera"}
-            className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-4 z-[70] md:bottom-6 md:right-6"
+       {!shown && !editorOpen && (
+          <div
+            className="fixed z-[70]"
+            style={{
+              left: fabPos.left,
+              top: fabPos.top,
+              transition: fabDrag
+                ? "none"
+                : "left 0.38s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.38s cubic-bezier(0.34, 1.56, 0.64, 1)",
+            }}
           >
-            <div className="h-20 w-20">
-              <SieraOrb mood={mood} gaze={gaze} className="h-full w-full" />
+            <div
+              style={{
+                width: FAB_SIZE,
+                height: FAB_SIZE,
+                touchAction: "none",
+                transform: fabDrag
+                  ? `translate(${fabDrag.x}px, ${fabDrag.y}px)`
+                  : "none",
+                transition: fabDrag
+                  ? "none"
+                  : "transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1)",
+              }}
+            >
+              <motion.button
+                type="button"
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 300, damping: 22 }}
+                whileHover={{ scale: 1.06 }}
+                whileTap={{ scale: 0.94 }}
+                onClick={handleFabClick}
+                onPointerDown={handleFabPointerDown}
+                onPointerMove={handleFabPointerMove}
+                onPointerUp={handleFabPointerUp}
+                onPointerCancel={handleFabPointerCancel}
+                title={open ? "Închide Siera" : "Deschide Siera"}
+                aria-label={open ? "Închide Siera" : "Deschide Siera"}
+                className="block h-full w-full cursor-grab select-none active:cursor-grabbing"
+              >
+                <div className="h-full w-full pointer-events-none">
+                  <SieraOrb mood={mood} gaze={gaze} className="h-full w-full" />
+                </div>
+              </motion.button>
             </div>
-          </motion.button>
+          </div>
         )}
-      </AnimatePresence>
     </>
   );
 }

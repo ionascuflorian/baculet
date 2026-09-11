@@ -78,6 +78,7 @@ model User {
   reminderSentOn DateTime?
   aiProvider    String?
   aiApiKeyEnc   String?
+  aiModel       String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -95,6 +96,8 @@ model User {
   checkpointAttempts  CheckpointAttempt[]
   following           Follow[] @relation("Follower")
   followers           Follow[] @relation("Following")
+  uploadedSources     ContentSource[] @relation("UploadedSources")
+  contentActivities   ProjectActivity[] @relation("ContentActivities")
 }
 
 // Urmărire unidirecțională: `follower` urmărește `following`.
@@ -167,6 +170,7 @@ model Subject {
   quizzes       Quiz[]
   exams         OfficialExam[]
   subjectProfiles SubjectProfile[]
+  contentProjects ContentProject[]
 }
 
 model SubjectProfile {
@@ -540,4 +544,230 @@ model StudyActivity {
 
   @@unique([userId, date])
   @@index([userId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Băculeț Content Studio (AI Content) — modele de STAGING.
+//
+// Aceste modele NU sunt conținut educațional live. Ele reprezintă un workflow
+// de producție: proiecte de conținut, surse analizate, planuri de curriculum
+// draft, draft-uri de lecții/quiz-uri/checkpoint-uri și jobs de generare.
+// Publicarea copiază draft-urile aprobate în modelele educaționale existente
+// (Subject/Chapter/Unit/Lesson/LessonStep/Concept/Quiz/Question/Checkpoint).
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Workflow partajat între proiect și itemi. Pentru proiect: DRAFT/ANALYZING/
+// READY_FOR_REVIEW marchează faza de analiză a surselor; GENERATING/VALIDATING/
+// NEEDS_REVIEW/APPROVED/PUBLISHED marchează producția. FAILED la fel pentru ambele.
+enum ContentWorkflowStatus {
+  DRAFT
+  ANALYZING
+  READY_FOR_REVIEW
+  GENERATING
+  VALIDATING
+  NEEDS_REVIEW
+  APPROVED
+  PUBLISHED
+  FAILED
+}
+
+enum ContentSourceStatus {
+  UPLOADED
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum SourcePriority {
+  OFFICIAL
+  HIGH
+  NORMAL
+  REFERENCE
+}
+
+enum CurriculumNodeKind {
+  CHAPTER
+  UNIT
+  CONCEPT
+}
+
+enum ContentItemType {
+  LESSON
+  QUIZ
+  CHECKPOINT
+}
+
+enum GenerationJobKind {
+  SOURCE_PROCESS
+  CURRICULUM
+  LESSON
+  QUIZ
+  CHECKPOINT
+  VALIDATION
+}
+
+enum GenerationJobStatus {
+  QUEUED
+  RUNNING
+  DONE
+  FAILED
+}
+
+model ContentProject {
+  id          String                @id @default(cuid())
+  name        String
+  subjectId   String
+  bacYear     Int?
+  examType    String? // SUMMER / AUTUMN / SPECIAL (per sesiune BAC)
+  description String?
+  status      ContentWorkflowStatus @default(DRAFT)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  subject    Subject           @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  sources    ContentSource[]
+  nodes      CurriculumNode[]
+  items      ContentItem[]
+  jobs       GenerationJob[]
+  activities ProjectActivity[]
+  chunks     ContentChunk[]
+
+  @@index([subjectId])
+  @@index([status])
+}
+
+model ContentSource {
+  id           String             @id @default(cuid())
+  projectId    String
+  originalName String
+  storageKey   String // url semnat Vercel Blob
+  mime         String // application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, text/plain, text/markdown
+  size         Int
+  priority     SourcePriority     @default(NORMAL)
+  status       ContentSourceStatus @default(UPLOADED)
+  pageCount    Int?
+  charCount    Int?
+  error        String?
+  uploadedById String? // admin care a urcat sursa
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  project    ContentProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploadedBy User?          @relation("UploadedSources", fields: [uploadedById], references: [id], onDelete: SetNull)
+  chunks     ContentChunk[]
+
+  @@index([projectId])
+  @@index([status])
+}
+
+model ContentChunk {
+  id         String   @id @default(cuid())
+  sourceId   String
+  projectId  String // denormalizat pentru căutare rapidă pe proiect
+  page       Int?
+  section    String?
+  text       String
+  tokenCount Int?
+  embedding  Json? // vector Float[] pt. cosine similarity
+  createdAt  DateTime @default(now())
+
+  source  ContentSource  @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  project ContentProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([sourceId])
+  @@index([page])
+}
+
+model CurriculumNode {
+  id          String             @id @default(cuid())
+  projectId   String
+  kind        CurriculumNodeKind
+  parentId    String? // arbore: Chapter → Unit → Concept
+  title       String
+  slug        String?
+  description String?
+  order       Int                @default(0)
+  evidence    Json? // [{ sourceId, page, chunkId }] — de unde provine
+  mappedId    String? // id-ul obiectului live (Chapter/Unit/Concept) dacă s-a făcut dedupe
+  manual      Boolean            @default(false) // editările manuale supraviețuiesc regenerărilor
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  project  ContentProject    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parent   CurriculumNode?   @relation("NodeTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children CurriculumNode[]  @relation("NodeTree")
+  items    ContentItem[]
+
+  @@index([projectId, parentId])
+  @@index([projectId, kind])
+}
+
+model ContentItem {
+  id                 String               @id @default(cuid())
+  projectId          String
+  nodeId             String? // CurriculumNode (unit/chapter) căreia aparține
+  type               ContentItemType
+  status             ContentWorkflowStatus @default(DRAFT)
+  title              String
+  draft              Json // payload tipărit: lesson { steps[] }, quiz { questions[] }, checkpoint { title, quizTitle, questions[] }
+  validation         Json? // rezultatul validatorului AI (score, issues, suggestions)
+  version            Int                  @default(1)
+  versions           Json                 @default("[]") // [{ version, at, draft, note }]
+  sourceRefs         Json                 @default("[]") // [{ sourceId, page, chunkId }]
+  note               String? // nota admin
+  targetChapterId    String? // unde a ajuns la publish
+  targetUnitId       String?
+  targetLessonId     String?
+  targetQuizId       String?
+  targetCheckpointId String?
+  publishedAt        DateTime?
+  approvedById       String?
+  approvedAt         DateTime?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  project ContentProject  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  node    CurriculumNode? @relation(fields: [nodeId], references: [id], onDelete: SetNull)
+  jobs    GenerationJob[]
+
+  @@index([projectId])
+  @@index([projectId, status])
+  @@index([nodeId])
+}
+
+model ProjectActivity {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  action    String
+  detail    Json?
+  createdAt DateTime @default(now())
+
+  project ContentProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User           @relation("ContentActivities", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([projectId, createdAt])
+}
+
+model GenerationJob {
+  id         String               @id @default(cuid())
+  projectId  String?
+  itemId     String? // ContentItem legat (kind LESSON/QUIZ/CHECKPOINT/VALIDATION)
+  userId     String
+  kind       GenerationJobKind
+  status     GenerationJobStatus @default(QUEUED)
+  params     Json
+  result     Json?
+  error      String?
+  attempts   Int                  @default(0) // max 2 retry pe erori tranzitorii
+  createdAt  DateTime             @default(now())
+  startedAt  DateTime?
+  finishedAt DateTime?
+
+  project ContentProject? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  item    ContentItem?    @relation(fields: [itemId], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@index([status])
 }

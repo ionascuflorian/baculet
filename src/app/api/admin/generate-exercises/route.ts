@@ -21,18 +21,25 @@ const exercisesSchema = z.object({
   questions: z.array(questionSchema).min(1),
 });
 
-type ProviderName = "google" | "openai" | "anthropic";
+type ProviderName = "google" | "openai" | "anthropic" | "openrouter";
 
-function getModel(provider: ProviderName, apiKey: string) {
+const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+
+function getModel(provider: ProviderName, apiKey: string, modelId?: string | null) {
+  const model = modelId?.trim() || null;
   switch (provider) {
+    case "openrouter":
+      return createOpenAI({ apiKey, baseURL: OPENROUTER_BASE_URL })(
+        model ?? "openai/gpt-4o-mini"
+      );
     case "openai":
-      return createOpenAI({ apiKey })("gpt-4o-mini");
+      return createOpenAI({ apiKey })(model ?? "gpt-4o-mini");
     case "anthropic":
-      return createAnthropic({ apiKey })("claude-3-5-haiku-latest");
+      return createAnthropic({ apiKey })(model ?? "claude-3-5-haiku-latest");
     case "google":
     default:
       return createGoogleGenerativeAI({ apiKey })(
-        process.env.SIERA_MODEL || "gemini-3.5-flash-lite"
+        model ?? (process.env.SIERA_MODEL || "gemini-3.5-flash-lite")
       );
   }
 }
@@ -52,10 +59,11 @@ export async function POST(req: Request) {
 
   const dbUser = await prisma.user.findUnique({
     where: { id: user.id },
-    select: { aiProvider: true, aiApiKeyEnc: true },
+    select: { aiProvider: true, aiApiKeyEnc: true, aiModel: true },
   });
 
   const provider = (dbUser?.aiProvider as ProviderName) || "google";
+  const modelId = dbUser?.aiModel ?? null;
   let apiKey: string | null = null;
   if (dbUser?.aiApiKeyEnc) {
     try {
@@ -101,7 +109,7 @@ export async function POST(req: Request) {
 
   try {
     const { object } = await generateObject({
-      model: getModel(provider, apiKey),
+      model: getModel(provider, apiKey, modelId),
       schema: exercisesSchema,
       system:
         "Ești un profesor român de bacalaureat. Creezi exerciții de fixare pentru lecțiile de la școală. " +

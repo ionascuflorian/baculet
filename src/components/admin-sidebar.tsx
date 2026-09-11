@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   LayoutDashboard,
   BookOpen,
@@ -14,6 +14,7 @@ import {
   ArrowLeft,
   Loader2,
   Sparkles,
+  Wand2,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
@@ -26,6 +27,7 @@ const links = [
   { href: "/admin/bac", label: "Calendar BAC", icon: CalendarDays },
   { href: "/admin/teme", label: "Teme", icon: Palette },
   { href: "/admin/ai", label: "AI", icon: Sparkles },
+  { href: "/admin/ai-content", label: "AI Content Studio", icon: Wand2 },
   { href: "/admin/utilizatori", label: "Utilizatori", icon: Users },
 ];
 
@@ -34,9 +36,6 @@ export function AdminSidebar() {
 
   // Link apăsat: feedback instant că navigarea a început, înainte să se încarce pagina.
   const [pending, setPending] = useState<string | null>(null);
-  useEffect(() => {
-    setPending(null);
-  }, [pathname]);
 
   return (
     <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col border-r border-feather bg-card px-4 py-6">
@@ -52,7 +51,7 @@ export function AdminSidebar() {
           const active =
             link.href === "/admin"
               ? pathname === "/admin"
-              : pathname.startsWith(link.href);
+              : pathname === link.href || pathname.startsWith(link.href + "/");
           return (
             <Link
               key={link.href}
@@ -68,7 +67,7 @@ export function AdminSidebar() {
             >
               <link.icon className="h-4 w-4" />
               {link.label}
-              {pending === link.href && (
+              {!active && pending === link.href && (
                 <Loader2 className="ml-auto h-4 w-4 shrink-0 animate-spin" />
               )}
             </Link>
@@ -83,7 +82,7 @@ export function AdminSidebar() {
       >
         <ArrowLeft className="h-4 w-4" />
         Înapoi la aplicație
-        {pending === "/dashboard" && (
+        {pathname !== "/dashboard" && pending === "/dashboard" && (
           <Loader2 className="ml-auto h-4 w-4 shrink-0 animate-spin" />
         )}
       </Link>

@@ -53,5 +53,5 @@ next-env.d.ts
 
 /src/generated/prisma
 
-.vercel
-.env*
+# local dev storage (content studio uploads fallback)
+/.content-studio/

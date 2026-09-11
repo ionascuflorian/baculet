@@ -8,16 +8,14 @@ import {
   isStepCount,
   type UIMessage,
 } from "ai";
-import { google } from "@ai-sdk/google";
 import { z } from "zod/v4";
 import { currentUser } from "@/lib/access";
 import { searchSiteContent, getPageContext } from "@/lib/siera/site";
 import { checkRateLimit, consumeRateLimit } from "@/lib/rate-limit";
 import { createQuizForUser } from "@/lib/siera/create-quiz";
+import { resolveSiteModel } from "@/lib/site-ai";
 
 export const dynamic = "force-dynamic";
-
-const MODEL = process.env.SIERA_MODEL || "gemini-3.5-flash-lite";
 
 export async function POST(req: Request) {
   const user = await currentUser();
@@ -108,8 +106,10 @@ export async function POST(req: Request) {
       .filter(Boolean)
       .join("\n\n");
 
+    const { model } = await resolveSiteModel();
+
     const result = streamText({
-      model: google(MODEL),
+      model,
       system,
       messages: await convertToModelMessages(messages),
       tools: {
