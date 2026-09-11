@@ -1,13 +1,16 @@
 import { currentUser, isAdmin } from "@/lib/access";
 import { prisma } from "@/lib/db";
-import { ALLOWED_MIMES } from "@/lib/ai-content/extract";
-import { storeSourceFile } from "@/lib/ai-content/storage";
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
+import {
+  ALLOWED_MIMES,
+  MAX_SOURCE_SIZE,
+  SOURCE_PRIORITIES,
+} from "@/lib/ai-content/mimes";
+import type { HandleUploadBody } from "@vercel/blob/client";
 
 export const dynamic = "force-dynamic";
 
-const MAX_FILE_SIZE = 25 * 1024 * 1024;
-const PRIORITIES = ["OFFICIAL", "HIGH", "NORMAL", "REFERENCE"] as const;
+const MAX_FILE_SIZE = MAX_SOURCE_SIZE;
+const PRIORITIES = SOURCE_PRIORITIES;
 
 function safeName(name: unknown): string {
   const base = String(name || "sursa")
@@ -73,6 +76,7 @@ async function handleBlobUpload(
     return new Response(JSON.stringify({ error: "Proiect inexistent." }), { status: 404 });
   }
 
+  const { handleUpload } = await import("@vercel/blob/client");
   const res = await handleUpload({
     token: process.env.BLOB_READ_WRITE_TOKEN,
     request: req,
@@ -133,6 +137,7 @@ async function handleMultipartUpload(req: Request): Promise<Response> {
   const data = Buffer.from(await file.arrayBuffer());
 
   try {
+    const { storeSourceFile } = await import("@/lib/ai-content/storage");
     const { storageKey } = await storeSourceFile({ data, mimeType: mime, fileName });
     const source = await prisma.contentSource.create({
       data: {

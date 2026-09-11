@@ -6,6 +6,10 @@ import "@/lib/ai-content/pdfjs-prep";
 import { PDFParse } from "pdf-parse";
 import * as mammoth from "mammoth";
 
+import { ALLOWED_MIMES } from "@/lib/ai-content/mimes";
+
+export { ALLOWED_MIMES };
+
 export interface ExtractedParagraph {
   text: string;
   page?: number;
@@ -16,13 +20,6 @@ export interface ExtractResult {
   pageCount: number;
   charCount: number;
 }
-
-export const ALLOWED_MIMES: Record<string, string> = {
-  "application/pdf": "pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
-  "text/plain": "txt",
-  "text/markdown": "md",
-};
 
 function isAllowedMime(mime: string): boolean {
   return mime in ALLOWED_MIMES;

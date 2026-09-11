@@ -1,12 +1,15 @@
 import { currentUser, isAdmin } from "@/lib/access";
 import { prisma } from "@/lib/db";
-import { ALLOWED_MIMES } from "@/lib/ai-content/extract";
-import { head } from "@vercel/blob";
+import {
+  ALLOWED_MIMES,
+  MAX_SOURCE_SIZE,
+  SOURCE_PRIORITIES,
+} from "@/lib/ai-content/mimes";
 
 export const dynamic = "force-dynamic";
 
-const MAX_FILE_SIZE = 25 * 1024 * 1024;
-const PRIORITIES = ["OFFICIAL", "HIGH", "NORMAL", "REFERENCE"] as const;
+const MAX_FILE_SIZE = MAX_SOURCE_SIZE;
+const PRIORITIES = SOURCE_PRIORITIES;
 
 function safeName(name: unknown): string {
   const base = String(name || "sursa")
@@ -53,6 +56,7 @@ export async function POST(req: Request) {
 
   let meta;
   try {
+    const { head } = await import("@vercel/blob");
     meta = await head(url);
   } catch {
     return new Response(
