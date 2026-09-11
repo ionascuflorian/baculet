@@ -2,12 +2,14 @@ import { currentUser, isAdmin } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { ALLOWED_MIMES } from "@/lib/ai-content/extract";
 import { storeSourceFile } from "@/lib/ai-content/storage";
+import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 
 export const dynamic = "force-dynamic";
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
+const PRIORITIES = ["OFFICIAL", "HIGH", "NORMAL", "REFERENCE"] as const;
 
-function safeName(name: string): string {
+function safeName(name: unknown): string {
   const base = String(name || "sursa")
     .split(/[\\/]/)
     .pop()
@@ -15,7 +17,81 @@ function safeName(name: string): string {
   return base || "sursa";
 }
 
-export async function POST(req: Request) {
+function priorityOf(raw: unknown): (typeof PRIORITIES)[number] {
+  const v = String(raw || "NORMAL").toUpperCase();
+  return (PRIORITIES as readonly string[]).includes(v) ? (v as (typeof PRIORITIES)[number]) : "NORMAL";
+}
+
+function parseClientPayload(payload: string | null | undefined): { projectId: string; priority: string } | null {
+  if (!payload) return null;
+  try {
+    const o = JSON.parse(payload) as { projectId?: unknown; priority?: unknown };
+    return {
+      projectId: String(o.projectId || "").slice(0, 200),
+      priority: String(o.priority || "NORMAL"),
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ── Upload direct din client la Vercel Blob ────────────────────────────────
+// Clientul cere aici un "client token" (payload JSON), apoi trimite fișierul
+// direct la Blob — nu trece prin serverless function, deci nici limita de
+// 4.5 MB a Vercel nu se aplică. Înregistrarea în DB o face clientul după
+// upload, printr-un apel separat autentificat (ruta /register).
+async function handleBlobUpload(
+  req: Request,
+  body: HandleUploadBody
+): Promise<Response> {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    return new Response(
+      JSON.stringify({ error: "Vercel Blob nu e configurat. Adaugă BLOB_READ_WRITE_TOKEN în variabilele de mediu." }),
+      { status: 503 }
+    );
+  }
+
+  if (body.type !== "blob.generate-client-token") {
+    // Nu folosim webhook-ul de completare (callback URL nepus) — înregistrarea
+    // în DB o face clientul după upload, prin ruta /register. Doar ack.
+    return Response.json({ type: body.type, response: "ok" });
+  }
+
+  const user = await currentUser();
+  if (!user || !isAdmin(user)) {
+    return new Response(JSON.stringify({ error: "Neautorizat" }), { status: 401 });
+  }
+  const info = parseClientPayload(body.payload?.clientPayload);
+  if (!info || !info.projectId) {
+    return new Response(JSON.stringify({ error: "Cerere invalidă: lipsește proiectul." }), { status: 400 });
+  }
+  const project = await prisma.contentProject.findUnique({
+    where: { id: info.projectId },
+    select: { id: true },
+  });
+  if (!project) {
+    return new Response(JSON.stringify({ error: "Proiect inexistent." }), { status: 404 });
+  }
+
+  const res = await handleUpload({
+    token: process.env.BLOB_READ_WRITE_TOKEN,
+    request: req,
+    body,
+    onBeforeGenerateToken: async () => ({
+      allowedContentTypes: [...Object.keys(ALLOWED_MIMES), "text/*"],
+      maximumSizeInBytes: MAX_FILE_SIZE,
+      addRandomSuffix: true,
+      validUntil: Date.now() + 30 * 60 * 1000,
+    }),
+  });
+  return Response.json(res);
+}
+
+// ── Upload server-side (fallback local, fără Blob) ─────────────────────────
+// Folosit doar când BLOB_READ_WRITE_TOKEN lipsește (dev local): fișierul e
+// stocat pe disc în .content-studio/ (gitignored). Pe Vercel nu trebuie să
+// apară — acolo clientul folosește direct upload-ul la Blob.
+async function handleMultipartUpload(req: Request): Promise<Response> {
   const user = await currentUser();
   if (!user || !isAdmin(user)) {
     return new Response(JSON.stringify({ error: "Neautorizat" }), { status: 401 });
@@ -29,11 +105,6 @@ export async function POST(req: Request) {
   }
 
   const projectId = String(form.get("projectId") || "").slice(0, 200);
-  const priorityRaw = String(form.get("priority") || "NORMAL").toUpperCase();
-  const priority = ["OFFICIAL", "HIGH", "NORMAL", "REFERENCE"].includes(priorityRaw)
-    ? priorityRaw
-    : "NORMAL";
-
   const project = await prisma.contentProject.findUnique({
     where: { id: projectId },
     select: { id: true },
@@ -47,18 +118,13 @@ export async function POST(req: Request) {
     return new Response(JSON.stringify({ error: "Lipsește fișierul." }), { status: 400 });
   }
   if (file.size > MAX_FILE_SIZE) {
-    return new Response(
-      JSON.stringify({ error: "Fișierul depășește 25 MB." }),
-      { status: 413 }
-    );
+    return new Response(JSON.stringify({ error: "Fișierul depășește 25 MB." }), { status: 413 });
   }
 
   const mime = file.type.trim().toLowerCase();
   if (!(mime in ALLOWED_MIMES)) {
     return new Response(
-      JSON.stringify({
-        error: "Tip de fișier neacceptat. Folosește PDF, DOCX, TXT sau Markdown.",
-      }),
+      JSON.stringify({ error: "Tip de fișier neacceptat. Folosește PDF, DOCX, TXT sau Markdown." }),
       { status: 400 }
     );
   }
@@ -67,11 +133,7 @@ export async function POST(req: Request) {
   const data = Buffer.from(await file.arrayBuffer());
 
   try {
-    const { storageKey } = await storeSourceFile({
-      data,
-      mimeType: mime,
-      fileName,
-    });
+    const { storageKey } = await storeSourceFile({ data, mimeType: mime, fileName });
     const source = await prisma.contentSource.create({
       data: {
         projectId,
@@ -79,7 +141,7 @@ export async function POST(req: Request) {
         storageKey,
         mime,
         size: file.size,
-        priority: priority as "OFFICIAL" | "HIGH" | "NORMAL" | "REFERENCE",
+        priority: priorityOf(form.get("priority")),
         status: "UPLOADED",
         uploadedById: user.id,
       },
@@ -93,4 +155,26 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
+}
+
+export async function POST(req: Request) {
+  const contentType = req.headers.get("content-type") || "";
+  if (!contentType.includes("multipart/form-data")) {
+    let body: HandleUploadBody;
+    try {
+      body = (await req.json()) as HandleUploadBody;
+    } catch {
+      return new Response(JSON.stringify({ error: "Cerere JSON invalidă." }), { status: 400 });
+    }
+    try {
+      return await handleBlobUpload(req, body);
+    } catch (err) {
+      console.error("ai-content blob token error:", err);
+      return new Response(
+        JSON.stringify({ error: "Nu am putut genera token-ul de upload. Verifică Vercel Blob." }),
+        { status: 500 }
+      );
+    }
+  }
+  return handleMultipartUpload(req);
 }

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+import { upload as blobUpload } from "@vercel/blob/client";
 import {
   Check,
   Eye,
@@ -378,6 +379,21 @@ function SourcesTab({
   const busy = (kind: string, id?: string) => pending === kind && (!id || pendingId === id);
   const fileInput = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  // True dacă Vercel Blob e configurat → upload direct la Blob (fără limita de 4.5 MB).
+  const [blobReady, setBlobReady] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/admin/ai-content/storage")
+      .then((r) => r.json().catch(() => ({})))
+      .then((d) => {
+        if (alive) setBlobReady(Boolean(d?.blob));
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const upload = async () => {
     if (!file) {
@@ -385,21 +401,54 @@ function SourcesTab({
       return;
     }
     setPending("upload");
-    const form = new FormData();
-    form.append("projectId", project.id);
-    form.append("priority", priority);
-    form.append("file", file);
-    const res = await fetch("/api/admin/ai-content/upload", { method: "POST", body: form });
-    const body = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
-    setPending("none");
-    if (!res.ok || !body.ok) {
-      showToast(body.error || "Upload eșuat.");
-      return;
+    try {
+      if (blobReady) {
+        // Upload direct la Vercel Blob: fișierul nu trece prin serverless function.
+        const blob = await blobUpload(
+          `content-studio/${project.id}/${file.name}`,
+          file,
+          {
+            access: "public",
+            handleUploadUrl: "/api/admin/ai-content/upload",
+            clientPayload: JSON.stringify({ projectId: project.id, priority }),
+          }
+        );
+        // După ce Blob a primit fișierul, înregistrăm sursa în DB (validare head() server-side).
+        const reg = await fetch("/api/admin/ai-content/upload/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: blob.url,
+            projectId: project.id,
+            priority,
+            originalName: file.name,
+          }),
+        });
+        const regBody = (await reg.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+        if (!reg.ok || !regBody.ok) {
+          throw new Error(regBody.error || "Înregistrarea sursei a eșuat.");
+        }
+      } else {
+        // Fallback local (dezvoltare fără BLOB_READ_WRITE_TOKEN): upload server-side.
+        const form = new FormData();
+        form.append("projectId", project.id);
+        form.append("priority", priority);
+        form.append("file", file);
+        const res = await fetch("/api/admin/ai-content/upload", { method: "POST", body: form });
+        const body = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+        if (!res.ok || !body.ok) {
+          throw new Error(body.error || "Upload eșuat.");
+        }
+      }
+      showToast("Sursă încărcată.");
+      setFile(null);
+      if (fileInput.current) fileInput.current.value = "";
+      router.refresh();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Upload eșuat.");
+    } finally {
+      setPending("none");
     }
-    showToast("Sursă încărcată.");
-    setFile(null);
-    if (fileInput.current) fileInput.current.value = "";
-    router.refresh();
   };
 
   const analyze = async (sourceId: string) => {
