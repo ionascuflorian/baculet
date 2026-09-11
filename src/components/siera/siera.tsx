@@ -50,6 +50,19 @@ const MAX_W = 640;
 const FAB_SIZE = 80;
 // Prag de mișcare: sub el considerăm un "tap" (deschide/închide), peste el un drag.
 const FAB_DRAG_THRESHOLD = 5;
+// Rezistență lângă margini: când bula e împinsă dincolo de poziția "complet
+// vizibilă", mișcarea e atenuată la 30% (senzație de "cauciuc", iOS-like). Prag
+// dur: minim 12px din bulă rămân vizibili, deci nu iese niciodată din viewport.
+const FAB_EDGE_RESISTANCE = 0.3;
+
+// Spring physics (stil iOS PiP) pentru snap-ul bulei: animatie pe transform-ul
+// div-ului interior, integrata in requestAnimationFrame. Critic amortizat
+// (zes < 1) => glide lin pana se opreste pe colt, fara overshoot/bounce.
+// Facem EXPLICIT fara injectare de viteza la release: bula porneste din punctul
+// de drop si aluneca doar cat e distanta pana la colt — predictibil, nu "fuge".
+const FAB_SPRING = { stiffness: 220, damping: 30 };
+// Depun 0.01s: viteza sub care consideram bula oprita (px/step de integrare).
+const FAB_STOP_SPEED = 0.01;
 
 const FAB_CORNERS = ["topLeft", "topRight", "bottomRight", "bottomLeft"] as const;
 type FabCorner = (typeof FAB_CORNERS)[number];
@@ -103,6 +116,10 @@ const MODE_MOTION: Record<
     exit: { scale: 0.985, opacity: 0 },
   },
 };
+
+// Timestamp curent (module-scope): evita flagarea react-hooks/purity pentru
+// apeluri impure direct in handler-ele definite in timpul render-ului.
+const perfNow = () => performance.now();
 
 function clampWidth(v: number): number {
   if (typeof window === "undefined") return v;
@@ -327,20 +344,43 @@ export function Siera() {
   const [width, setWidth] = useState<number>(440);
 
   // Poziția băștii plutitoare: drag manual + snap la cel mai apropiat colț (stil iOS PiP).
-  const [fabCorner, setFabCorner] = useState<FabCorner>("bottomRight");
+  // Componenta e client-only (dynamic import, ssr: false) → localStorage poate fi
+  // citit sincron la init (același pattern ca measureViewport mai jos).
+  const [fabCorner, setFabCorner] = useState<FabCorner>(() => {
+    try {
+      const fab = localStorage.getItem("siera:fab");
+      if (fab && (FAB_CORNERS as readonly string[]).includes(fab)) return fab as FabCorner;
+    } catch {}
+    return "bottomRight";
+  });
   const [vp, setVp] = useState<ViewportInfo>(() => measureViewport());
   // Offset-ul curent de drag al bulei (null = în repaus, ancorată pe colț).
-  const [fabDrag, setFabDrag] = useState<{ x: number; y: number } | null>(null);
   const fabMoveRef = useRef<{
     startPX: number;
     startPY: number;
     startLeft: number;
     startTop: number;
+    baseX: number;
+    baseY: number;
   } | null>(null);
   // Mirror al offset-ului curent, pentru a nu depinde de batching-ul React la pointerup.
   const fabOffsetRef = useRef({ x: 0, y: 0 });
   // True când utilizatorul a mișcat bula peste prag (drag real, nu tap).
   const fabDraggedRef = useRef(false);
+  // Motorul spring (null = în repaus): `x/y` offset curent, `vx/vy` viteza (px/s),
+  // `tx/ty` tinta. Ruleaza doar intre release si asezarea pe colt.
+  const fabSpringRef = useRef<{
+    raf: number;
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    tx: number;
+    ty: number;
+    last: number;
+  } | null>(null);
+  // Div-ul interior al bulei; transform-ul lui e singura chestie animata.
+  const fabInnerRef = useRef<HTMLDivElement>(null);
 
   // Mobile: foaie de jos, la jumătate de ecran, extensibilă prin tragerea barei.
   const [sheetH, setSheetH] = useState<number>(0);
@@ -367,8 +407,6 @@ export function Siera() {
       }
       const w = Number(localStorage.getItem("siera:w"));
       if (Number.isFinite(w) && w >= MIN_W && w <= MAX_W) setWidth(w);
-      const fab = localStorage.getItem("siera:fab");
-      if (fab && (FAB_CORNERS as readonly string[]).includes(fab)) setFabCorner(fab as FabCorner);
     } catch {}
   }, []);
 
@@ -486,30 +524,133 @@ export function Siera() {
       y: vp.h - fabBottomInset - FAB_SIZE / 2,
     },
   };
-  const fabPos = {
-    topLeft: { left: fabMarginX, top: fabTopInset },
-    topRight: { left: vp.w - FAB_SIZE - fabMarginX, top: fabTopInset },
-    bottomLeft: { left: fabMarginX, top: vp.h - FAB_SIZE - fabBottomInset },
-    bottomRight: { left: vp.w - FAB_SIZE - fabMarginX, top: vp.h - FAB_SIZE - fabBottomInset },
-  }[fabCorner];
-  // Clamp care ține minim 12px din bulă vizibili pe ecran, indiferent de drag.
-  const clampFabDrag = (x: number, y: number) => {
-    const dx = Math.min(Math.max(x, -fabPos.left + 12), vp.w - 12 - fabPos.left);
-    const dy = Math.min(Math.max(y, -fabPos.top + 12), vp.h - 12 - fabPos.top);
-    return { x: dx, y: dy };
+  const fabPosFor = (corner: FabCorner) =>
+    ({
+      topLeft: { left: fabMarginX, top: fabTopInset },
+      topRight: { left: vp.w - FAB_SIZE - fabMarginX, top: fabTopInset },
+      bottomLeft: { left: fabMarginX, top: vp.h - FAB_SIZE - fabBottomInset },
+      bottomRight: { left: vp.w - FAB_SIZE - fabMarginX, top: vp.h - FAB_SIZE - fabBottomInset },
+    })[corner];
+  const fabPos = fabPosFor(fabCorner);
+// Clamp cu rezistență la margini (edge resistance).
+// Soft bounds = bulă complet vizibilă (orice coordonată e liberă).
+// Dincolo de soft: mișcarea e atenuată cu factorul FAB_EDGE_RESISTANCE.
+// Hard bounds = cel puțin 12px din bulă rămân vizibili pe ecran.
+const clampFabDrag = (x: number, y: number) => {
+  const resist = (
+    v: number,
+    softMin: number,
+    softMax: number,
+    hardMin: number,
+    hardMax: number,
+  ) => {
+    const r =
+      v < softMin
+        ? softMin + (v - softMin) * FAB_EDGE_RESISTANCE
+        : v > softMax
+          ? softMax + (v - softMax) * FAB_EDGE_RESISTANCE
+          : v;
+    return Math.min(hardMax, Math.max(hardMin, r));
+  };
+  const dx = resist(
+    x,
+    -fabPos.left,           // soft: fundul bulei atinge marginea stângă
+    vp.w - FAB_SIZE - fabPos.left, // soft: dreapta bulei atinge marginea dreaptă
+    12 - fabPos.left,       // hard: 12px vizibile stânga
+    vp.w - 12 - FAB_SIZE - fabPos.left, // hard: 12px vizibile dreapta
+  );
+  const dy = resist(
+    y,
+    -fabPos.top,
+    vp.h - FAB_SIZE - fabPos.top,
+    12 - fabPos.top,
+    vp.h - 12 - FAB_SIZE - fabPos.top,
+  );
+  return { x: dx, y: dy };
+};
+
+  // --- Motorul de snap (spring physics) ---
+
+  // Scrie pozitia pe div-ul interior direct pe DOM: singurul loc unde e animat
+  // ceva. Niciun React state pe frame -> zero re-render-uri in timpul animatiei.
+  const writeFabTransform = (x: number, y: number) => {
+    const el = fabInnerRef.current;
+    if (el) el.style.transform = `translate(${x}px, ${y}px)`;
+  };
+
+  const stopFabSpring = () => {
+    const s = fabSpringRef.current;
+    if (s) {
+      cancelAnimationFrame(s.raf);
+      fabSpringRef.current = null;
+    }
+  };
+
+  const tickFabSpring = (now: number) => {
+    const s = fabSpringRef.current;
+    if (!s) return;
+    // dt in secunde, clampat (tab schimbat din fundal => fara salturi mari).
+    const dt = Math.min((now - s.last) / 1000, 0.05);
+    s.last = now;
+    // Semi-implicit Euler: a = -k*(x - t) - c*v; v += a*dt; x += v*dt.
+    s.vx += (-FAB_SPRING.stiffness * (s.x - s.tx) - FAB_SPRING.damping * s.vx) * dt;
+    s.vy += (-FAB_SPRING.stiffness * (s.y - s.ty) - FAB_SPRING.damping * s.vy) * dt;
+    s.x += s.vx * dt;
+    s.y += s.vy * dt;
+    writeFabTransform(s.x, s.y);
+    const dz2 = (s.x - s.tx) * (s.x - s.tx) + (s.y - s.ty) * (s.y - s.ty);
+    if (Math.abs(s.vx) + Math.abs(s.vy) > FAB_STOP_SPEED || dz2 > 0.0001) {
+      s.raf = requestAnimationFrame(tickFabSpring);
+    } else {
+      fabSpringRef.current = null;
+      writeFabTransform(s.tx, s.ty);
+    }
+  };
+
+  const startFabSpring = (
+    fromX: number,
+    fromY: number,
+    toX: number,
+    toY: number
+  ) => {
+    stopFabSpring();
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      writeFabTransform(toX, toY);
+      return;
+    }
+    const s = {
+      raf: 0,
+      x: fromX,
+      y: fromY,
+      vx: 0,
+      vy: 0,
+      tx: toX,
+      ty: toY,
+      last: perfNow(),
+    };
+    fabSpringRef.current = s;
+    s.raf = requestAnimationFrame(tickFabSpring);
   };
 
   const handleFabPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
+    // Dacă rulează un snap, bula pornește exact din poziția curentă a springului
+    // (interruptibil, fără "back-snap") și viteza se resetează la zero.
+    const spring = fabSpringRef.current;
+    const ox = spring ? spring.x : 0;
+    const oy = spring ? spring.y : 0;
+    stopFabSpring();
     fabMoveRef.current = {
       startPX: e.clientX,
       startPY: e.clientY,
       startLeft: fabPos.left,
       startTop: fabPos.top,
+      baseX: ox,
+      baseY: oy,
     };
     fabDraggedRef.current = false;
-    fabOffsetRef.current = { x: 0, y: 0 };
-    setFabDrag({ x: 0, y: 0 });
+    fabOffsetRef.current = { x: ox, y: oy };
+    writeFabTransform(ox, oy);
     e.currentTarget.setPointerCapture(e.pointerId);
   };
 
@@ -524,21 +665,22 @@ export function Siera() {
     if (Math.abs(raw.x) + Math.abs(raw.y) > FAB_DRAG_THRESHOLD) {
       fabDraggedRef.current = true;
     }
-    const clamped = clampFabDrag(raw.x, raw.y);
+    // Offset fix la pointerdown (nu mutat între frame-uri) + delta absolută.
+    // 1:1: mut cursorul 20px → bula se mișcă 20px, indiferent de nr. de frame-uri.
+    const clamped = clampFabDrag(start.baseX + raw.x, start.baseY + raw.y);
     fabOffsetRef.current = clamped;
-    setFabDrag(clamped);
+    writeFabTransform(clamped.x, clamped.y);
   };
 
   const handleFabPointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
     const start = fabMoveRef.current;
     fabMoveRef.current = null;
-    if (!start) return;
+    if (!start) return; // evită double-fire (buttons===0 move → pointerup real)
     try {
       e.currentTarget.releasePointerCapture?.(e.pointerId);
     } catch {}
     const offset = fabOffsetRef.current;
     fabOffsetRef.current = { x: 0, y: 0 };
-    setFabDrag(null);
     const cx = start.startLeft + offset.x + FAB_SIZE / 2;
     const cy = start.startTop + offset.y + FAB_SIZE / 2;
     let best: FabCorner = fabCorner;
@@ -552,13 +694,30 @@ export function Siera() {
         best = c;
       }
     }
+    // Micro-mișcare (sub prag) = efectiv un tap: revine instant pe colț, fără
+    // spring, fără ideea de viteză. Bula stă "pietrificată" sub cursor.
+    // NU resetăm fabDraggedRef aici — click-ul care urmează decide dacă togglează.
+    if (!fabDraggedRef.current) {
+      const el = fabInnerRef.current;
+      if (el) el.style.transform = "";
+      setFabCorner(best);
+      return;
+    }
+    const target = fabPosFor(best);
+    // Wrapper-ul sare instant pe noul colț (fără transition); spring-ul pleacă
+    // din offset-ul relativ ca să compenseze saltul → unicul lucru vizibil e
+    // gliseul continuu al bulei până pe colț.
+    const fromX = offset.x - (target.left - start.startLeft);
+    const fromY = offset.y - (target.top - start.startTop);
     setFabCorner(best);
+    startFabSpring(fromX, fromY, 0, 0);
   };
 
   const handleFabPointerCancel = () => {
+    const offset = fabOffsetRef.current;
     fabMoveRef.current = null;
     fabOffsetRef.current = { x: 0, y: 0 };
-    setFabDrag(null);
+    startFabSpring(offset.x, offset.y, 0, 0);
   };
 
   const handleFabClick = () => {
@@ -568,6 +727,9 @@ export function Siera() {
     }
     setOpen((v) => !v);
   };
+
+  // Oprește loop-ul de snap la unmount (nu mai există rAF orfane).
+  useEffect(() => () => stopFabSpring(), []);
 
   // Companion pe desktop: doar în modul sidebar site-ul cedează lățimea panoului.
   useEffect(() => {
@@ -932,25 +1094,15 @@ export function Siera() {
        {!shown && !editorOpen && (
           <div
             className="fixed z-[70]"
-            style={{
-              left: fabPos.left,
-              top: fabPos.top,
-              transition: fabDrag
-                ? "none"
-                : `left ${mobile ? "0.28s" : "0.38s"} cubic-bezier(0.25, 0.46, 0.45, 0.94), top ${mobile ? "0.28s" : "0.38s"} cubic-bezier(0.25, 0.46, 0.45, 0.94)`,
-            }}
+            style={{ left: fabPos.left, top: fabPos.top }}
           >
             <div
+              ref={fabInnerRef}
               style={{
                 width: FAB_SIZE,
                 height: FAB_SIZE,
                 touchAction: "none",
-                transform: fabDrag
-                  ? `translate(${fabDrag.x}px, ${fabDrag.y}px)`
-                  : "none",
-                transition: fabDrag
-                  ? "none"
-                  : `transform ${mobile ? "0.28s" : "0.38s"} cubic-bezier(0.25, 0.46, 0.45, 0.94)`,
+                willChange: "transform",
               }}
             >
               <motion.button
