@@ -5,7 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PromoteAdmin } from "@/components/admin/promote-admin";
+import { DemoteAdmin } from "@/components/admin/demote-admin";
+import { AdminPermissionEditor } from "@/components/admin/admin-permission-editor";
 import { DeleteUser } from "@/components/admin/delete-user";
+import { requirePage, requireAdmin } from "@/lib/access";
 
 const PAGE_SIZE = 50;
 
@@ -14,7 +17,10 @@ export default async function AdminUsersPage({
 }: {
   searchParams: Promise<{ page?: string }>;
 }) {
+  await requirePage("MANAGE_USERS");
   const { page: pageParam } = await searchParams;
+  const sessionUser = await requireAdmin();
+  const canManageAdmins = sessionUser.isOwner;
   const total = await prisma.user.count();
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -31,6 +37,8 @@ export default async function AdminUsersPage({
       name: true,
       email: true,
       role: true,
+      isOwner: true,
+      permissions: true,
       createdAt: true,
       streakCount: true,
       _count: { select: { lessonProgress: true, quizAttempts: true } },
@@ -68,7 +76,9 @@ export default async function AdminUsersPage({
                 <td className="px-4 py-3 text-subtle">{u.email}</td>
                 <td className="px-4 py-3">
                   {u.role === "ADMIN" ? (
-                    <Badge className="bg-accent/10 text-accent">Admin</Badge>
+                    <Badge className="bg-accent/10 text-accent">
+                      {u.isOwner ? "Owner" : "Admin"}
+                    </Badge>
                   ) : (
                     <Badge variant="neutral">User</Badge>
                   )}
@@ -80,10 +90,29 @@ export default async function AdminUsersPage({
                   {new Date(u.createdAt).toLocaleDateString("ro-RO")}
                 </td>
                 <td className="px-4 py-3">
-                  {u.role !== "ADMIN" && <PromoteAdmin userId={u.id} />}
-                  <div className="mt-2">
-                    <DeleteUser userId={u.id} name={u.name} email={u.email} />
-                  </div>
+                  {canManageAdmins && u.role !== "ADMIN" && (
+                    <div className="mb-2">
+                      <PromoteAdmin userId={u.id} />
+                    </div>
+                  )}
+                  {u.role === "ADMIN" && canManageAdmins && (
+                    <div className="mb-2 flex flex-wrap gap-2">
+                      <AdminPermissionEditor
+                        userId={u.id}
+                        userName={u.name}
+                        currentPermissions={u.permissions}
+                        isOwner={u.isOwner}
+                      />
+                      {!u.isOwner && u.id !== sessionUser.id && (
+                        <DemoteAdmin userId={u.id} />
+                      )}
+                    </div>
+                  )}
+                  {(!canManageAdmins || u.role !== "ADMIN") && (
+                    <div className="mt-2">
+                      <DeleteUser userId={u.id} name={u.name} email={u.email} />
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}

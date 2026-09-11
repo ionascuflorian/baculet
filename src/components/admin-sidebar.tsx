@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import type { AdminPermission } from "@/generated/prisma/client";
 import {
   LayoutDashboard,
   BookOpen,
@@ -19,23 +20,36 @@ import {
 import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
 
-const links = [
+interface SidebarProps {
+  permissions: AdminPermission[];
+  isOwner: boolean;
+}
+
+const links: Array<{
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  permission?: AdminPermission;
+}> = [
   { href: "/admin", label: "Prezentare generală", icon: LayoutDashboard },
-  { href: "/admin/materii", label: "Materii", icon: BookOpen },
-  { href: "/admin/teste", label: "Teste", icon: ListChecks },
-  { href: "/admin/subiecte", label: "Subiecte BAC", icon: GraduationCap },
-  { href: "/admin/bac", label: "Calendar BAC", icon: CalendarDays },
-  { href: "/admin/teme", label: "Teme", icon: Palette },
+  { href: "/admin/materii", label: "Materii", icon: BookOpen, permission: "MANAGE_CONTENT" },
+  { href: "/admin/teste", label: "Teste", icon: ListChecks, permission: "MANAGE_QUIZZES" },
+  { href: "/admin/subiecte", label: "Subiecte BAC", icon: GraduationCap, permission: "MANAGE_EXAMS" },
+  { href: "/admin/bac", label: "Calendar BAC", icon: CalendarDays, permission: "MANAGE_SITE_SETTINGS" },
+  { href: "/admin/teme", label: "Teme", icon: Palette, permission: "MANAGE_SITE_SETTINGS" },
   { href: "/admin/ai", label: "AI", icon: Sparkles },
-  { href: "/admin/ai-content", label: "AI Content Studio", icon: Wand2 },
-  { href: "/admin/utilizatori", label: "Utilizatori", icon: Users },
+  { href: "/admin/ai-content", label: "AI Content Studio", icon: Wand2, permission: "MANAGE_AI_CONTENT" },
+  { href: "/admin/utilizatori", label: "Utilizatori", icon: Users, permission: "MANAGE_USERS" },
 ];
 
-export function AdminSidebar() {
+export function AdminSidebar({ permissions, isOwner }: SidebarProps) {
   const pathname = usePathname();
 
   // Link apăsat: feedback instant că navigarea a început, înainte să se încarce pagina.
   const [pending, setPending] = useState<string | null>(null);
+
+  const canSee = (p?: AdminPermission) =>
+    !p || isOwner || permissions.includes(p);
 
   return (
     <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col border-r border-feather bg-card px-4 py-6">
@@ -47,7 +61,7 @@ export function AdminSidebar() {
       </div>
 
       <nav className="flex-1 space-y-1">
-        {links.map((link) => {
+        {links.filter((l) => canSee(l.permission)).map((link) => {
           const active =
             link.href === "/admin"
               ? pathname === "/admin"

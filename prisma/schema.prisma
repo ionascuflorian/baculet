@@ -12,6 +12,16 @@ enum Role {
   ADMIN
 }
 
+enum AdminPermission {
+  MANAGE_CONTENT
+  MANAGE_QUIZZES
+  MANAGE_EXAMS
+  MANAGE_SITE_SETTINGS
+  MANAGE_SITE_AI
+  MANAGE_AI_CONTENT
+  MANAGE_USERS
+}
+
 enum Profile {
   REAL
   HUMAN
@@ -56,6 +66,8 @@ model User {
   image         String?
   emailVerified DateTime?
   role          Role     @default(USER)
+  isOwner       Boolean  @default(false)
+  permissions   AdminPermission[] @default([])
   streakCount   Int      @default(0)
   lastActiveAt  DateTime?
   timezone      String?

@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeStyles } from "@/components/themes/theme-styles";
 import { AppSplash } from "@/components/app-splash";
 import { ThemeSync } from "@/components/theme-sync";
+import { CookieConsent } from "@/components/cookie-consent";
 import { THEME_COOKIE } from "@/lib/theme-constants";
 import "@blocknote/core/style.css";
 import "@blocknote/mantine/style.css";
@@ -89,6 +90,7 @@ export default async function RootLayout({
         <AppSplash />
         <ThemeSync />
         <ThemeProvider>{children}</ThemeProvider>
+        <CookieConsent />
       </body>
     </html>
   );

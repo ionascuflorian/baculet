@@ -20,7 +20,7 @@ const sections = [
   },
   {
     title: "Cookie-uri și sesiune",
-    body: "Folosim cookie-uri strict necesare pentru autentificare și pentru a-ți ține sesiunea activă. Nu folosim cookie-uri de urmărire a comportamentului de navigare în scopuri publicitare.",
+    body: "Folosim cookie-uri strict necesare pentru autentificare și pentru a-ți ține sesiunea activă. În plus, site-ul arată un banner de consimțământ unde poți alege dacă accepți sau respingi cookie-urile neesențiale. Alegerea ta e salvată pentru 12 luni (cookie baculet-consent) și poate fi schimbată oricând ștergând cookie-urile din browser. Nu folosim cookie-uri de urmărire a comportamentului de navigare în scopuri publicitare.",
   },
   {
     title: "Servicii terțe",

@@ -1,6 +1,6 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { google } from "@ai-sdk/google";
-import { currentUser, isAdmin } from "@/lib/access";
+import { currentUser, hasPermission } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { decryptApiKey } from "@/lib/ai-keys";
 import {
@@ -28,7 +28,7 @@ export const DEFAULT_MODELS: Record<ContentProviderName, string> = {
 // Embeddingurile folosesc același provider ca generarea, cu un fallback pe Google.
 export async function resolveStudioModel(): Promise<StudioModel> {
   const sessionUser = await currentUser();
-  if (!sessionUser || !isAdmin(sessionUser)) {
+  if (!sessionUser || !hasPermission(sessionUser, "MANAGE_AI_CONTENT")) {
     throw new Error("Neautorizat");
   }
 
@@ -96,6 +96,8 @@ export async function resolveStudioModel(): Promise<StudioModel> {
 
 export async function requireAdminOrThrow(): Promise<string> {
   const user = await currentUser();
-  if (!user || !isAdmin(user)) throw new Error("Neautorizat");
+  if (!user || !hasPermission(user, "MANAGE_AI_CONTENT")) {
+    throw new Error("Neautorizat");
+  }
   return user.id;
 }

@@ -4,12 +4,14 @@ import { ArrowLeft, Map as MapIcon } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { CourseMap, type MapChapter } from "@/components/admin/course-map";
+import { requirePage } from "@/lib/access";
 
 export default async function AdminSubjectMapPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requirePage("MANAGE_CONTENT");
   const { id } = await params;
   const subject = await prisma.subject.findUnique({
     where: { id },

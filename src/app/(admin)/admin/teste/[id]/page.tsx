@@ -8,12 +8,14 @@ import { QuestionForm } from "@/components/admin/question-form";
 import { DeleteButton } from "@/components/admin/delete-button";
 import { PendingLink } from "@/components/admin/pending-link";
 import { deleteQuestion } from "@/lib/actions/admin";
+import { requirePage } from "@/lib/access";
 
 export default async function AdminQuizDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requirePage("MANAGE_QUIZZES");
   const { id } = await params;
   const quiz = await prisma.quiz.findUnique({
     where: { id },

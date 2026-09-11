@@ -2,8 +2,10 @@ import { CalendarDays } from "lucide-react";
 import { getBacSchedule } from "@/lib/site-settings";
 import { BacScheduleForm } from "@/components/admin/bac-schedule-form";
 import { Card, CardContent } from "@/components/ui/card";
+import { requirePage } from "@/lib/access";
 
 export default async function AdminBacPage() {
+  await requirePage("MANAGE_SITE_SETTINGS");
   const schedule = await getBacSchedule();
 
   const fmt = (date: string) =>

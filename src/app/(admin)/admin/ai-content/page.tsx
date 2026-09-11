@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { DeleteButton } from "@/components/admin/delete-button";
 import { PendingLink } from "@/components/admin/pending-link";
 import { CreateContentProject } from "@/components/admin/ai-content/create-project";
+import { requirePage } from "@/lib/access";
 
 const statusLabels: Record<string, string> = {
   DRAFT: "Draft",
@@ -32,6 +33,7 @@ const statusTone: Record<string, "neutral" | "success" | "warning" | "danger"> =
 };
 
 export default async function AiContentAdminPage() {
+  await requirePage("MANAGE_AI_CONTENT");
   const projects = await listProjects();
   const subjects = await prisma.subject.findMany({
     orderBy: { order: "asc" },

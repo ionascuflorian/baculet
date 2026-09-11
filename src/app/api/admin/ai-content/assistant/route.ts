@@ -9,7 +9,7 @@ import {
   type UIMessage,
 } from "ai";
 import { z } from "zod/v4";
-import { currentUser, isAdmin } from "@/lib/access";
+import { currentUser, hasPermission } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { resolveStudioModel } from "@/lib/ai-content/provider";
 import { assistantCanChat } from "@/lib/ai-content/rate";
@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   const user = await currentUser();
-  if (!user || !isAdmin(user)) {
+  if (!user || !hasPermission(user, "MANAGE_AI_CONTENT")) {
     return new Response(JSON.stringify({ error: "Neautorizat" }), { status: 401 });
   }
   const userId = user.id;

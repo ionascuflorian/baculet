@@ -16,7 +16,10 @@ export default async function AdminLayout({
   return (
     <ToastProvider>
       <div className="flex min-h-screen bg-background">
-        <AdminSidebar />
+        <AdminSidebar
+          permissions={sessionUser.permissions}
+          isOwner={sessionUser.isOwner}
+        />
         <main className="min-w-0 flex-1 px-4 py-6 sm:px-8">{children}</main>
       </div>
     </ToastProvider>

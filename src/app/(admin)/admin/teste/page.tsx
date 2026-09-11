@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { DeleteButton } from "@/components/admin/delete-button";
 import { PendingLink } from "@/components/admin/pending-link";
 import { deleteQuiz } from "@/lib/actions/admin";
+import { requirePage } from "@/lib/access";
 
 const difficultyLabels: Record<number, { label: string; cls: string }> = {
   1: { label: "Ușor", cls: "bg-accent/10 text-accent" },
@@ -15,6 +16,7 @@ const difficultyLabels: Record<number, { label: string; cls: string }> = {
 };
 
 export default async function AdminQuizzesPage() {
+  await requirePage("MANAGE_QUIZZES");
   const quizzes = await prisma.quiz.findMany({
     where: { userId: null },
     orderBy: [{ subject: { order: "asc" } }, { order: "asc" }],

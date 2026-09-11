@@ -4,12 +4,14 @@ import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { ThemeForm } from "@/components/admin/theme-form";
 import type { Palette } from "@/components/themes/palette";
+import { requirePage } from "@/lib/access";
 
 export default async function EditThemePage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requirePage("MANAGE_SITE_SETTINGS");
   const { id } = await params;
   const theme = await prisma.theme.findUnique({ where: { id } });
   if (!theme) notFound();

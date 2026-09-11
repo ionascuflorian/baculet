@@ -1,4 +1,4 @@
-import { currentUser, isAdmin } from "@/lib/access";
+import { currentUser, hasPermission } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
   ALLOWED_MIMES,
@@ -61,7 +61,7 @@ async function handleBlobUpload(
   }
 
   const user = await currentUser();
-  if (!user || !isAdmin(user)) {
+  if (!user || !hasPermission(user, "MANAGE_AI_CONTENT")) {
     return new Response(JSON.stringify({ error: "Neautorizat" }), { status: 401 });
   }
   const info = parseClientPayload(body.payload?.clientPayload);
@@ -97,7 +97,7 @@ async function handleBlobUpload(
 // apară — acolo clientul folosește direct upload-ul la Blob.
 async function handleMultipartUpload(req: Request): Promise<Response> {
   const user = await currentUser();
-  if (!user || !isAdmin(user)) {
+  if (!user || !hasPermission(user, "MANAGE_AI_CONTENT")) {
     return new Response(JSON.stringify({ error: "Neautorizat" }), { status: 401 });
   }
 

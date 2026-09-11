@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { SubjectForm } from "@/components/admin/subject-form";
+import { requirePage } from "@/lib/access";
 
-export default function NewSubjectPage() {
+export default async function NewSubjectPage() {
+  await requirePage("MANAGE_CONTENT");
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <Link

@@ -1,4 +1,6 @@
 import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import type { AdminPermission } from "@/generated/prisma/client";
 
 export type UserRole = "ADMIN" | "USER";
 
@@ -7,7 +9,19 @@ export interface SessionUser {
   email: string | null;
   name: string | null;
   role: UserRole;
+  isOwner: boolean;
+  permissions: AdminPermission[];
 }
+
+export const ADMIN_PERMISSIONS: AdminPermission[] = [
+  "MANAGE_CONTENT",
+  "MANAGE_QUIZZES",
+  "MANAGE_EXAMS",
+  "MANAGE_SITE_SETTINGS",
+  "MANAGE_SITE_AI",
+  "MANAGE_AI_CONTENT",
+  "MANAGE_USERS",
+];
 
 // Singurul loc care citește sesiunea pentru autorizare. Return-ează
 // utilizatorul normalizat sau null; nu programează modul de fail.
@@ -20,6 +34,8 @@ export async function currentUser(): Promise<SessionUser | null> {
     email: u.email ?? null,
     name: u.name ?? null,
     role: u.role === "ADMIN" ? "ADMIN" : "USER",
+    isOwner: u.isOwner === true,
+    permissions: Array.isArray(u.permissions) ? (u.permissions as AdminPermission[]) : [],
   };
 }
 
@@ -27,7 +43,17 @@ export function isAdmin(user: Pick<SessionUser, "role">): boolean {
   return user.role === "ADMIN";
 }
 
-// Pentru server actions care preferă throw.
+// Owner-ul are toate permisiunile, indiferent de lista stocată.
+export function hasPermission(
+  user: Pick<SessionUser, "role" | "isOwner" | "permissions">,
+  permission: AdminPermission
+): boolean {
+  if (user.role !== "ADMIN") return false;
+  if (user.isOwner) return true;
+  return user.permissions.includes(permission);
+}
+
+// Pentru server actions / API routes care preferă throw.
 export async function requireUser(): Promise<SessionUser> {
   const user = await currentUser();
   if (!user) throw new Error("Neautorizat");
@@ -37,5 +63,31 @@ export async function requireUser(): Promise<SessionUser> {
 export async function requireAdmin(): Promise<SessionUser> {
   const user = await requireUser();
   if (!isAdmin(user)) throw new Error("Acces interzis");
+  return user;
+}
+
+export async function requirePermission(
+  permission: AdminPermission
+): Promise<SessionUser> {
+  const user = await requireUser();
+  if (!hasPermission(user, permission)) throw new Error("Acces interzis");
+  return user;
+}
+
+// Pentru acțiunile de gestionare a adminilor (promovare/demovare/permisiuni).
+export async function requireOwner(): Promise<SessionUser> {
+  const user = await requireUser();
+  if (user.role !== "ADMIN" || !user.isOwner) throw new Error("Acces interzis");
+  return user;
+}
+
+// Pentru paginile admin (server components): redirect la panou în loc de throw.
+export async function requirePage(
+  permission: AdminPermission
+): Promise<SessionUser> {
+  const user = await currentUser();
+  if (!user || !hasPermission(user, permission)) {
+    redirect("/admin");
+  }
   return user;
 }

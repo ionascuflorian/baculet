@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { currentUser, isAdmin, requireAdmin } from "@/lib/access";
+import { currentUser, isAdmin, requireAdmin, requirePermission, requireOwner, ADMIN_PERMISSIONS } from "@/lib/access";
 import { resequenceStepOrders, syncLessonSteps } from "@/lib/lesson-steps";
 
 function slugify(input: string): string {
@@ -56,7 +56,7 @@ const siteAiSettingsSchema = z.object({
 });
 
 export async function saveSiteAiSettings(input: z.input<typeof siteAiSettingsSchema>) {
-  await requireAdmin();
+  await requirePermission("MANAGE_SITE_AI");
   const data = siteAiSettingsSchema.parse(input);
   const { encryptApiKey } = await import("@/lib/ai-keys");
   await prisma.siteSetting.upsert({
@@ -69,7 +69,7 @@ export async function saveSiteAiSettings(input: z.input<typeof siteAiSettingsSch
 }
 
 export async function clearSiteAiSettings() {
-  await requireAdmin();
+  await requirePermission("MANAGE_SITE_AI");
   await prisma.siteSetting.deleteMany({ where: { key: "siteAiConfig" } });
   revalidatePath("/admin/ai");
   return { ok: true };
@@ -136,7 +136,7 @@ export async function testAiSettings(input: TestAiSettingsArgs): Promise<TestAiR
 
 // Testează modelul scris în formularul de AI site (fără a salva).
 export async function testSiteAiSettings(input: TestAiSettingsArgs): Promise<TestAiResult> {
-  await requireAdmin();
+  await requirePermission("MANAGE_SITE_AI");
   const data = testAiSchema.parse(input);
   const { buildLanguageModel, testLanguageModel } = await import("@/lib/ai-model");
   const { readSiteAiConfig } = await import("@/lib/site-ai");
@@ -177,7 +177,7 @@ export async function saveSubject(
   id: string | null,
   input: z.input<typeof subjectSchema>
 ) {
-  await requireAdmin();
+  await requirePermission("MANAGE_CONTENT");
   const data = subjectSchema.parse(input);
   const slug = data.slug?.trim() || slugify(data.name);
   const payload = {
@@ -207,7 +207,7 @@ export async function saveSubject(
 }
 
 export async function deleteSubject(id: string) {
-  await requireAdmin();
+  await requirePermission("MANAGE_CONTENT");
   await prisma.subject.delete({ where: { id } });
   revalidatePath("/admin/materii");
   revalidatePath("/materii");
@@ -227,7 +227,7 @@ export async function saveChapter(
   id: string | null,
   input: z.input<typeof chapterSchema>
 ) {
-  await requireAdmin();
+  await requirePermission("MANAGE_CONTENT");
   const data = chapterSchema.parse(input);
   const slug = data.slug?.trim() || slugify(data.title);
 
@@ -258,7 +258,7 @@ export async function saveChapter(
 }
 
 export async function deleteChapter(id: string) {
-  await requireAdmin();
+  await requirePermission("MANAGE_CONTENT");
   await prisma.chapter.delete({ where: { id } });
   revalidatePath("/admin/materii");
   revalidatePath("/materii");
@@ -280,7 +280,7 @@ export async function saveLesson(
   id: string | null,
   input: z.input<typeof lessonSchema>
 ) {
-  await requireAdmin();
+  await requirePermission("MANAGE_CONTENT");
   const data = lessonSchema.parse(input);
   const slug = data.slug?.trim() || slugify(data.title);
 
@@ -329,7 +329,7 @@ export async function saveLesson(
 }
 
 export async function deleteLesson(id: string) {
-  await requireAdmin();
+  await requirePermission("MANAGE_CONTENT");
   await prisma.lesson.delete({ where: { id } });
   revalidatePath("/admin");
   revalidatePath("/materii");
@@ -361,7 +361,7 @@ export async function createSection(
   lessonId: string,
   input: z.input<typeof sectionSchema>
 ) {
-  await requireAdmin();
+  await requirePermission("MANAGE_CONTENT");
   const data = sectionSchema.parse(input);
 
   // quizId e unique pe LessonStep: un exercițiu nu poate fi folosit în două secțiuni
@@ -398,7 +398,7 @@ export async function updateSection(
   lessonId: string,
   input: z.input<typeof sectionSchema>
 ) {
-  await requireAdmin();
+  await requirePermission("MANAGE_CONTENT");
   const data = sectionSchema.parse(input);
 
   const existing = await prisma.lessonStep.findUnique({
@@ -434,7 +434,7 @@ export async function updateSection(
 }
 
 export async function deleteSection(stepId: string, lessonId: string) {
-  await requireAdmin();
+  await requirePermission("MANAGE_CONTENT");
   const step = await prisma.lessonStep.findUnique({
     where: { id: stepId },
     select: { lessonId: true, quiz: { select: { id: true } } },
@@ -449,7 +449,7 @@ export async function deleteSection(stepId: string, lessonId: string) {
 }
 
 export async function reorderLessonSteps(lessonId: string, orderedIds: string[]) {
-  await requireAdmin();
+  await requirePermission("MANAGE_CONTENT");
   await resequenceStepOrders(lessonId, orderedIds);
 
   await revalidateSectionPaths(lessonId);
@@ -460,7 +460,7 @@ export async function reorderLessonSteps(lessonId: string, orderedIds: string[])
 // Cu paragraphFallback, textul fără anteturi ## se împarte pe paragrafe. Pașii
 // manuali (din Constructor) sunt protejați, iar re-generarea e idempotentă.
 export async function generateSectionsFromLesson(lessonId: string) {
-  await requireAdmin();
+  await requirePermission("MANAGE_CONTENT");
   const lesson = await prisma.lesson.findUnique({
     where: { id: lessonId },
     select: { id: true, content: true },
@@ -510,7 +510,7 @@ export async function createQuickQuiz(
   lessonId: string,
   input: z.input<typeof quickQuizSchema>
 ) {
-  await requireAdmin();
+  await requirePermission("MANAGE_CONTENT");
   const data = quickQuizSchema.parse(input);
   const lesson = await prisma.lesson.findUnique({
     where: { id: lessonId },
@@ -585,7 +585,7 @@ export async function saveQuiz(
   id: string | null,
   input: z.input<typeof quizSchema>
 ) {
-  await requireAdmin();
+  await requirePermission("MANAGE_QUIZZES");
   const data = quizSchema.parse(input);
   const slug = data.slug?.trim() || slugify(data.title);
 
@@ -621,7 +621,7 @@ export async function saveQuiz(
 }
 
 export async function deleteQuiz(id: string) {
-  await requireAdmin();
+  await requirePermission("MANAGE_QUIZZES");
   await prisma.quiz.delete({ where: { id } });
   revalidatePath("/admin/teste");
   revalidatePath("/materii");
@@ -643,7 +643,7 @@ export async function saveQuestion(
   input: z.input<typeof questionSchema>,
   opts?: { revalidate?: string[] }
 ) {
-  await requireAdmin();
+  await requirePermission("MANAGE_QUIZZES");
   const data = questionSchema.parse(input);
 
   // validare correctIndex în limite
@@ -685,7 +685,7 @@ export async function saveQuestion(
 }
 
 export async function deleteQuestion(id: string, opts?: { revalidate?: string[] }) {
-  await requireAdmin();
+  await requirePermission("MANAGE_QUIZZES");
   await prisma.question.delete({ where: { id } });
   revalidatePath("/admin/teste");
   const extra = opts?.revalidate ?? [];
@@ -706,7 +706,7 @@ export async function saveGeneratedQuestions(
   inputs: z.input<typeof generatedQuestionSchema>[],
   opts?: { revalidate?: string[] }
 ) {
-  await requireAdmin();
+  await requirePermission("MANAGE_QUIZZES");
   const data = inputs.map((i) => generatedQuestionSchema.parse(i));
 
   const existingCount = await prisma.question.count({ where: { quizId } });
@@ -746,7 +746,7 @@ export async function saveExam(
   id: string | null,
   input: z.input<typeof examSchema>
 ) {
-  await requireAdmin();
+  await requirePermission("MANAGE_EXAMS");
   const data = examSchema.parse(input);
 
   const exam = id
@@ -781,17 +781,95 @@ export async function saveExam(
 }
 
 export async function deleteExam(id: string) {
-  await requireAdmin();
+  await requirePermission("MANAGE_EXAMS");
   await prisma.officialExam.delete({ where: { id } });
   revalidatePath("/admin/subiecte");
   revalidatePath("/subiecte-bac");
 }
 
-// ─── Admin bootstrap (first user becomes admin) ────────────────
+// ─── Admin management (priveleged: doar owner-ul) ──────────────
 export async function makeAdmin(userId: string) {
-  await requireAdmin();
-  await prisma.user.update({ where: { id: userId }, data: { role: "ADMIN" } });
+  await requireOwner();
+  const target = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, role: true },
+  });
+  if (!target) throw new Error("Contul nu a fost găsit.");
+  if (target.role === "ADMIN") throw new Error("Contul este deja admin.");
+  await prisma.user.update({
+    where: { id: userId },
+    data: { role: "ADMIN", permissions: ADMIN_PERMISSIONS },
+  });
   revalidatePath("/admin/utilizatori");
+}
+
+export async function demoteAdmin(userId: string) {
+  const actor = await requireOwner();
+  const target = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, role: true, isOwner: true },
+  });
+  if (!target) throw new Error("Contul nu a fost găsit.");
+  if (target.role !== "ADMIN") throw new Error("Contul nu este admin.");
+  // Owner-ul nu poate fi demovat; nici nu te poți demi singur.
+  if (target.isOwner) throw new Error("Nu poți demova un owner.");
+  if (target.id === actor.id) throw new Error("Nu te poți demova pe tine.");
+  await prisma.user.update({
+    where: { id: userId },
+    data: { role: "USER", permissions: [], isOwner: false },
+  });
+  revalidatePath("/admin/utilizatori");
+}
+
+const adminPermissionsSchema = z.object({
+  permissions: z.array(
+    z.enum([
+      "MANAGE_CONTENT",
+      "MANAGE_QUIZZES",
+      "MANAGE_EXAMS",
+      "MANAGE_SITE_SETTINGS",
+      "MANAGE_SITE_AI",
+      "MANAGE_AI_CONTENT",
+      "MANAGE_USERS",
+    ])
+  ),
+  isOwner: z.boolean().default(false),
+});
+
+// Setează permisiunile și/sau statutul de owner pentru un admin (doar owner-ul).
+export async function updateAdminPermissions(
+  userId: string,
+  input: z.input<typeof adminPermissionsSchema>
+) {
+  const actor = await requireOwner();
+  const data = adminPermissionsSchema.parse(input);
+  if (userId === actor.id && !data.isOwner) {
+    throw new Error("Nu îți poți retrage propriul statut de owner.");
+  }
+
+  const target = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, role: true, isOwner: true },
+  });
+  if (!target) throw new Error("Contul nu a fost găsit.");
+  if (target.role !== "ADMIN") throw new Error("Contul nu este admin.");
+
+  // Protecție: ultimul owner nu poate fi dezactivat.
+  if (target.isOwner && !data.isOwner) {
+    const ownerCount = await prisma.user.count({ where: { role: "ADMIN", isOwner: true } });
+    if (ownerCount <= 1) throw new Error("Trebuie să existe cel puțin un owner.");
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      // Owner-ul are implicit toate permisiunile.
+      permissions: data.isOwner ? ADMIN_PERMISSIONS : data.permissions,
+      isOwner: data.isOwner,
+    },
+  });
+  revalidatePath("/admin/utilizatori");
+  return { ok: true };
 }
 
 // ─── User deletion ─────────────────────────────────────────────
@@ -809,6 +887,19 @@ export async function deleteUser(
   const target = await prisma.user.findUnique({ where: { id: userId } });
   if (!target) {
     return { ok: false, error: "Contul nu a fost găsit." };
+  }
+  // Owner-ii și adminii pot fi șterși doar de owner.
+  if (target.isOwner || target.role === "ADMIN") {
+    const actor = await currentUser();
+    if (!actor?.isOwner) {
+      return { ok: false, error: "Acces interzis." };
+    }
+  }
+  if (target.isOwner) {
+    const ownerCount = await prisma.user.count({ where: { role: "ADMIN", isOwner: true } });
+    if (ownerCount <= 1) {
+      return { ok: false, error: "Nu poți șterge ultimul owner." };
+    }
   }
 
   await prisma.user.delete({ where: { id: userId } });

@@ -1,4 +1,4 @@
-import { currentUser, isAdmin } from "@/lib/access";
+import { currentUser, hasPermission } from "@/lib/access";
 
 export const dynamic = "force-dynamic";
 
@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 // de 4.5 MB a Vercel). Altfel → upload server-side cu stocare locală (dev).
 export async function GET() {
   const user = await currentUser();
-  if (!user || !isAdmin(user)) {
+  if (!user || !hasPermission(user, "MANAGE_AI_CONTENT")) {
     return new Response(JSON.stringify({ error: "Neautorizat" }), { status: 401 });
   }
   return Response.json({ blob: Boolean(process.env.BLOB_READ_WRITE_TOKEN) });

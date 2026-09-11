@@ -9,8 +9,10 @@ import { PendingLink } from "@/components/admin/pending-link";
 import { ThemeEnabledToggle } from "@/components/admin/theme-toggle";
 import { deleteTheme } from "@/lib/actions/themes";
 import { PALETTE_KEYS, type Palette } from "@/components/themes/palette";
+import { requirePage } from "@/lib/access";
 
 export default async function AdminThemesPage() {
+  await requirePage("MANAGE_SITE_SETTINGS");
   const themes = await prisma.theme.findMany({
     orderBy: [{ order: "asc" }, { createdAt: "desc" }],
   });

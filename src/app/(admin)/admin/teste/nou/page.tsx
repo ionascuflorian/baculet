@@ -2,8 +2,10 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { QuizForm } from "@/components/admin/quiz-form";
+import { requirePage } from "@/lib/access";
 
 export default async function NewQuizPage() {
+  await requirePage("MANAGE_QUIZZES");
   const subjects = await prisma.subject.findMany({ orderBy: { order: "asc" } });
   const defaultSubject = subjects[0];
   const chapters = defaultSubject ? await prisma.chapter.findMany({ where: { subjectId: defaultSubject.id }, orderBy: { order: "asc" }, select: { id: true, title: true } }) : [];

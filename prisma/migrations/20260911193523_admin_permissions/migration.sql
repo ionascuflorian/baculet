@@ -1,0 +1,6 @@
+-- CreateEnum
+CREATE TYPE "AdminPermission" AS ENUM ('MANAGE_CONTENT', 'MANAGE_QUIZZES', 'MANAGE_EXAMS', 'MANAGE_SITE_SETTINGS', 'MANAGE_SITE_AI', 'MANAGE_AI_CONTENT', 'MANAGE_USERS');
+
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "isOwner" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "permissions" "AdminPermission"[] DEFAULT ARRAY[]::"AdminPermission"[];

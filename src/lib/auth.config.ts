@@ -192,12 +192,14 @@ export const authConfig = {
       if (user?.email) {
         const dbUser = await prisma.user.findUnique({
           where: { email: user.email },
-          select: { id: true, role: true, name: true, image: true },
+          select: { id: true, role: true, name: true, image: true, isOwner: true, permissions: true },
         });
         if (dbUser) {
           token.id = dbUser.id;
           token.role = dbUser.role;
           token.name = dbUser.name;
+          token.isOwner = dbUser.isOwner;
+          token.permissions = dbUser.permissions;
           // Doar URL-urile mici (ex. avatare Google) se păstrează în JWT.
           // Pozele încărcate local (data URL, mari) rămân în DB; JWT-ul stă mic
           // ca să nu depășească limita de header (HTTP 431).
@@ -211,6 +213,8 @@ export const authConfig = {
         delete token.id;
         delete token.role;
         delete token.name;
+        delete token.isOwner;
+        delete token.permissions;
         token.picture = null;
       }
       return token;
@@ -221,6 +225,10 @@ export const authConfig = {
         session.user.role = token.role as string;
         session.user.name = token.name;
         session.user.image = (token.picture as string) ?? null;
+        session.user.isOwner = token.isOwner === true;
+        session.user.permissions = Array.isArray(token.permissions)
+          ? token.permissions
+          : [];
       }
       return session;
     },

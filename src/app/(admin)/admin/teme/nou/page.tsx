@@ -2,8 +2,10 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { ThemeForm } from "@/components/admin/theme-form";
 import { defaultPalette, defaultDarkPalette } from "@/components/themes/palette";
+import { requirePage } from "@/lib/access";
 
-export default function NewThemePage() {
+export default async function NewThemePage() {
+  await requirePage("MANAGE_SITE_SETTINGS");
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <Link

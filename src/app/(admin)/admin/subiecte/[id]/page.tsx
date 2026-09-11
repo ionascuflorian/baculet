@@ -4,12 +4,14 @@ import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { ExamForm } from "@/components/admin/exam-form";
+import { requirePage } from "@/lib/access";
 
 export default async function AdminExamDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requirePage("MANAGE_EXAMS");
   const { id } = await params;
   const exam = await prisma.officialExam.findUnique({
     where: { id },

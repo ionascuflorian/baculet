@@ -8,12 +8,14 @@ import { ChapterForm } from "@/components/admin/chapter-form";
 import { DeleteButton } from "@/components/admin/delete-button";
 import { PendingLink } from "@/components/admin/pending-link";
 import { deleteChapter } from "@/lib/actions/admin";
+import { requirePage } from "@/lib/access";
 
 export default async function AdminSubjectDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requirePage("MANAGE_CONTENT");
   const { id } = await params;
   const subject = await prisma.subject.findUnique({
     where: { id },

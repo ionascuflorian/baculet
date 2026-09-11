@@ -1,5 +1,5 @@
 import { Sparkles } from "lucide-react";
-import { currentUser } from "@/lib/access";
+import { currentUser, hasPermission } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { getSiteAiInfo } from "@/lib/site-ai";
 import { AiSettingsForm } from "@/components/admin/ai-settings-form";
@@ -8,13 +8,16 @@ import { SiteAiSettingsForm } from "@/components/admin/site-ai-settings-form";
 export default async function AdminAiPage() {
   const sessionUser = await currentUser();
   if (!sessionUser) return null;
+  const canManageSiteAi = hasPermission(sessionUser, "MANAGE_SITE_AI");
 
   const user = await prisma.user.findUnique({
     where: { id: sessionUser.id },
     select: { aiProvider: true, aiApiKeyEnc: true, aiModel: true },
   });
 
-  const siteAi = await getSiteAiInfo();
+  const siteAi = canManageSiteAi
+    ? await getSiteAiInfo()
+    : { configured: false, fallback: { provider: "google" as const, model: "gemini-3.5-flash-lite" } };
 
   return (
     <div className="space-y-6">
@@ -49,13 +52,15 @@ export default async function AdminAiPage() {
         hasKey={Boolean(user?.aiApiKeyEnc)}
       />
 
-      <SiteAiSettingsForm
-        key={`site-${siteAi.provider ?? "none"}-${siteAi.model ?? "none"}-${siteAi.configured}`}
-        provider={siteAi.provider ?? null}
-        model={siteAi.model ?? null}
-        hasKey={siteAi.configured}
-        fallback={siteAi.fallback}
-      />
+      {canManageSiteAi && (
+        <SiteAiSettingsForm
+          key={`site-${siteAi.provider ?? "none"}-${siteAi.model ?? "none"}-${siteAi.configured}`}
+          provider={siteAi.provider ?? null}
+          model={siteAi.model ?? null}
+          hasKey={siteAi.configured}
+          fallback={siteAi.fallback}
+        />
+      )}
 
       <div className="rounded-2xl border border-feather bg-card p-5 text-sm">
         <p className="font-extrabold text-ink">Provideri suportati</p>

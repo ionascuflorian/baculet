@@ -1,4 +1,4 @@
-import { currentUser, isAdmin } from "@/lib/access";
+import { currentUser, hasPermission } from "@/lib/access";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +17,7 @@ async function probe(name: string, load: () => Promise<unknown>): Promise<ProbeR
 // pe runtime-ul Vercel (nu se reproduce în dev). Nu expune secrete.
 export async function GET() {
   const user = await currentUser();
-  if (!user || !isAdmin(user)) {
+  if (!user || !hasPermission(user, "MANAGE_AI_CONTENT")) {
     return new Response(JSON.stringify({ error: "Neautorizat" }), { status: 401 });
   }
 

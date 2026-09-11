@@ -4,12 +4,14 @@ import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { QuestionForm } from "@/components/admin/question-form";
+import { requirePage } from "@/lib/access";
 
 export default async function AdminQuestionDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requirePage("MANAGE_QUIZZES");
   const { id } = await params;
   const question = await prisma.question.findUnique({
     where: { id },

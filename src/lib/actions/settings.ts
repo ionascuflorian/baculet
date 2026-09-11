@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { currentUser, isAdmin } from "@/lib/access";
+import { requirePermission } from "@/lib/access";
 import { revalidateBacSchedule } from "@/lib/revalidate";
 
 const SETTING_KEY = "bacSchedule";
@@ -27,10 +27,7 @@ export async function saveBacSchedule(
   input: z.input<typeof bacScheduleSchema>
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const user = await currentUser();
-    if (!user || !isAdmin(user)) {
-      return { ok: false, error: "Acces interzis" };
-    }
+    await requirePermission("MANAGE_SITE_SETTINGS");
 
     const data = bacScheduleSchema.parse(input);
 

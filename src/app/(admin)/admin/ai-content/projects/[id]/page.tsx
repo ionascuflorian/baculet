@@ -3,12 +3,14 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { loadProjectDetail } from "@/lib/actions/ai-content";
 import { AiContentProjectStudio } from "@/components/admin/ai-content/project-studio";
+import { requirePage } from "@/lib/access";
 
 export default async function AdminAiContentProjectPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requirePage("MANAGE_AI_CONTENT");
   const { id } = await params;
   const project = await loadProjectDetail(id);
   if (!project) notFound();

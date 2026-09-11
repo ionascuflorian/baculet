@@ -4,12 +4,14 @@ import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { SectionConstructor } from "@/components/admin/section-constructor";
 import { Button } from "@/components/ui/button";
+import { requirePage } from "@/lib/access";
 
 export default async function AdminLessonConstructorPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requirePage("MANAGE_CONTENT");
   const { id } = await params;
 
   const lesson = await prisma.lesson.findUnique({

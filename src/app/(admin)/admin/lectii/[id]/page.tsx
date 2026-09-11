@@ -7,12 +7,14 @@ import { Button } from "@/components/ui/button";
 import { LessonForm } from "@/components/admin/lesson-form";
 import { LessonExercises } from "@/components/admin/lesson-exercises";
 import { getOrCreateLessonQuiz } from "@/lib/lesson-quiz";
+import { requirePage } from "@/lib/access";
 
 export default async function AdminLessonDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requirePage("MANAGE_CONTENT");
   const { id } = await params;
   const lesson = await prisma.lesson.findUnique({
     where: { id },

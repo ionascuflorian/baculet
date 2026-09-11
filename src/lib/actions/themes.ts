@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { currentUser, requireAdmin, requireUser } from "@/lib/access";
+import { currentUser, requirePermission, requireUser } from "@/lib/access";
 import { revalidateTheme } from "@/lib/revalidate";
 import { THEME_COOKIE } from "@/lib/theme-constants";
 import {
@@ -47,7 +47,7 @@ export async function saveTheme(
   input: z.input<typeof themeSchema>
 ): Promise<ThemeSaveState> {
   try {
-    await requireAdmin();
+    await requirePermission("MANAGE_SITE_SETTINGS");
     // Slug-ul gol/doar spații = absent → se auto-generează din nume.
     const data = themeSchema.parse({
       ...input,
@@ -92,13 +92,13 @@ export async function saveTheme(
 }
 
 export async function deleteTheme(id: string) {
-  await requireAdmin();
+  await requirePermission("MANAGE_SITE_SETTINGS");
   await prisma.theme.delete({ where: { id } });
   revalidateTheme();
 }
 
 export async function setThemeEnabled(id: string, enabled: boolean) {
-  await requireAdmin();
+  await requirePermission("MANAGE_SITE_SETTINGS");
   await prisma.theme.update({ where: { id }, data: { enabled } });
   revalidateTheme();
 }

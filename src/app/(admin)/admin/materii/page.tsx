@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { DeleteButton } from "@/components/admin/delete-button";
 import { PendingLink } from "@/components/admin/pending-link";
 import { deleteSubject } from "@/lib/actions/admin";
+import { requirePage } from "@/lib/access";
 
 const profileLabels: Record<string, string> = {
   REAL: "Real",
@@ -15,6 +16,7 @@ const profileLabels: Record<string, string> = {
 };
 
 export default async function AdminSubjectsPage() {
+  await requirePage("MANAGE_CONTENT");
   const subjects = await prisma.subject.findMany({
     orderBy: { order: "asc" },
     include: { subjectProfiles: true, _count: { select: { chapters: true } } },

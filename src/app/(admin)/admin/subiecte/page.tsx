@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { DeleteButton } from "@/components/admin/delete-button";
 import { PendingLink } from "@/components/admin/pending-link";
 import { deleteExam } from "@/lib/actions/admin";
+import { requirePage } from "@/lib/access";
 
 const sessionLabels: Record<string, string> = {
   SUMMER: "Iunie-iulie",
@@ -21,6 +22,7 @@ const profileLabels: Record<string, string> = {
 };
 
 export default async function AdminExamsPage() {
+  await requirePage("MANAGE_EXAMS");
   const exams = await prisma.officialExam.findMany({
     orderBy: [{ year: "desc" }, { order: "asc" }],
     include: { subject: true },

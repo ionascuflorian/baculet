@@ -3,7 +3,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod/v4";
-import { currentUser, isAdmin } from "@/lib/access";
+import { currentUser, hasPermission } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { decryptApiKey } from "@/lib/ai-keys";
 
@@ -53,7 +53,7 @@ const TYPE_LABELS: Record<string, string> = {
 
 export async function POST(req: Request) {
   const user = await currentUser();
-  if (!user || !isAdmin(user)) {
+  if (!user || !hasPermission(user, "MANAGE_CONTENT")) {
     return new Response(JSON.stringify({ error: "Neautorizat" }), { status: 401 });
   }
 

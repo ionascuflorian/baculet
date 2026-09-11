@@ -1,6 +1,6 @@
 import { generateObject } from "ai";
 import { z } from "zod/v4";
-import { currentUser, isAdmin } from "@/lib/access";
+import { currentUser, hasPermission } from "@/lib/access";
 import { resolveSiteModel } from "@/lib/site-ai";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +26,7 @@ const themeSchema = z.object({
 
 export async function POST(req: Request) {
   const user = await currentUser();
-  if (!user || !isAdmin(user)) {
+  if (!user || !hasPermission(user, "MANAGE_SITE_AI")) {
     return new Response(JSON.stringify({ error: "Neautorizat" }), {
       status: 401,
     });

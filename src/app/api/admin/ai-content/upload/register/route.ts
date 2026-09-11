@@ -1,4 +1,4 @@
-import { currentUser, isAdmin } from "@/lib/access";
+import { currentUser, hasPermission } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
   ALLOWED_MIMES,
@@ -29,7 +29,7 @@ function priorityOf(raw: unknown): (typeof PRIORITIES)[number] {
 // să nu primim URL-uri arbitrare sau fișiere peste limită.
 export async function POST(req: Request) {
   const user = await currentUser();
-  if (!user || !isAdmin(user)) {
+  if (!user || !hasPermission(user, "MANAGE_AI_CONTENT")) {
     return new Response(JSON.stringify({ error: "Neautorizat" }), { status: 401 });
   }
 

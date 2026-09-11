@@ -8,12 +8,14 @@ import { LessonForm } from "@/components/admin/lesson-form";
 import { DeleteButton } from "@/components/admin/delete-button";
 import { PendingLink } from "@/components/admin/pending-link";
 import { deleteLesson } from "@/lib/actions/admin";
+import { requirePage } from "@/lib/access";
 
 export default async function AdminChapterDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requirePage("MANAGE_CONTENT");
   const { id } = await params;
   const chapter = await prisma.chapter.findUnique({
     where: { id },

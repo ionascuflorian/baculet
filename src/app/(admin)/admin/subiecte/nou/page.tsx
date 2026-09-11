@@ -2,8 +2,10 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { ExamForm } from "@/components/admin/exam-form";
+import { requirePage } from "@/lib/access";
 
 export default async function NewExamPage() {
+  await requirePage("MANAGE_EXAMS");
   const subjects = await prisma.subject.findMany({ orderBy: { order: "asc" } });
   const defaultSubject = subjects[0];
 
