@@ -937,7 +937,7 @@ export function Siera() {
               top: fabPos.top,
               transition: fabDrag
                 ? "none"
-                : "left 0.38s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.38s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                : `left ${mobile ? "0.28s" : "0.38s"} cubic-bezier(0.25, 0.46, 0.45, 0.94), top ${mobile ? "0.28s" : "0.38s"} cubic-bezier(0.25, 0.46, 0.45, 0.94)`,
             }}
           >
             <div
@@ -950,7 +950,7 @@ export function Siera() {
                   : "none",
                 transition: fabDrag
                   ? "none"
-                  : "transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                  : `transform ${mobile ? "0.28s" : "0.38s"} cubic-bezier(0.25, 0.46, 0.45, 0.94)`,
               }}
             >
               <motion.button
