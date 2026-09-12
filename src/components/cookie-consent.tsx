@@ -20,12 +20,17 @@ function notifyListeners() {
   listeners.forEach((listener) => listener());
 }
 
-function getClientSnapshot(): CookieConsent | null {
-  return getStoredConsent();
+// "pending" = niciun răspuns încă (SSR/hidratare). Bannerul se randează doar
+// când clientul confirmă post-hidratare că nu există o alegere salvată —
+// astfel nu mai „fulgeră” pe ecranele unde ai ales deja.
+type ConsentSnapshot = CookieConsent | null | "pending";
+
+function getServerSnapshot(): ConsentSnapshot {
+  return "pending";
 }
 
-function getServerSnapshot(): CookieConsent | null {
-  return null;
+function getClientSnapshot(): ConsentSnapshot {
+  return getStoredConsent();
 }
 
 export function CookieConsent() {
@@ -46,7 +51,7 @@ export function CookieConsent() {
     <div
       role="region"
       aria-label="Consimțământ cookie-uri"
-      className="animate-fade-in fixed inset-x-0 bottom-0 z-[9999] p-3 sm:p-4"
+      className="animate-fade-in fixed inset-x-0 bottom-0 z-[8800] p-3 sm:p-4"
     >
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 rounded-2xl border-2 border-feather bg-card p-4 shadow-xl sm:flex-row sm:items-center sm:gap-4 sm:p-5">
         <div className="flex items-start gap-3 sm:items-center">

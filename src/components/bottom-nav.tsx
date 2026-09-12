@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion, LayoutGroup } from "framer-motion";
 import { LayoutDashboard, BookOpen, FileText, TrendingUp, Trophy, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -20,10 +20,14 @@ export function BottomNav() {
   const pathname = usePathname();
 
   // Pill optimist: la apăsare se mută imediat, înainte să se încarce pagina.
+  // Resetăm la navigare încheiată prin ajustare de stare în timpul render-ului.
   const [pending, setPending] = useState<string | null>(null);
-  useEffect(() => {
+  const [lastPath, setLastPath] = useState(pathname);
+
+  if (lastPath !== pathname) {
+    setLastPath(pathname);
     setPending(null);
-  }, [pathname]);
+  }
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 px-5 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:hidden">

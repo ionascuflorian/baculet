@@ -4,6 +4,9 @@ import { processSource, refreshProjectStatus } from "@/lib/ai-content/run";
 import { z } from "zod/v4";
 
 export const dynamic = "force-dynamic";
+// Procesarea include extragere + embeddinguri (apeluri AI externe) + inserare
+// chunk-uri în batch; pe Vercel trebuie spațiu de timp peste default-ul de 10s.
+export const maxDuration = 300;
 
 const analyzeSchema = z.object({
   sourceId: z.string().min(1).max(200),

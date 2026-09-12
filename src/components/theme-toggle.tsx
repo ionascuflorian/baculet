@@ -17,7 +17,13 @@ const useHydrated = () =>
     () => false
   );
 
-export function ThemeToggle({ className = "" }: { className?: string }) {
+export function ThemeToggle({
+  className = "",
+  compactBelow = "md",
+}: {
+  className?: string;
+  compactBelow?: "md" | "lg";
+}) {
   const { theme, resolvedTheme, setTheme } = useTheme();
   const mounted = useHydrated();
 
@@ -38,7 +44,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
   return (
     <>
       {/* Mobile: comutator cu ciclu system → luminos → întunecat */}
-      <div className={cn("md:hidden", className)}>
+      <div className={cn(compactBelow === "lg" ? "lg:hidden" : "md:hidden", className)}>
         <button
           type="button"
           aria-label={`Temă: ${labels[mobileMode]}. Apasă pentru ${labels[nextMobileMode]}`}
@@ -59,7 +65,8 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
       {/* Desktop: control complet (sistem / luminos / întunecat) */}
       <div
         className={cn(
-          "inset hidden items-center gap-0.5 rounded-full p-0.5 md:flex",
+          "inset hidden items-center gap-0.5 rounded-full p-0.5",
+          compactBelow === "lg" ? "lg:flex" : "md:flex",
           className
         )}
         role="radiogroup"

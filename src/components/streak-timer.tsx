@@ -104,7 +104,7 @@ export function StreakTimer({
 
   return (
     <div
-      className="flex flex-col items-center rounded-full px-2.5 py-1"
+      className="inline-flex items-center gap-1 rounded-full px-0 py-1"
       title={
         status === "broken"
           ? "Seria s-a întrerupt"
@@ -113,15 +113,18 @@ export function StreakTimer({
             : `Mai ai ${formatDuration(msLeft!)} să-ți păstrezi seria`
       }
     >
-      <span className={cn("flex items-center gap-1 text-sm font-bold", flameColor)}>
-        <Flame className="h-4 w-4" />
+      <Flame className={cn("h-4 w-4", flameColor)} />
+      <span
+        className={cn(
+          "whitespace-nowrap text-sm font-bold tabular-nums leading-none",
+          flameColor
+        )}
+      >
         {count}
       </span>
-      {status !== "idle" && (
-        <span className={cn("text-[10px] leading-none", timerColor)}>
-          {status === "broken" ? "întreruptă" : formatDuration(msLeft!)}
-        </span>
-      )}
+      <span className="whitespace-nowrap text-xs font-medium leading-none text-subtle">
+        {count === 1 ? "zi" : "zile"}
+      </span>
     </div>
   );
 }

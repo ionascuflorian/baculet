@@ -2,18 +2,18 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { motion, LayoutGroup } from "framer-motion";
-import { LogOut, LifeBuoy, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
 import NextTopLoader from "nextjs-toploader";
-import { logout } from "@/lib/actions/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BottomNav } from "@/components/bottom-nav";
 import { StreakTimer } from "@/components/streak-timer";
 import { SiteFooter } from "@/components/site-footer";
+import { ProfileMenu } from "@/components/profile-menu";
+import { MoreMenu } from "@/components/more-menu";
 import { NotificationsBootstrap } from "@/components/push/notifications-bootstrap";
 
 // Siera (chat AI + markdown) se încarcă la cerere, separat de JS-ul inițial.
@@ -22,14 +22,11 @@ const Siera = dynamic(
   { ssr: false }
 );
 
-const navItems = [
+const primaryNav = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/materii", label: "Materii" },
-  { href: "/recapitulare", label: "Recapitulare" },
   { href: "/subiecte-bac", label: "Subiecte BAC" },
   { href: "/progres", label: "Progres" },
-  { href: "/prieteni", label: "Prieteni" },
-  { href: "/clasament", label: "Clasament" },
 ];
 
 interface AppShellProps {
@@ -45,6 +42,50 @@ interface AppShellProps {
   children: React.ReactNode;
 }
 
+function NavLink({
+  href,
+  label,
+  layoutId,
+  pathname,
+  pending,
+  onPending,
+}: {
+  href: string;
+  label: string;
+  layoutId: string;
+  pathname: string;
+  pending: string | null;
+  onPending: (href: string) => void;
+}) {
+  const active = pathname === href || pathname.startsWith(href + "/");
+  const pillHere = active || pending === href;
+
+  return (
+    <Link
+      href={href}
+      prefetch
+      onClick={() => onPending(href)}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "relative shrink-0 whitespace-nowrap rounded-full px-2.5 py-2 text-sm font-semibold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 md:px-3 lg:px-3.5",
+        active ? "text-accent" : "text-subtle hover:text-ink"
+      )}
+    >
+      {pillHere && (
+        <motion.span
+          layoutId={layoutId}
+          className={cn(
+            "absolute inset-0 rounded-full",
+            active || pending === href ? "bg-accent/10" : "bg-transparent"
+          )}
+          transition={{ type: "spring", stiffness: 400, damping: 32 }}
+        />
+      )}
+      <span className="relative z-10 whitespace-nowrap leading-none">{label}</span>
+    </Link>
+  );
+}
+
 export function AppShell({
   user,
   streakCount,
@@ -52,114 +93,61 @@ export function AppShell({
   children,
 }: AppShellProps) {
   const pathname = usePathname();
-  const initial = user.name.charAt(0).toUpperCase();
-  const firstName = user.name.split(" ")[0];
 
   // Pill optimist: la apăsare se mută imediat, înainte să se încarce pagina.
+  // Resetăm la navigare încheiată prin ajustare de stare în timpul render-ului
+  // (pattern recomandat — fără setState direct în efecte).
   const [pending, setPending] = useState<string | null>(null);
-  useEffect(() => {
+  const [lastPath, setLastPath] = useState(pathname);
+
+  if (lastPath !== pathname) {
+    setLastPath(pathname);
     setPending(null);
-  }, [pathname]);
+  }
 
   return (
     <div className="app-shell flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-40 border-b border-feather bg-background/80 pt-[env(safe-area-inset-top)] backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-4">
-          <div className="flex items-center gap-3">
-            <Logo href="/dashboard" />
-            <nav className="hidden items-center gap-1 md:flex">
-              <LayoutGroup id="header-nav">
-                {navItems.map((item) => {
-                  const active =
-                    pathname === item.href || pathname.startsWith(item.href + "/");
-                  const pillHere = active || pending === item.href;
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      prefetch
-                      onClick={() => setPending(item.href)}
-                      aria-current={active ? "page" : undefined}
-                      className="relative rounded-full px-3.5 py-2 text-sm font-semibold"
-                    >
-                      {pillHere && (
-                        <motion.span
-                          layoutId="nav-active-pill"
-                          className="absolute inset-0 rounded-full bg-accent/10"
-                          transition={{ type: "spring", stiffness: 400, damping: 32 }}
-                        />
-                      )}
-                      <span
-                        className={cn(
-                          "relative z-10 transition-colors",
-                          active ? "text-accent" : "text-subtle hover:text-ink"
-                        )}
-                      >
-                        {item.label}
-                      </span>
-                    </Link>
-                  );
-                })}
-              </LayoutGroup>
-            </nav>
+        <div className="mx-auto flex h-16 max-w-6xl flex-nowrap items-center justify-between gap-3 px-4 md:h-[72px] md:gap-4 md:px-6 lg:gap-5 lg:px-9 xl:gap-6">
+          <div className="flex min-w-0 flex-nowrap items-center gap-3 md:gap-4 lg:gap-5 xl:gap-8">
+            <Logo
+              href="/dashboard"
+              className="shrink-0 focus-visible:rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+            />
+
+            <LayoutGroup id="header-nav-primary">
+              <nav
+                aria-label="Navigare principală"
+                className="hidden flex-nowrap items-center gap-1 md:flex md:gap-1.5 lg:gap-2"
+              >
+                {primaryNav.map((item) => (
+                  <NavLink
+                    key={item.href}
+                    href={item.href}
+                    label={item.label}
+                    layoutId="nav-pill-primary"
+                    pathname={pathname}
+                    pending={pending}
+                    onPending={setPending}
+                  />
+                ))}
+              </nav>
+            </LayoutGroup>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            <ThemeToggle />
+          <div className="flex shrink-0 flex-nowrap items-center gap-1.5 md:gap-2 lg:gap-3 xl:gap-4">
+            {/* Secundarele (Recapitulare, Prieteni, Clasament) stau în „Mai mult" de la tabletă. */}
+            <div className="hidden md:block">
+              <MoreMenu />
+            </div>
 
-            <Link
-              href="/help"
-              title="Ajutor"
-              className="flex h-8 w-8 items-center justify-center rounded-full text-subtle transition-colors hover:bg-ink/5 hover:text-ink"
-            >
-              <LifeBuoy className="h-5 w-5" />
-            </Link>
+            <div className="md:hidden lg:block">
+              <StreakTimer count={streakCount} lastActiveAt={lastActiveAt} variant="nav" />
+            </div>
 
-            <StreakTimer count={streakCount} lastActiveAt={lastActiveAt} variant="nav" />
+            <ThemeToggle compactBelow="lg" />
 
-            {user.role === "ADMIN" && (
-              <Link
-                href="/admin"
-                className="hidden items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-subtle transition-colors hover:text-accent sm:flex"
-              >
-                <ShieldCheck className="h-4 w-4" />
-                Admin
-              </Link>
-            )}
-
-            <Link
-              href={user.username ? `/u/${user.username}` : "/cont"}
-              title="Contul meu"
-              className="flex items-center gap-2 rounded-full p-1 transition-colors hover:bg-ink/5"
-            >
-              <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-accent text-sm font-bold text-white">
-                {user.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={user.image}
-                    alt="Poza de profil"
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  initial
-                )}
-              </span>
-              <span className="hidden flex-col leading-tight lg:flex">
-                <span className="text-xs font-semibold text-ink">
-                  {firstName}
-                </span>
-              </span>
-            </Link>
-
-            <form action={logout}>
-              <button
-                type="submit"
-                title="Deconectare"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-subtle transition-colors hover:bg-ink/5 hover:text-ink"
-              >
-                <LogOut className="h-5 w-5" />
-              </button>
-            </form>
+            <ProfileMenu user={user} />
           </div>
         </div>
       </header>

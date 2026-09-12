@@ -68,31 +68,41 @@ export async function processSource(
       4
     );
 
-    await prisma.$transaction(async (tx) => {
-      await tx.contentChunk.deleteMany({ where: { sourceId } });
-      for (let i = 0; i < chunks.length; i++) {
-        await tx.contentChunk.create({
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.contentChunk.deleteMany({ where: { sourceId } });
+        // Inserăm în batch-uri de createMany (o interogare SQL per batch) în loc
+        // de un create pe rând — un fișier mare cu sute/mii de chunk-uri depășea
+        // timeout-ul de 5s al tranzacției pe poolerul Neon.
+        const BATCH_SIZE = 500;
+        for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+          await tx.contentChunk.createMany({
+            data: chunks.slice(i, i + BATCH_SIZE).map((c, j) => {
+              const idx = i + j;
+              return {
+                sourceId,
+                projectId: source.projectId,
+                page: c.page ?? null,
+                section: c.section ?? null,
+                text: c.text,
+                tokenCount: c.tokenCount,
+                embedding: embeddings[idx] ?? Prisma.JsonNull,
+              };
+            }),
+          });
+        }
+        await tx.contentSource.update({
+          where: { id: sourceId },
           data: {
-            sourceId,
-            projectId: source.projectId,
-            page: chunks[i].page ?? null,
-            section: chunks[i].section ?? null,
-            text: chunks[i].text,
-            tokenCount: chunks[i].tokenCount,
-            embedding: embeddings[i] ?? Prisma.JsonNull,
+            status: "READY",
+            pageCount: extracted.pageCount,
+            charCount: extracted.charCount,
+            error: null,
           },
         });
-      }
-      await tx.contentSource.update({
-        where: { id: sourceId },
-        data: {
-          status: "READY",
-          pageCount: extracted.pageCount,
-          charCount: extracted.charCount,
-          error: null,
-        },
-      });
-    });
+      },
+      { timeout: 60_000 }
+    );
 
     await prisma.generationJob.update({
       where: { id: job.id },
