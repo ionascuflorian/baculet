@@ -56,3 +56,29 @@ Lesson content may be stored as rich text and can also contain media references.
 When a feature request is ambiguous, prefer the smallest change that preserves these distinctions:
 
 content ≠ practice ≠ assessment ≠ progress ≠ mastery.
+
+## Autentificare & autorizare
+
+### Sesiune autentificată
+Starea unui browser de a fi logat în Băculeț.
+_Avoid_: JWT, cookie, token de sesiune.
+
+### Identitate
+Cine este utilizatorul: id, email, nume. Este fixă și ținută de sesiune.
+
+### Acces
+Ce poate face utilizatorul: Rol, Proprietar și Permisiuni. Nu se îngheață la login; se verifică live din baza de date la fiecare cerere de server.
+_Avoid_: permisiuni înghețate, token cu drepturi.
+
+### Rol
+Clasificarea brută a unui cont: `USER` sau `ADMIN`. Rolul `ADMIN` este necesar (dar nu suficient) pentru panoul de administrare.
+
+### Permisiune
+Capacitate granulară din `AdminPermission` (ex. `MANAGE_USERS`). Funcționează doar pe un cont cu rol `ADMIN`.
+
+### Proprietar
+Contul super-admin al platformei (`isOwner`): deține implicit toate permisiunile (indiferent de listă), este singurul care poate administra administratorii și nu poate fi demovat.
+_Avoid_: superuser generic, „owner ca flag de implementare”.
+
+### Contract de prospețime
+Accesul este verificat live la fiecare cerere de server (layout-uri, acțiuni, API). Interfața se actualizează la navigare sau revalidare; un tab deschis poate afișa date vechi până la reîmprospătare, dar nicio acțiune de server nu trece neautorizată.

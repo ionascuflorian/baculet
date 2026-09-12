@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 import type { AdminPermission } from "@/generated/prisma/client";
 
 export type UserRole = "ADMIN" | "USER";
@@ -25,7 +26,11 @@ export const ADMIN_PERMISSIONS: AdminPermission[] = [
 
 // Singurul loc care citește sesiunea pentru autorizare. Return-ează
 // utilizatorul normalizat sau null; nu programează modul de fail.
-export async function currentUser(): Promise<SessionUser | null> {
+// Memoizat per-request (React cache): layout + pagini + acțiuni din aceeași
+// cerere împart o singură citire de DB în loc de una fiecare.
+// Autoritatea reală stă aici (apelurile server): permisiunile se verifică
+// live din DB, nu dintr-un token înghețat la login.
+export const currentUser = cache(async (): Promise<SessionUser | null> => {
   const session = await auth();
   const u = session?.user;
   if (!u?.id) return null;
@@ -37,7 +42,7 @@ export async function currentUser(): Promise<SessionUser | null> {
     isOwner: u.isOwner === true,
     permissions: Array.isArray(u.permissions) ? (u.permissions as AdminPermission[]) : [],
   };
-}
+});
 
 export function isAdmin(user: Pick<SessionUser, "role">): boolean {
   return user.role === "ADMIN";

@@ -65,7 +65,6 @@ export const authConfig = {
           id: user.id,
           email: user.email,
           name: user.name,
-          image: user.image,
           role: user.role,
         };
       },
@@ -125,7 +124,6 @@ export const authConfig = {
           id: user.id,
           email: user.email,
           name: user.name,
-          image: user.image,
           role: user.role,
         };
       },
@@ -259,7 +257,6 @@ export const authConfig = {
             id: true,
             email: true,
             name: true,
-            image: true,
             role: true,
             isOwner: true,
             permissions: true,
@@ -270,10 +267,7 @@ export const authConfig = {
           session.user.role = dbUser.role;
           session.user.email = dbUser.email;
           session.user.name = dbUser.name;
-          session.user.image =
-            dbUser.image && !dbUser.image.startsWith("data:image")
-              ? dbUser.image
-              : null;
+          session.user.image = (token.picture as string | null) ?? null;
           session.user.isOwner = dbUser.isOwner;
           session.user.permissions = dbUser.permissions;
         } else {
@@ -291,13 +285,13 @@ export const authConfig = {
     },
     authorized({ auth, request }) {
       const isLoggedIn = !!auth?.user;
-      const isAdmin = auth?.user?.role === "ADMIN";
       const { pathname } = request.nextUrl;
 
-      if (pathname.startsWith("/admin")) {
-        return isLoggedIn && isAdmin;
-      }
-      const protectedPaths = ["/dashboard", "/progres", "/subiecte-bac", "/cont"];
+      // Gate-ul de rol ADMIN nu mai stă aici pe DB: admin layout-ul
+      // (`(admin)/admin/layout.tsx`) verifică rolul și redirecționează, iar
+      // acțiunile server enforcează permisiunile live. Middleware-ul rămâne
+      // doar un gate de identitate.
+      const protectedPaths = ["/admin", "/dashboard", "/progres", "/subiecte-bac", "/cont"];
       const isProtected = protectedPaths.some(
         (p) => pathname === p || pathname.startsWith(p + "/")
       );
