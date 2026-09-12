@@ -135,8 +135,8 @@ export async function changeEmail(
 
   // Trimitere cod de verificare pe noua adresă — emailul NU e schimbat încă.
   const code = generateOtpCode();
-  await prisma.verificationToken.deleteMany({ where: { email: newEmail } });
-  await prisma.verificationToken.create({
+  await prisma.otpToken.deleteMany({ where: { email: newEmail } });
+  await prisma.otpToken.create({
     data: {
       email: newEmail,
       token: code,
@@ -184,7 +184,7 @@ export async function verifyEmailChange(
 
   // Verificarea codului: refolosim verificationToken pentru codul OTP trimis
   // la noua adresă (atomic consume pentru a evita reuse).
-  const deleted = await prisma.verificationToken.deleteMany({
+  const deleted = await prisma.otpToken.deleteMany({
     where: { email: pendingEmail, token: code, expires: { gt: new Date() } },
   });
   if (deleted.count === 0) {

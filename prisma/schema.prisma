@@ -61,7 +61,8 @@ model User {
   id            String   @id @default(cuid())
   email         String   @unique
   username      String?  @unique
-  passwordHash  String
+  // Nullabil: conturile create prin OAuth (via adapter) nu au parolă proprie.
+  passwordHash  String?
   name          String
   image         String?
   emailVerified DateTime?
@@ -110,6 +111,28 @@ model User {
   followers           Follow[] @relation("Following")
   uploadedSources     ContentSource[] @relation("UploadedSources")
   contentActivities   ProjectActivity[] @relation("ContentActivities")
+  accounts            Account[]
+}
+
+// Conturi externe legate (ex. Google), gestionate de adapter-ul Prisma al Auth.js.
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
 }
 
 // Urmărire unidirecțională: `follower` urmărește `following`.
@@ -498,7 +521,7 @@ model PushSubscription {
   @@index([userId])
 }
 
-model VerificationToken {
+model OtpToken {
   id        String   @id @default(cuid())
   email     String
   token     String
@@ -506,6 +529,14 @@ model VerificationToken {
   createdAt DateTime @default(now())
 
   @@index([email])
+}
+
+// Model canonic al adapter-ului Auth.js, folosit pentru fluxurile de verificare
+// prin email (Magic Link). Nu se folosește de OTP-urile aplicației (vezi OtpToken).
+model VerificationToken {
+  identifier String   @id
+  token      String   @unique
+  expires    DateTime
 }
 
 model TodoItem {

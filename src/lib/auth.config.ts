@@ -1,4 +1,5 @@
 import type { NextAuthConfig } from "next-auth";
+import { PrismaAdapter } from "@auth/prisma-adapter";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
@@ -25,6 +26,7 @@ export const authConfig = {
   session: {
     strategy: "jwt",
   },
+  adapter: PrismaAdapter(prisma),
   trustHost: true,
   providers: [
     ...(googleConfigured
@@ -49,6 +51,9 @@ export const authConfig = {
           where: { email: parsed.data.email.toLowerCase() },
         });
         if (!user) return null;
+
+        // Conturile fără parolă (create prin Google) nu se pot autentica cu parolă.
+        if (!user.passwordHash) return null;
 
         const valid = await bcrypt.compare(parsed.data.password, user.passwordHash);
         if (!valid) return null;
@@ -82,7 +87,7 @@ export const authConfig = {
 
         // Consumul e atomic (deleteMany): două cereri concurente cu același cod
         // — doar una câștigă, cealaltă primește count 0.
-        const deleted = await prisma.verificationToken.deleteMany({
+        const deleted = await prisma.otpToken.deleteMany({
           where: { email, token: code, expires: { gt: new Date() } },
         });
         if (deleted.count === 0) return null;
@@ -130,105 +135,157 @@ export const authConfig = {
     async signIn({ user, account }) {
       if (account?.provider === "google" && user.email) {
         const email = user.email.toLowerCase();
-        const existing = await prisma.user.findFirst({
-          where: { OR: [{ email }, { googleEmail: email }] },
+
+        // Cont deja legat la o adresă Google (inclusiv după schimbarea adresei
+        // Google în setări — atunci getByEmail nu l-ar mai găsi).
+        const linked = await prisma.user.findUnique({
+          where: { googleEmail: email },
         });
-        if (existing) {
+        if (linked) {
+          // Adapter-ul a putut crea un duplicat pentru noul email Google înainte
+          // de acest callback. Îl curățăm: mutăm contul OAuth pe contul real și
+          // ștergem duplicatul gol (creat în același request, deci fără activitate).
+          const dup = await prisma.user.findUnique({ where: { email } });
+          if (dup && dup.id !== linked.id) {
+            await prisma.account.updateMany({
+              where: { userId: dup.id },
+              data: { userId: linked.id },
+            });
+            const dupHasActivity = await prisma.projectActivity.count({
+              where: { userId: dup.id },
+            });
+            if (dupHasActivity === 0) {
+              await prisma.user.delete({ where: { id: dup.id } });
+            }
+          }
+
           await prisma.user.update({
-            where: { id: existing.id },
+            where: { id: linked.id },
             data: {
               googleLinked: true,
               googleEmail: email,
               // Contul a fost găsit doar prin googleEmail: emailul din cont a
               // fost schimbat în setări. Îl sincronizăm înapoi la adresa
               // Google (verificată de Google, deci sigură).
-              ...(existing.email !== email ? { email } : {}),
+              ...(linked.email !== email ? { email } : {}),
+              ...(!linked.image && user.image ? { image: user.image } : {}),
+            },
+          });
+          return true;
+        }
+
+        // Adapter-ul l-a găsit (sau l-a creat deja) după adresa de email.
+        const existing = await prisma.user.findUnique({ where: { email } });
+        if (existing) {
+          await prisma.user.update({
+            where: { id: existing.id },
+            data: {
+              googleLinked: true,
+              googleEmail: email,
               ...(!existing.image && user.image ? { image: user.image } : {}),
             },
           });
-        } else {
-          try {
-            const googleName = user.name ?? email.split("@")[0];
-            const { username: base } = buildUsername(googleName, email);
-            await prisma.user.create({
+          return true;
+        }
+
+        // Fallback de siguranță: cu adapter, user-ul + contul OAuth se creează
+        // înainte de acest callback, deci aici nu ar trebui să ajungem. Păstrăm
+        // pentru robustețe (ex. viitor flux care nu folosește adapter-ul).
+        try {
+          const googleName = user.name ?? email.split("@")[0];
+          const { username: base } = buildUsername(googleName, email);
+          const created = await prisma.user.create({
+            data: {
+              email,
+              name: googleName,
+              username: await uniqueUsername(base),
+              image: user.image ?? null,
+              emailVerified: new Date(),
+              googleLinked: true,
+              googleEmail: email,
+            },
+          });
+          if (account.providerAccountId) {
+            await prisma.account.create({
               data: {
-                email,
-                name: googleName,
-                username: await uniqueUsername(base),
-                image: user.image ?? null,
-                passwordHash: crypto.randomUUID(),
-                emailVerified: new Date(),
-                googleLinked: true,
-                googleEmail: email,
+                userId: created.id,
+                type: account.type ?? "oauth",
+                provider: account.provider,
+                providerAccountId: account.providerAccountId,
               },
             });
-          } catch (err) {
-            // Cursă de creare concurentă (P2002) — dacă alt request a creat deja
-            // contul, sincronizăm și continuăm normal.
-            if ((err as { code?: string }).code === "P2002") {
-              const raced = await prisma.user.findFirst({
-                where: { OR: [{ email }, { googleEmail: email }] },
-              });
-              if (raced) {
-                await prisma.user.update({
-                  where: { id: raced.id },
-                  data: {
-                    googleLinked: true,
-                    googleEmail: email,
-                    emailVerified: new Date(),
-                    ...(!raced.image && user.image ? { image: user.image } : {}),
-                  },
-                });
-                return true;
-              }
-            }
-            throw err;
           }
+        } catch (err) {
+          // Cursă de creare concurentă (P2002) — dacă alt request a creat deja
+          // contul, sincronizăm și continuăm normal.
+          if ((err as { code?: string }).code === "P2002") {
+            const raced = await prisma.user.findFirst({
+              where: { OR: [{ email }, { googleEmail: email }] },
+            });
+            if (raced) {
+              await prisma.user.update({
+                where: { id: raced.id },
+                data: {
+                  googleLinked: true,
+                  googleEmail: email,
+                  emailVerified: new Date(),
+                  ...(!raced.image && user.image ? { image: user.image } : {}),
+                },
+              });
+              return true;
+            }
+          }
+          throw err;
         }
       }
       return true;
     },
-    async jwt({ token, user }) {
-      if (user?.email) {
-        const dbUser = await prisma.user.findUnique({
-          where: { email: user.email },
-          select: { id: true, role: true, name: true, image: true, isOwner: true, permissions: true },
-        });
-        if (dbUser) {
-          token.id = dbUser.id;
-          token.role = dbUser.role;
-          token.name = dbUser.name;
-          token.isOwner = dbUser.isOwner;
-          token.permissions = dbUser.permissions;
-          // Doar URL-urile mici (ex. avatare Google) se păstrează în JWT.
-          // Pozele încărcate local (data URL, mari) rămân în DB; JWT-ul stă mic
-          // ca să nu depășească limita de header (HTTP 431).
-          token.picture =
-            dbUser.image && !dbUser.image.startsWith("data:image")
-              ? dbUser.image
-              : null;
-          return token;
-        }
-        // Utilizatorul a fost șters din DB — nu mai minta identitate.
-        delete token.id;
-        delete token.role;
-        delete token.name;
-        delete token.isOwner;
-        delete token.permissions;
+    async jwt({ token }) {
+      // Pozele încărcate local (data URL, mari) nu au ce căuta în JWT —
+      // header-ul cookie ar depăși limita (HTTP 431). Păstrăm doar URL-urile
+      // mici (ex. avatare Google). Permisiunile nu se mai pun în token: se
+      // citesc fresh din DB la fiecare cerere (callback-ul session).
+      if (token.picture && token.picture.startsWith("data:image")) {
         token.picture = null;
       }
       return token;
     },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as string;
-        session.user.name = token.name;
-        session.user.image = (token.picture as string) ?? null;
-        session.user.isOwner = token.isOwner === true;
-        session.user.permissions = Array.isArray(token.permissions)
-          ? token.permissions
-          : [];
+    async session({ session, token, user }) {
+      const userId = (user?.id as string | undefined) ?? token.sub;
+      if (session.user && userId) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: userId },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            image: true,
+            role: true,
+            isOwner: true,
+            permissions: true,
+          },
+        });
+        if (dbUser) {
+          session.user.id = dbUser.id;
+          session.user.role = dbUser.role;
+          session.user.email = dbUser.email;
+          session.user.name = dbUser.name;
+          session.user.image =
+            dbUser.image && !dbUser.image.startsWith("data:image")
+              ? dbUser.image
+              : null;
+          session.user.isOwner = dbUser.isOwner;
+          session.user.permissions = dbUser.permissions;
+        } else {
+          // Utilizatorul a fost șters din DB — nu mai mint identitate.
+          session.user.id = "";
+          session.user.role = "USER";
+          session.user.email = "";
+          session.user.name = null;
+          session.user.image = null;
+          session.user.isOwner = false;
+          session.user.permissions = [];
+        }
       }
       return session;
     },

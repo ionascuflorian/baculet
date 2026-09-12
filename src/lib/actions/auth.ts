@@ -103,8 +103,8 @@ export async function register(
   }
 
   const code = generateOtpCode();
-  await prisma.verificationToken.deleteMany({ where: { email } });
-  await prisma.verificationToken.create({
+  await prisma.otpToken.deleteMany({ where: { email } });
+  await prisma.otpToken.create({
     data: { email, token: code, expires: new Date(Date.now() + 10 * 60 * 1000) },
   });
   await sendOtpEmail(email, code);

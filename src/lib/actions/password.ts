@@ -36,10 +36,10 @@ export async function requestPasswordReset(
     };
   }
 
-  await prisma.verificationToken.deleteMany({ where: { email } });
+  await prisma.otpToken.deleteMany({ where: { email } });
 
   const code = generateOtpCode();
-  await prisma.verificationToken.create({
+  await prisma.otpToken.create({
     data: { email, token: code, expires: new Date(Date.now() + 10 * 60 * 1000) },
   });
 
@@ -84,7 +84,7 @@ export async function resetPassword(
   }
 
   // Consumă codul atomic: dacă nu există, e incorect sau a fost deja folosit.
-  const deleted = await prisma.verificationToken.deleteMany({
+  const deleted = await prisma.otpToken.deleteMany({
     where: { email, token: code, expires: { gt: new Date() } },
   });
   if (deleted.count === 0) {

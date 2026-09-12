@@ -29,10 +29,10 @@ export async function requestCode(
   }
 
   // Șterge codurile vechi pentru acest email
-  await prisma.verificationToken.deleteMany({ where: { email } });
+  await prisma.otpToken.deleteMany({ where: { email } });
 
   const code = generateOtpCode();
-  await prisma.verificationToken.create({
+  await prisma.otpToken.create({
     data: { email, token: code, expires: new Date(Date.now() + 10 * 60 * 1000) },
   });
 
@@ -69,7 +69,7 @@ export async function getDevCode(email: string): Promise<{ code: string | null }
   if (!user?.email || user.email.toLowerCase() !== clean) {
     return { code: null };
   }
-  const token = await prisma.verificationToken.findFirst({
+  const token = await prisma.otpToken.findFirst({
     where: { email: clean },
     orderBy: { createdAt: "desc" },
   });

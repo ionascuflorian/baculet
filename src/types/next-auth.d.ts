@@ -17,12 +17,3 @@ declare module "next-auth" {
     permissions?: AdminPermission[];
   }
 }
-
-declare module "next-auth/jwt" {
-  interface JWT {
-    id?: string;
-    role?: string;
-    isOwner?: boolean;
-    permissions?: AdminPermission[];
-  }
-}
