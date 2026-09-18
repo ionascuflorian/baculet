@@ -1,6 +1,7 @@
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LoginForm } from "@/components/auth/login-form";
+import { LoginSieraScene } from "@/components/auth/login-siera";
 
 export default function LoginPage() {
   const googleEnabled = Boolean(
@@ -15,7 +16,11 @@ export default function LoginPage() {
       <div className="mb-8">
         <Logo />
       </div>
-      <LoginForm googleEnabled={googleEnabled} />
+      <div className="w-full max-w-5xl">
+        <LoginSieraScene>
+          <LoginForm googleEnabled={googleEnabled} />
+        </LoginSieraScene>
+      </div>
     </div>
   );
 }

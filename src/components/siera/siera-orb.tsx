@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion, useAnimationControls } from "framer-motion";
+import { AnimatePresence, motion, useAnimationControls, useReducedMotion } from "framer-motion";
+import { clamp, type Point, type SieraReaction } from "@/lib/siera/siera-motion";
 
 export type SieraMood = "idle" | "thinking" | "speaking" | "happy";
 export type SieraGaze = "cursor" | "input" | "user";
@@ -14,6 +15,21 @@ interface SieraOrbProps {
   mood?: SieraMood;
   gaze?: SieraGaze;
   ariaHidden?: boolean;
+  /**
+   * Directed gaze offset (px). When provided it takes priority over mood/gaze
+   * math and lets Siera look at a specific element (input, button, …). The
+   * values are clamped and spring-smoothed so the eyes never jump or leave the
+   * blob.
+   */
+  lookAt?: Point | null;
+  /** One-off micro gesture, short and subtle (squash, nudge, bounce, …). */
+  reaction?: SieraReaction | null;
+  /**
+   * When false, disables the global cursor-proximity lift. Use in contexts
+   * where the gaze must be intentional (login, cookie banner) instead of
+   * following the cursor.
+   */
+  trackCursor?: boolean;
 }
 
 const PARTICLES = [
@@ -28,9 +44,13 @@ export function SieraOrb({
   mood = "idle",
   gaze = "cursor",
   ariaHidden = false,
+  lookAt = null,
+  reaction = null,
+  trackCursor = true,
 }: SieraOrbProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const controls = useAnimationControls();
+  const reducedMotion = useReducedMotion();
   const [hover, setHover] = useState(false);
   const [wander, setWander] = useState({ x: 0, y: 0 });
 
@@ -66,7 +86,10 @@ export function SieraOrb({
   }, [mood, controls]);
 
   // Prezența cursorului: ridicarea, lumina și ochii răspund continuu la distanță.
+  // Se dezactivează în contextele în care privirea trebuie să fie intenționată
+  // (login, cookie banner) — acolo ochii urmăresc elemente, nu cursorul.
   useEffect(() => {
+    if (!trackCursor) return;
     let alive = true;
     let raf = 0;
     const target = { x: 0, y: 0 };
@@ -127,16 +150,53 @@ export function SieraOrb({
       window.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseleave", reset);
     };
-  }, []);
+  }, [trackCursor]);
+
+  // Micro-gesturi (squash, nudge, bounce, …): scurte, subtile, o singură dată.
+  const lastReaction = useRef<SieraReaction | null>(null);
+  useEffect(() => {
+    if (!reaction || reaction === lastReaction.current) return;
+    lastReaction.current = reaction;
+    if (reducedMotion) return;
+    const gestures: Record<SieraReaction, Parameters<typeof controls.start>[0]> = {
+      squash: {
+        scaleX: [1, 1.06, 1],
+        scaleY: [1, 0.93, 1],
+        transition: { duration: 0.28, ease: "easeInOut" },
+      },
+      nudge: {
+        scale: [1, 0.97, 1],
+        transition: { duration: 0.24, ease: "easeInOut" },
+      },
+      bounce: {
+        y: [0, -7, 0],
+        transition: { duration: 0.42, ease: "easeOut" },
+      },
+      attention: {
+        scale: [1, 1.05, 1],
+        transition: { duration: 0.5, ease: "easeInOut" },
+      },
+      confuse: {
+        rotate: [0, -2.5, 2.5, 0],
+        transition: { duration: 0.55, ease: "easeInOut" },
+      },
+      peek: {
+        y: [0, 9, 0],
+        transition: { duration: 0.45, ease: "easeOut" },
+      },
+    };
+    controls.start(gestures[reaction]);
+  }, [reaction, controls, reducedMotion]);
 
   // Spre unde privește Siera, în funcție de stare.
   const gazeOffset = useMemo(() => {
+    if (lookAt) return { x: clamp(lookAt.x, -6, 6), y: clamp(lookAt.y, -4.5, 4.5) };
     if (mood === "thinking") return { x: 0, y: -3 };
     if (gaze === "input") return { x: 0, y: 4 };
     if (gaze === "user") return { x: 0, y: 2 };
     if (mood === "idle") return hover ? wander : idleLook;
     return { x: 0, y: 0 };
-  }, [mood, gaze, hover, wander, idleLook]);
+  }, [lookAt, mood, gaze, hover, wander, idleLook]);
 
   const smile = mood === "happy" || mood === "speaking";
 
