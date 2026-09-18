@@ -92,7 +92,13 @@ export default async function Home() {
   const isLoggedIn = !!sessionUser;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="relative isolate flex min-h-screen flex-col bg-background">
+      <div aria-hidden className="gradient-yuushou">
+        <div className="gradient-yuushou__blob gradient-yuushou__blob--a" />
+        <div className="gradient-yuushou__blob gradient-yuushou__blob--b" />
+        <div className="gradient-yuushou__blob gradient-yuushou__blob--c" />
+        <div className="gradient-yuushou__blob gradient-yuushou__blob--d" />
+      </div>
       <header className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-2 px-4">
         <Logo />
         <div className="flex items-center gap-2">
@@ -239,7 +245,7 @@ export default async function Home() {
         </DemoSection>
 
         {/* Cum funcționează */}
-        <section className="border-y border-feather/60 bg-card/40 py-16 sm:py-20">
+        <section className="border-y border-feather/40 py-16 sm:py-20">
           <div className="mx-auto w-full max-w-6xl px-4">
             <Reveal>
               <h2 className="mb-2 text-center text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">

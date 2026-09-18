@@ -261,6 +261,96 @@ body {
     border-color: rgba(255, 255, 255, 0.14);
   }
 
+  /* --- Landing: mesh gradient discret, pe culorile temei active --- */
+  .gradient-yuushou {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .gradient-yuushou__blob {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(80px);
+    will-change: transform;
+  }
+  .gradient-yuushou__blob--a {
+    top: -8%;
+    left: 2%;
+    width: 72%;
+    height: 62%;
+    background: radial-gradient(
+      closest-side,
+      color-mix(in oklab, var(--accent-dark) 88%, transparent) 0%,
+      transparent 68%
+    );
+    opacity: 0.52;
+  }
+  .gradient-yuushou__blob--b {
+    top: 4%;
+    right: -10%;
+    width: 64%;
+    height: 54%;
+    background: radial-gradient(
+      closest-side,
+      color-mix(in oklab, var(--accent) 72%, var(--card)) 0%,
+      transparent 70%
+    );
+    opacity: 0.46;
+  }
+  .gradient-yuushou__blob--c {
+    bottom: -10%;
+    right: -6%;
+    width: 60%;
+    height: 50%;
+    background: radial-gradient(
+      closest-side,
+      color-mix(in oklab, var(--warning) 62%, var(--accent) 38%) 0%,
+      transparent 70%
+    );
+    opacity: 0.34;
+  }
+  .gradient-yuushou__blob--d {
+    bottom: -8%;
+    left: -10%;
+    width: 66%;
+    height: 60%;
+    background: radial-gradient(
+      closest-side,
+      color-mix(in oklab, var(--brand-light) 92%, transparent) 0%,
+      transparent 72%
+    );
+    opacity: 0.58;
+  }
+  .dark .gradient-yuushou__blob--a {
+    opacity: 0.36;
+  }
+  .dark .gradient-yuushou__blob--b {
+    opacity: 0.32;
+  }
+  .dark .gradient-yuushou__blob--c {
+    opacity: 0.22;
+  }
+  .dark .gradient-yuushou__blob--d {
+    opacity: 0.28;
+  }
+  .gradient-yuushou::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")
+      repeat;
+    background-size: 256px 256px;
+    mix-blend-mode: overlay;
+    opacity: 0.22;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .gradient-yuushou__blob {
+      filter: blur(60px);
+    }
+  }
+
   /* Micro-interactions */
   @keyframes pop-in {
     0% {
