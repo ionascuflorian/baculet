@@ -12,9 +12,22 @@ export const dynamic = "force-dynamic";
 const questionSchema = z.object({
   text: z.string().min(2),
   options: z.array(z.string()).min(2).max(6),
-  correctIndex: z.number().int().min(0),
+  correctIndex: z.number().int().min(0).default(0),
   explanation: z.string().optional().default(""),
-  type: z.enum(["SINGLE", "CLOZE", "FLASHCARD", "DRAG_DROP"]).default("SINGLE"),
+  type: z
+    .enum([
+      "SINGLE",
+      "CLOZE",
+      "FLASHCARD",
+      "DRAG_DROP",
+      "SINGLE_CHOICE",
+      "TRUE_FALSE",
+      "MULTIPLE_CHOICE",
+      "FILL_BLANK",
+      "ORDERING",
+    ])
+    .default("SINGLE_CHOICE"),
+  answer: z.unknown().optional(),
 });
 
 const exercisesSchema = z.object({
@@ -49,6 +62,11 @@ const TYPE_LABELS: Record<string, string> = {
   CLOZE: "completare (gap)",
   FLASHCARD: "flashcard",
   DRAG_DROP: "ordonează / potrivește",
+  SINGLE_CHOICE: "cu alegere (grilă)",
+  TRUE_FALSE: "adevărat / fals",
+  MULTIPLE_CHOICE: "cu alegere multiplă",
+  FILL_BLANK: "completare",
+  ORDERING: "ordonare",
 };
 
 export async function POST(req: Request) {
@@ -101,11 +119,21 @@ export async function POST(req: Request) {
   const count = Math.min(10, Math.max(3, Math.round(body.count ?? 5)));
   const difficulty = Math.min(3, Math.max(1, Math.round(body.difficulty ?? 2)));
   const types = (Array.isArray(body.types) ? body.types : []).filter((t) =>
-    ["SINGLE", "CLOZE", "FLASHCARD", "DRAG_DROP"].includes(t)
+    [
+      "SINGLE",
+      "CLOZE",
+      "FLASHCARD",
+      "DRAG_DROP",
+      "SINGLE_CHOICE",
+      "TRUE_FALSE",
+      "MULTIPLE_CHOICE",
+      "FILL_BLANK",
+      "ORDERING",
+    ].includes(t)
   );
   const typeClause = types.length
-    ? `Tipuri permise: ${types.map((t) => TYPE_LABELS[t] ?? t).join(", ")}. Răspândește întrebările pe aceste tipuri.`
-    : "Variantează tipurile: grilă, completare, flashcard, ordonare.";
+    ? `Tipuri permise: ${types.map((t) => TYPE_LABELS[t] ?? t).join(", ")}. Folosește doar aceste tipuri.`
+    : "Variantează tipurile: grilă, adevărat/fals, completare, ordonare.";
 
   try {
     const { object } = await generateObject({
@@ -114,10 +142,10 @@ export async function POST(req: Request) {
       system:
         "Ești un profesor român de bacalaureat. Creezi exerciții de fixare pentru lecțiile de la școală. " +
         "Întrebările trebuie să fie în limba română, corecte din punct de vedere științific, adaptate nivelului elevului. " +
-        "Pentru fiecare întrebare: 'text' = enunțul; 'options' = 4 variante de răspuns; 'correctIndex' = indexul variantei corecte; " +
-        "'explanation' = o explicație scurtă de ce e corect; 'type' = tipul întrebării. " +
-        "Pentru CLOZE, scrie enunțul cu spațiu liber (ex. '...') și pune în options răspunsurile posibile. " +
-        "Pentru DRAG_DROP, enunțul listează elementele de ordonat/potrivit, iar options conțin ordinea corectă + distractori. " +
+        "'text' = enunțul; 'options' = variantele de răspuns; 'correctIndex' = indexul obiectiv al steagului de corectitudine (pentru grile/adevărat-fals); " +
+        "pentru MULTIPLE_CHOICE, FILL_BLANK și ORDERING completează și 'answer' cu structura: " +
+        "{ kind: 'multiple', indices: [...] } / { kind: 'fill_blank', accepted: [...] } / { kind: 'ordering', order: [0,1,...] }. " +
+        "'explanation' = o explicație scurtă de ce e corect. Pentru CLOZE, scrie enunțul cu spațiu liber (ex. '...') și pun în options răspunsurile posibile. " +
         "Nu inventa fapte; folosește doar conținutul lecției oferit.",
       prompt:
         `Materie: ${subjectName}. Titlul lecției: "${lessonTitle}". ` +

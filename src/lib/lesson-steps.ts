@@ -1,27 +1,40 @@
 import { prisma } from "@/lib/db";
 
+// Tipurile interactive canonice ale lecțiilor; conținutul legacy (DESCOPERĂ etc.)
+// rămâne vizibil, dar pașii noi se creează pe formatul interactiv.
 export const STEP_TYPES = [
-  "DESCOPERĂ",
-  "ÎNȚELEGE",
-  "VEZI UN EXEMPLU",
-  "ÎNCEARCĂ",
-  "EXERSEAZĂ",
-  "APLICĂ",
-  "RECAPITULEAZĂ",
+  "INTRO",
+  "MICRO_LESSON",
+  "EXAMPLE",
+  "QUICK_EXERCISE",
+  "APPLY",
+  "RECALL",
+  "MINI_TEST",
+] as const;
+
+const FALLBACK_STEP_TYPES = [
+  "MICRO_LESSON",
+  "MICRO_LESSON",
+  "EXAMPLE",
+  "QUICK_EXERCISE",
+  "APPLY",
+  "RECALL",
 ] as const;
 
 export function inferStepType(index: number, title: string | null): string {
   if (title) {
     const t = title.toLowerCase();
-    if (t.includes("descoper")) return "DESCOPERĂ";
-    if (t.includes("înțeleg") || t.includes("inteleg")) return "ÎNȚELEGE";
-    if (t.includes("exemplu")) return "VEZI UN EXEMPLU";
-    if (t.includes("încearc") || t.includes("incearca")) return "ÎNCEARCĂ";
-    if (t.includes("exersez") || t.includes("exers")) return "EXERSEAZĂ";
-    if (t.includes("aplic")) return "APLICĂ";
-    if (t.includes("recapitul")) return "RECAPITULEAZĂ";
+    if (t.includes("descoper")) return "MICRO_LESSON";
+    if (t.includes("înțeleg") || t.includes("inteleg")) return "MICRO_LESSON";
+    if (t.includes("exemplu")) return "EXAMPLE";
+    if (t.includes("încearc") || t.includes("incearca")) return "QUICK_EXERCISE";
+    if (t.includes("exers")) return "QUICK_EXERCISE";
+    if (t.includes("aplic")) return "APPLY";
+    if (t.includes("recapitul")) return "RECALL";
+    if (t.includes("mini-test") || t.includes("minitest") || t.includes("verifică-ți")) return "MINI_TEST";
+    if (t.includes("obiectiv") || t.includes("învățăm") || t.includes("la sfârșit")) return "INTRO";
   }
-  return STEP_TYPES[index % STEP_TYPES.length] ?? "DESCOPERĂ";
+  return FALLBACK_STEP_TYPES[index % FALLBACK_STEP_TYPES.length] ?? "MICRO_LESSON";
 }
 
 export function parseLessonSteps(content: string): { title: string | null; content: string; stepType: string }[] {
@@ -48,7 +61,7 @@ export function parseLessonSteps(content: string): { title: string | null; conte
     const title = currentTitle;
     sections.push({ title, content: buffer.join("\n").trim(), stepType: inferStepType(idx, title) });
   }
-  if (sections.length === 0 && content.trim()) sections.push({ title: null, content: content.trim(), stepType: "DESCOPERĂ" });
+  if (sections.length === 0 && content.trim()) sections.push({ title: null, content: content.trim(), stepType: "MICRO_LESSON" });
   return sections.filter((s) => s.content.length > 0);
 }
 

@@ -22,14 +22,15 @@ export interface QuizOptionDto {
 
 export function sectionKind(s: SectionDto): SectionKind {
   if (s.quiz) return "exercise";
-  if (s.stepType?.toUpperCase().includes("EXEMPLU")) return "example";
+  const t = (s.stepType ?? "").toUpperCase();
+  if (t.includes("EXEMPLU") || t === "EXAMPLE") return "example";
   return "theory";
 }
 
 export const STEP_TYPE_FOR_KIND: Record<SectionKind, string> = {
-  theory: "DESCOPERĂ",
-  example: "VEZI UN EXEMPLU",
-  exercise: "EXERSEAZĂ",
+  theory: "MICRO_LESSON",
+  example: "EXAMPLE",
+  exercise: "QUICK_EXERCISE",
 };
 
 export const KIND_META: Record<

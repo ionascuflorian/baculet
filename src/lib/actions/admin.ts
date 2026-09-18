@@ -339,7 +339,7 @@ export async function deleteLesson(id: string) {
 const sectionSchema = z.object({
   title: z.string().optional().nullable().default(null),
   content: z.string().min(1),
-  stepType: z.string().optional().default("DESCOPERĂ"),
+  stepType: z.string().optional().default("MICRO_LESSON"),
   minReadTime: z.coerce.number().int().min(0).default(15),
   quizId: z.string().nullable().optional().default(null),
 });

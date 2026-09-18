@@ -53,10 +53,10 @@ export type QuestionDraft = z.infer<typeof questionDraftSchema>;
 export const lessonStepDraftSchema = z.object({
   id: z.string().optional(),
   title: z.string().optional(),
-  type: z.enum(LESSON_STEP_TYPES).default("DESCOPERĂ"),
+  type: z.enum(LESSON_STEP_TYPES).default("MICRO_LESSON"),
   content: z.string().min(2),
   minReadTime: z.coerce.number().int().min(5).max(600).default(15),
-  quiz: questionDraftSchema.array().optional(), // pentru steps de tip EXERSEAZĂ / APLICĂ
+  quiz: questionDraftSchema.array().optional(), // pentru steps de tip QUICK_EXERCISE / APPLY / MINI_TEST
 });
 export type LessonStepDraft = z.infer<typeof lessonStepDraftSchema>;
 

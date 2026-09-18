@@ -10,7 +10,10 @@ function slugify(input: string): string {
 }
 
 // Găsește sau creează quiz-ul „de lecție" (exercițiile lecției) atașat prin
-// pasul de tip EXERSEAZĂ. O lecție are un singur quiz de exerciții în uz.
+// pasul de tip QUICK_EXERCISE (EXERSEAZĂ pentru lecțiile legacy existente).
+// O lecție are un singur quiz de exerciții în uz.
+const EXERCISE_STEP_TYPES: string[] = ["QUICK_EXERCISE", "EXERSEAZĂ"];
+
 export async function getOrCreateLessonQuiz(lessonId: string) {
   const lesson = await prisma.lesson.findUnique({
     where: { id: lessonId },
@@ -18,9 +21,9 @@ export async function getOrCreateLessonQuiz(lessonId: string) {
   });
   if (!lesson) throw new Error("Lecția nu există.");
 
-  // 1. un pas EXERSEAZĂ existent care are deja un quiz atașat
+  // 1. un pas de exercițiu existent care are deja un quiz atașat
   const existingStep = await prisma.lessonStep.findFirst({
-    where: { lessonId, stepType: "EXERSEAZĂ", quizId: { not: null } },
+    where: { lessonId, stepType: { in: EXERCISE_STEP_TYPES }, quizId: { not: null } },
   });
   if (existingStep?.quizId) {
     return await quizWithQuestions(existingStep.quizId);
@@ -39,7 +42,7 @@ export async function getOrCreateLessonQuiz(lessonId: string) {
   const slug = `${slugify(baseTitle)}-${lesson.id.slice(0, 6)}`;
 
   // 3. upsert pe (subjectId, slug) → nu aruncă P2002 dacă quiz-ul a mai fost creat
-  //    (ex. pasul EXERSEAZĂ a fost șters din Constructor, iar quiz-ul a rămas orfan)
+  //    (ex. pasul de exercițiu a fost șters din Constructor, iar quiz-ul a rămas orfan)
   const quiz = await prisma.quiz.upsert({
     where: { subjectId_slug: { subjectId: lesson.chapter.subjectId, slug } },
     update: {},
@@ -54,9 +57,9 @@ export async function getOrCreateLessonQuiz(lessonId: string) {
     },
   });
 
-  // 4. atașăm quiz-ul la pasul EXERSEAZĂ (creat la final dacă nu există)
+  // 4. atașăm quiz-ul la pasul QUICK_EXERCISE (creat la final dacă nu există)
   let step = await prisma.lessonStep.findFirst({
-    where: { lessonId, stepType: "EXERSEAZĂ" },
+    where: { lessonId, stepType: { in: EXERCISE_STEP_TYPES } },
   });
   if (!step) {
     const lastStep = await prisma.lessonStep.findFirst({
@@ -69,7 +72,7 @@ export async function getOrCreateLessonQuiz(lessonId: string) {
         title: "Exersează",
         content: "Rezolvă exercițiile de mai jos pentru a fixa noțiunile.",
         order: (lastStep?.order ?? -1) + 1,
-        stepType: "EXERSEAZĂ",
+        stepType: "QUICK_EXERCISE",
       },
     });
   }

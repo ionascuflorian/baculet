@@ -19,6 +19,14 @@ import {
 } from "@/lib/ai-content/content";
 import { deleteSourceFile } from "@/lib/ai-content/storage";
 import {
+  normalizeLessonDraft,
+  normalizeQuizDraft,
+  normalizeCheckpointDraft,
+  normalizeStepDraft,
+  normalizeQuestionDraft,
+  normalizeItemDraft,
+} from "@/lib/ai-content/normalize";
+import {
   findDuplicates,
   publishLesson,
   publishQuiz,
@@ -442,15 +450,15 @@ export async function generateItem(input: unknown) {
 
     if (body.type === "QUIZ") {
       const r = await generateQuizDraft({ ...base, quizTitle: title, questionCount: 6, difficulty: 2 });
-      draft = r.draft;
+      draft = normalizeQuizDraft(r.draft);
       refs = r.references as unknown as unknown[];
     } else if (body.type === "CHECKPOINT") {
       const r = await generateCheckpointDraft({ ...base, checkpointTitle: title, questionCount: 8 });
-      draft = r.draft;
+      draft = normalizeCheckpointDraft(r.draft);
       refs = r.references as unknown as unknown[];
     } else {
       const r = await generateLessonDraft({ ...base, lessonTitle: title, difficulty: 2 });
-      draft = r.draft;
+      draft = normalizeLessonDraft(r.draft);
       refs = r.references as unknown as unknown[];
     }
 
@@ -509,10 +517,13 @@ export async function updateItemDraft(input: unknown) {
   else if (item.type === "QUIZ") parsed = quizDraftSchema.parse(body.draft);
   else parsed = checkpointDraftSchema.parse(body.draft);
 
+  // Normalizare: chiar și un draft lipit manual pe format legacy devine interactiv.
+  const normalized = normalizeItemDraft(item.type, parsed);
+
   await bumpVersion(item.id, item.draft as ItemDraft, body.note ?? "editare manuală");
   await prisma.contentItem.update({
     where: { id: body.itemId },
-    data: { draft: parsed as unknown as Prisma.InputJsonValue, status: "NEEDS_REVIEW" },
+    data: { draft: normalized as unknown as Prisma.InputJsonValue, status: "NEEDS_REVIEW" },
   });
   revalidatePath(`/admin/ai-content/projects/*`);
   return { ok: true };
@@ -555,7 +566,7 @@ export async function regenerateItemPart(input: unknown) {
         references: hits,
         unitContext,
       });
-      lesson.steps[body.index] = replacement;
+      lesson.steps[body.index] = normalizeStepDraft(replacement);
       nextDraft = lesson;
     } else {
       const quizDraftCheck = (() => {
@@ -579,7 +590,7 @@ export async function regenerateItemPart(input: unknown) {
         references: hits,
         unitContext,
       });
-      quizDraftCheck.questions[body.index] = replacement;
+      quizDraftCheck.questions[body.index] = normalizeQuestionDraft(replacement);
       nextDraft = quizDraftCheck;
     }
 
@@ -701,14 +712,18 @@ export async function publishItem(input: unknown) {
 
   try {
     let result;
+    let publishedDraft: ItemDraft;
     if (item.type === "LESSON") {
-      const draft = lessonDraftSchema.parse(item.draft) as LessonDraft;
+      const draft = normalizeLessonDraft(lessonDraftSchema.parse(item.draft) as LessonDraft);
+      publishedDraft = draft;
       result = await publishLesson(item, draft, chapterNode, unitNode, item.project);
     } else if (item.type === "QUIZ") {
-      const draft = quizDraftSchema.parse(item.draft) as QuizDraft;
+      const draft = normalizeQuizDraft(quizDraftSchema.parse(item.draft) as QuizDraft);
+      publishedDraft = draft;
       result = await publishQuiz(item, draft, item.project, unitNode, chapterNode);
     } else {
-      const draft = checkpointDraftSchema.parse(item.draft) as CheckpointDraft;
+      const draft = normalizeCheckpointDraft(checkpointDraftSchema.parse(item.draft) as CheckpointDraft);
+      publishedDraft = draft;
       result = await publishCheckpoint(item, draft, item.project, chapterNode, unitNode);
     }
 
@@ -717,6 +732,7 @@ export async function publishItem(input: unknown) {
       data: {
         status: "PUBLISHED",
         publishedAt: new Date(),
+        draft: publishedDraft as unknown as Prisma.InputJsonValue,
         targetChapterId: result.chapterId ?? null,
         targetUnitId: result.unitId ?? null,
         targetLessonId: result.lessonId ?? null,

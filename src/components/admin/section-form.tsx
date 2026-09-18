@@ -249,7 +249,7 @@ export function SectionForm({
           subjectName,
           count: 3,
           difficulty: 1,
-          types: ["SINGLE"],
+          types: ["SINGLE_CHOICE"],
         }),
       });
       const data = await res.json().catch(() => ({}));

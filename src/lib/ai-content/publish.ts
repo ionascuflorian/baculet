@@ -185,7 +185,7 @@ export async function publishLesson(
         await createQuestions(tx, quiz.id, step.quiz ?? [], conceptIds);
         quizId = quiz.id;
       }
-      const stepType = step.type || "DESCOPERĂ";
+      const stepType = step.type || "MICRO_LESSON";
       await tx.lessonStep.create({
         data: {
           lessonId: lesson.id,
