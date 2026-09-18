@@ -58,6 +58,9 @@ export default async function AdminExamsPage() {
                   <div className="mt-1 flex gap-1">
                     <Badge variant="neutral">{sessionLabels[exam.session]}</Badge>
                     <Badge variant="neutral">{profileLabels[exam.profile]}</Badge>
+                    <Badge variant={exam.pdfStorageKey ? "default" : "neutral"}>
+                      {exam.pdfStorageKey ? "Stocat intern (R2)" : "Link extern"}
+                    </Badge>
                   </div>
                 </div>
               </div>

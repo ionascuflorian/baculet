@@ -511,6 +511,15 @@ model OfficialExam {
   title        String
   pdfUrl       String
   solutionUrl  String?
+  // Fișiere urcate intern în R2 (bucket public baculet-public). Când acestea
+  // există, pdfUrl/solutionUrl sunt URL-urile publice generate din storage key.
+  // Dacă storage key lipsește, URL-ul este un link extern lipit manual.
+  pdfStorageKey        String?
+  pdfSize              Int?
+  pdfMime              String?
+  solutionStorageKey   String?
+  solutionSize         Int?
+  solutionMime         String?
   order        Int          @default(0)
 
   subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
@@ -695,7 +704,7 @@ model ContentSource {
   id           String             @id @default(cuid())
   projectId    String
   originalName String
-  storageKey   String // url semnat Vercel Blob
+  storageKey   String // cheie obiect R2 (bucket privat) sau "local:..." (dev); legacy: URL Vercel Blob
   mime         String // application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, text/plain, text/markdown
   size         Int
   priority     SourcePriority     @default(NORMAL)

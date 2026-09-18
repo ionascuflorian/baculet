@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { currentUser, isAdmin, requireAdmin, requirePermission, requireOwner, ADMIN_PERMISSIONS } from "@/lib/access";
 import { resequenceStepOrders, syncLessonSteps } from "@/lib/lesson-steps";
+import { deleteObject, headObject, publicBucket, publicUrl, r2Configured } from "@/lib/storage/r2";
 
 function slugify(input: string): string {
   return input
@@ -764,15 +765,26 @@ export async function saveGeneratedQuestions(
 }
 
 // ─── Official exams ────────────────────────────────────────────
+const MAX_EXAM_PDF_SIZE = 25 * 1024 * 1024;
+
 const examSchema = z.object({
   subjectId: z.string(),
   year: z.coerce.number().int().min(2000).max(2100),
   session: z.enum(["SUMMER", "AUTUMN", "SPECIAL"]),
   profile: z.enum(["REAL", "HUMAN", "TECH"]),
   title: z.string().min(2),
-  pdfUrl: z.string().min(4),
+  pdfUrl: z.string().optional().default(""),
   solutionUrl: z.string().optional().default(""),
   order: z.coerce.number().int().default(0),
+  // Fișiere urcate în R2 (bucket public). Când există storageKey, serverul
+  // pune pdfUrl/solutionUrl = URL-ul public derivat din cheie și validează
+  // obiectul cu headObject (size + content-type autoritativ din R2).
+  pdfStorageKey: z.string().optional().default(""),
+  pdfSize: z.coerce.number().int().positive().optional(),
+  pdfMime: z.string().optional().default(""),
+  solutionStorageKey: z.string().optional().default(""),
+  solutionSize: z.coerce.number().int().positive().optional(),
+  solutionMime: z.string().optional().default(""),
 });
 
 export async function saveExam(
@@ -782,40 +794,140 @@ export async function saveExam(
   await requirePermission("MANAGE_EXAMS");
   const data = examSchema.parse(input);
 
-  const exam = id
-    ? await prisma.officialExam.update({
-        where: { id },
-        data: {
-          year: data.year,
-          session: data.session,
-          profile: data.profile,
-          title: data.title,
-          pdfUrl: data.pdfUrl,
-          solutionUrl: data.solutionUrl || null,
-          order: data.order,
-        },
-      })
-    : await prisma.officialExam.create({
-        data: {
-          subjectId: data.subjectId,
-          year: data.year,
-          session: data.session,
-          profile: data.profile,
-          title: data.title,
-          pdfUrl: data.pdfUrl,
-          solutionUrl: data.solutionUrl || null,
-          order: data.order,
-        },
-      });
+  const pdfKey = data.pdfStorageKey.trim() || undefined;
+  const solutionKey = data.solutionStorageKey.trim() || undefined;
 
-  revalidatePath("/admin/subiecte");
-  revalidatePath("/subiecte-bac");
-  return { id: exam.id };
+  // Validăm și rezolvăm URL-urile din fișierele urcate intern. Pentru PDF-uri
+  // urcate direct în R2 nu ne bazăm pe ce trimite clientul (size/mime), ci
+  // verificăm obiectul real cu headObject autoritativ.
+  let pdfUrl = data.pdfUrl.trim();
+  let solutionUrl = data.solutionUrl.trim();
+  let pdfMeta: { size: number; contentType: string } | null = null;
+  let solutionMeta: { size: number; contentType: string } | null = null;
+
+  if (pdfKey) {
+    if (!r2Configured()) {
+      return { error: "Stocarea R2 nu e configurată. Verifică variabilele R2_* în mediul de rulare." };
+    }
+    try {
+      pdfMeta = await headObject(publicBucket(), pdfKey);
+    } catch (err) {
+      console.error("saveExam headObject pdf error:", err);
+      return { error: "Nu am putut verifica fișierul în stocare. Încearcă din nou." };
+    }
+    if (!pdfMeta) {
+      return { error: "Fișierul PDF nu a fost găsit în stocare. Încarcă-l din nou." };
+    }
+    if ((pdfMeta.contentType || "").toLowerCase() !== "application/pdf" || pdfMeta.size <= 0) {
+      return { error: "Fișierul din stocare nu este un PDF valid." };
+    }
+    if (pdfMeta.size > MAX_EXAM_PDF_SIZE) {
+      return { error: "Fișierul depășește 25 MB." };
+    }
+    pdfUrl = publicUrl(pdfKey);
+  }
+
+  if (solutionKey) {
+    if (!r2Configured()) {
+      return { error: "Stocarea R2 nu e configurată. Verifică variabilele R2_* în mediul de rulare." };
+    }
+    try {
+      solutionMeta = await headObject(publicBucket(), solutionKey);
+    } catch (err) {
+      console.error("saveExam headObject solution error:", err);
+      return { error: "Nu am putut verifica baremul în stocare. Încearcă din nou." };
+    }
+    if (!solutionMeta) {
+      return { error: "Fișierul baremului nu a fost găsit în stocare. Încarcă-l din nou." };
+    }
+    if ((solutionMeta.contentType || "").toLowerCase() !== "application/pdf" || solutionMeta.size <= 0) {
+      return { error: "Fișierul baremului nu este un PDF valid." };
+    }
+    if (solutionMeta.size > MAX_EXAM_PDF_SIZE) {
+      return { error: "Fișierul baremului depășește 25 MB." };
+    }
+    solutionUrl = publicUrl(solutionKey);
+  }
+
+  if (!pdfUrl) {
+    return { error: "Adaugă PDF-ul subiectului (upload sau link extern)." };
+  }
+
+  const old =
+    id
+      ? await prisma.officialExam.findUnique({
+          where: { id },
+          select: { pdfStorageKey: true, solutionStorageKey: true },
+        })
+      : null;
+
+  try {
+    const exam = id
+      ? await prisma.officialExam.update({
+          where: { id },
+          data: {
+            year: data.year,
+            session: data.session,
+            profile: data.profile,
+            title: data.title,
+            pdfUrl,
+            solutionUrl: solutionUrl || null,
+            pdfStorageKey: pdfKey || null,
+            pdfSize: pdfMeta?.size ?? null,
+            pdfMime: pdfMeta?.contentType ?? null,
+            solutionStorageKey: solutionKey || null,
+            solutionSize: solutionMeta?.size ?? null,
+            solutionMime: solutionMeta?.contentType ?? null,
+            order: data.order,
+          },
+        })
+      : await prisma.officialExam.create({
+          data: {
+            subjectId: data.subjectId,
+            year: data.year,
+            session: data.session,
+            profile: data.profile,
+            title: data.title,
+            pdfUrl,
+            solutionUrl: solutionUrl || null,
+            pdfStorageKey: pdfKey || null,
+            pdfSize: pdfMeta?.size ?? null,
+            pdfMime: pdfMeta?.contentType ?? null,
+            solutionStorageKey: solutionKey || null,
+            solutionSize: solutionMeta?.size ?? null,
+            solutionMime: solutionMeta?.contentType ?? null,
+            order: data.order,
+          },
+        });
+
+    // Curățăm fișierele interne înlocuite/eliminate (best-effort, după salvare).
+    if (old) {
+      if (old.pdfStorageKey && old.pdfStorageKey !== pdfKey) {
+        await deleteObject(publicBucket(), old.pdfStorageKey);
+      }
+      if (old.solutionStorageKey && old.solutionStorageKey !== solutionKey) {
+        await deleteObject(publicBucket(), old.solutionStorageKey);
+      }
+    }
+
+    revalidatePath("/admin/subiecte");
+    revalidatePath("/subiecte-bac");
+    return { id: exam.id };
+  } catch (err) {
+    console.error("saveExam error:", err);
+    return { error: "Nu am putut salva subiectul. Încearcă din nou." };
+  }
 }
 
 export async function deleteExam(id: string) {
   await requirePermission("MANAGE_EXAMS");
+  const exam = await prisma.officialExam.findUnique({
+    where: { id },
+    select: { pdfStorageKey: true, solutionStorageKey: true },
+  });
   await prisma.officialExam.delete({ where: { id } });
+  if (exam?.pdfStorageKey) await deleteObject(publicBucket(), exam.pdfStorageKey);
+  if (exam?.solutionStorageKey) await deleteObject(publicBucket(), exam.solutionStorageKey);
   revalidatePath("/admin/subiecte");
   revalidatePath("/subiecte-bac");
 }

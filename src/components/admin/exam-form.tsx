@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useActionState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Save } from "lucide-react";
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast";
+import { ExamFileUpload, type UploadedFile } from "@/components/admin/exam-file-upload";
 
 export interface ExamFormValues {
   year: number;
@@ -17,6 +19,12 @@ export interface ExamFormValues {
   pdfUrl: string;
   solutionUrl: string;
   order: number;
+  pdfStorageKey?: string;
+  pdfSize?: number;
+  pdfMime?: string;
+  solutionStorageKey?: string;
+  solutionSize?: number;
+  solutionMime?: string;
 }
 
 const sessionLabels: Record<string, string> = {
@@ -44,6 +52,17 @@ export function ExamForm({
 }) {
   const router = useRouter();
   const { showToast } = useToast();
+  const [pdf, setPdf] = useState<UploadedFile | null>(
+    initial.pdfStorageKey
+      ? { key: initial.pdfStorageKey, name: "Subiect încărcat anterior", size: initial.pdfSize ?? 0, mime: initial.pdfMime ?? "application/pdf" }
+      : null
+  );
+  const [solution, setSolution] = useState<UploadedFile | null>(
+    initial.solutionStorageKey
+      ? { key: initial.solutionStorageKey, name: "Barem încărcat anterior", size: initial.solutionSize ?? 0, mime: initial.solutionMime ?? "application/pdf" }
+      : null
+  );
+
   const [state, action, pending] = useActionState(
     async (_prev: { error: string }, formData: FormData) => {
       const res = await saveExam(examId, {
@@ -55,8 +74,14 @@ export function ExamForm({
         pdfUrl: String(formData.get("pdfUrl") ?? ""),
         solutionUrl: String(formData.get("solutionUrl") ?? ""),
         order: Number(formData.get("order") ?? 0),
+        pdfStorageKey: String(formData.get("pdfStorageKey") ?? ""),
+        pdfSize: Number(formData.get("pdfSize") ?? 0) || undefined,
+        pdfMime: String(formData.get("pdfMime") ?? ""),
+        solutionStorageKey: String(formData.get("solutionStorageKey") ?? ""),
+        solutionSize: Number(formData.get("solutionSize") ?? 0) || undefined,
+        solutionMime: String(formData.get("solutionMime") ?? ""),
       });
-      if (!res?.id) return { error: "Eroare la salvare" };
+      if (!res?.id) return { error: res?.error || "Eroare la salvare" };
       showToast(examId ? "Subiectul a fost salvat." : "Subiectul a fost adăugat.");
       router.push("/admin/subiecte");
       return { error: "" };
@@ -116,20 +141,66 @@ export function ExamForm({
           </select>
         </div>
       </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <Label htmlFor="pdfUrl">Link subiect (PDF)</Label>
-          <Input id="pdfUrl" name="pdfUrl" defaultValue={initial.pdfUrl} placeholder="https://..." required />
+          <Label>Subiect (PDF)</Label>
+          <ExamFileUpload
+            kind="pdf"
+            label="Încarcă PDF-ul subiectului"
+            hint="Max 25 MB. Se urcă direct în Cloudflare R2."
+            value={pdf}
+            onValue={setPdf}
+            required
+            onError={(msg) => showToast(msg)}
+          />
+          <div className="mt-2">
+            <Label htmlFor="pdfUrl">…sau link extern</Label>
+            <Input
+              id="pdfUrl"
+              name="pdfUrl"
+              defaultValue={initial.pdfUrl}
+              placeholder="https://..."
+              disabled={Boolean(pdf) || pending}
+              required={!pdf}
+            />
+          </div>
         </div>
         <div>
-          <Label htmlFor="solutionUrl">Link barem (opțional)</Label>
-          <Input id="solutionUrl" name="solutionUrl" defaultValue={initial.solutionUrl} placeholder="https://..." />
+          <Label>Barem (PDF, opțional)</Label>
+          <ExamFileUpload
+            kind="solution"
+            label="Încarcă PDF-ul baremului"
+            hint="Max 25 MB, opțional."
+            value={solution}
+            onValue={setSolution}
+            onError={(msg) => showToast(msg)}
+          />
+          <div className="mt-2">
+            <Label htmlFor="solutionUrl">…sau link extern</Label>
+            <Input
+              id="solutionUrl"
+              name="solutionUrl"
+              defaultValue={initial.solutionUrl}
+              placeholder="https://..."
+              disabled={Boolean(solution) || pending}
+            />
+          </div>
         </div>
       </div>
+
       <div>
         <Label htmlFor="order">Ordine</Label>
         <Input id="order" name="order" type="number" defaultValue={initial.order} />
       </div>
+
+      <input type="hidden" name="pdfStorageKey" value={pdf?.key ?? ""} />
+      <input type="hidden" name="pdfSize" value={pdf?.size ?? ""} />
+      <input type="hidden" name="pdfMime" value={pdf?.mime ?? ""} />
+      <input type="hidden" name="solutionStorageKey" value={solution?.key ?? ""} />
+      <input type="hidden" name="solutionSize" value={solution?.size ?? ""} />
+      <input type="hidden" name="solutionMime" value={solution?.mime ?? ""} />
+
       <Button type="submit" disabled={pending}>
         {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
         {pending ? "Se salvează…" : examId ? "Salvează subiectul" : "Adaugă subiectul"}

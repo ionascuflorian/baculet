@@ -45,6 +45,12 @@ export default async function AdminExamDetailPage({
               pdfUrl: exam.pdfUrl,
               solutionUrl: exam.solutionUrl ?? "",
               order: exam.order,
+              pdfStorageKey: exam.pdfStorageKey ?? undefined,
+              pdfSize: exam.pdfSize ?? undefined,
+              pdfMime: exam.pdfMime ?? undefined,
+              solutionStorageKey: exam.solutionStorageKey ?? undefined,
+              solutionSize: exam.solutionSize ?? undefined,
+              solutionMime: exam.solutionMime ?? undefined,
             }}
           />
         </CardContent>

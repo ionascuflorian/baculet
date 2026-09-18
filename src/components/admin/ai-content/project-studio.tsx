@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { upload as blobUpload } from "@vercel/blob/client";
 import {
   Check,
   Eye,
@@ -379,15 +378,15 @@ function SourcesTab({
   const busy = (kind: string, id?: string) => pending === kind && (!id || pendingId === id);
   const fileInput = useRef<HTMLInputElement>(null);
   const router = useRouter();
-  // True dacă Vercel Blob e configurat → upload direct la Blob (fără limita de 4.5 MB).
-  const [blobReady, setBlobReady] = useState(false);
+  // True dacă Cloudflare R2 e configurat → upload direct în R2 (fără limita de 4.5 MB).
+  const [storageReady, setStorageReady] = useState(false);
 
   useEffect(() => {
     let alive = true;
     fetch("/api/admin/ai-content/storage")
       .then((r) => r.json().catch(() => ({})))
       .then((d) => {
-        if (alive) setBlobReady(Boolean(d?.blob));
+        if (alive) setStorageReady(Boolean((d as { storage?: string })?.storage === "r2" || (d as { blob?: boolean })?.blob));
       })
       .catch(() => {});
     return () => {
@@ -402,23 +401,38 @@ function SourcesTab({
     }
     setPending("upload");
     try {
-      if (blobReady) {
-        // Upload direct la Vercel Blob: fișierul nu trece prin serverless function.
-        const blob = await blobUpload(
-          `content-studio/${project.id}/${file.name}`,
-          file,
-          {
-            access: "public",
-            handleUploadUrl: "/api/admin/ai-content/upload",
+      if (storageReady) {
+        // Upload direct la R2 (bucket privat): serverul semnează un presigned
+        // PUT, fișierul nu trece prin serverless function.
+        const sign = await fetch("/api/admin/ai-content/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
             clientPayload: JSON.stringify({ projectId: project.id, priority }),
-          }
-        );
-        // După ce Blob a primit fișierul, înregistrăm sursa în DB (validare head() server-side).
+            fileName: file.name,
+            contentType: file.type,
+            size: file.size,
+          }),
+        });
+        const signed = (await sign.json().catch(() => ({}))) as { uploadUrl?: string; key?: string; error?: string };
+        if (!sign.ok || !signed.uploadUrl || !signed.key) {
+          throw new Error(signed.error || "Nu am putut începe upload-ul.");
+        }
+        const put = await fetch(signed.uploadUrl, {
+          method: "PUT",
+          headers: { "Content-Type": file.type },
+          body: file,
+        });
+        if (!put.ok) {
+          const text = await put.text().catch(() => "");
+          throw new Error(text ? `Upload eșuat (${put.status}): ${text.slice(0, 120)}` : `Upload eșuat (${put.status}).`);
+        }
+        // După ce R2 a primit fișierul, înregistrăm sursa în DB (validare headObject server-side).
         const reg = await fetch("/api/admin/ai-content/upload/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            url: blob.url,
+            storageKey: signed.key,
             projectId: project.id,
             priority,
             originalName: file.name,
@@ -429,7 +443,7 @@ function SourcesTab({
           throw new Error(regBody.error || "Înregistrarea sursei a eșuat.");
         }
       } else {
-        // Fallback local (dezvoltare fără BLOB_READ_WRITE_TOKEN): upload server-side.
+        // Fallback local (dezvoltare fără R2): upload server-side.
         const form = new FormData();
         form.append("projectId", project.id);
         form.append("priority", priority);

@@ -5,6 +5,7 @@ import {
   MAX_SOURCE_SIZE,
   SOURCE_PRIORITIES,
 } from "@/lib/ai-content/mimes";
+import { contentBucket, headObject } from "@/lib/storage/r2";
 
 export const dynamic = "force-dynamic";
 
@@ -24,26 +25,30 @@ function priorityOf(raw: unknown): (typeof PRIORITIES)[number] {
   return (PRIORITIES as readonly string[]).includes(v) ? (v as (typeof PRIORITIES)[number]) : "NORMAL";
 }
 
-// Înregistrează în DB o sursă deja urcată direct la Vercel Blob din client.
-// Validăm cu head() (size + content-type authoritative din Blob Store), ca
-// să nu primim URL-uri arbitrare sau fișiere peste limită.
+// Înregistrează în DB o sursă deja urcată direct la R2 (bucket privat) din
+// client. Validăm cu headObject (size + content-type autoritativ din R2) și
+// excludem chei din afara prefixului content-studio/, ca să nu acceptăm
+// obiecte arbitrare sau fișiere peste limită.
 export async function POST(req: Request) {
   const user = await currentUser();
   if (!user || !hasPermission(user, "MANAGE_AI_CONTENT")) {
     return new Response(JSON.stringify({ error: "Neautorizat" }), { status: 401 });
   }
 
-  let body: { url?: unknown; projectId?: unknown; priority?: unknown; originalName?: unknown };
+  let body: { storageKey?: unknown; projectId?: unknown; priority?: unknown; originalName?: unknown };
   try {
     body = (await req.json()) as typeof body;
   } catch {
     return new Response(JSON.stringify({ error: "Cerere JSON invalidă." }), { status: 400 });
   }
 
-  const url = typeof body.url === "string" ? body.url.slice(0, 500) : "";
+  const storageKey = typeof body.storageKey === "string" ? body.storageKey.slice(0, 500) : "";
   const projectId = typeof body.projectId === "string" ? body.projectId.slice(0, 200) : "";
-  if (!url || !projectId) {
-    return new Response(JSON.stringify({ error: "Lipsesc datele (url, projectId)." }), { status: 400 });
+  if (!storageKey || !projectId) {
+    return new Response(JSON.stringify({ error: "Lipsesc datele (storageKey, projectId)." }), { status: 400 });
+  }
+  if (!storageKey.startsWith("content-studio/")) {
+    return new Response(JSON.stringify({ error: "Cheia de stocare invalidă." }), { status: 400 });
   }
 
   const project = await prisma.contentProject.findUnique({
@@ -56,20 +61,23 @@ export async function POST(req: Request) {
 
   let meta;
   try {
-    const { head } = await import("@vercel/blob");
-    meta = await head(url);
+    meta = await headObject(contentBucket(), storageKey);
   } catch {
     return new Response(
-      JSON.stringify({ error: "Fișierul nu se află în Blob Store-ul acestui proiect." }),
+      JSON.stringify({ error: "Fișierul nu se află în stocarea R2 a acestui proiect." }),
       { status: 400 }
     );
   }
+  if (!meta) {
+    return new Response(JSON.stringify({ error: "Fișierul nu mai există în stocare." }), { status: 404 });
+  }
 
-  if (meta.size > MAX_FILE_SIZE) {
+  if (meta.size <= 0 || meta.size > MAX_FILE_SIZE) {
     return new Response(JSON.stringify({ error: "Fișierul depășește 25 MB." }), { status: 413 });
   }
   const mime = (meta.contentType || "").trim().toLowerCase();
-  if (!(mime in ALLOWED_MIMES)) {
+  const allowedMime = mime in ALLOWED_MIMES || mime.startsWith("text/");
+  if (!allowedMime) {
     return new Response(
       JSON.stringify({ error: "Tip de fișier neacceptat. Folosește PDF, DOCX, TXT sau Markdown." }),
       { status: 400 }
@@ -80,7 +88,7 @@ export async function POST(req: Request) {
     data: {
       projectId,
       originalName: safeName(body.originalName),
-      storageKey: url,
+      storageKey,
       mime,
       size: meta.size,
       priority: priorityOf(body.priority),

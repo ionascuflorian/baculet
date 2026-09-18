@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { currentUser, hasPermission } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import {
@@ -5,7 +6,7 @@ import {
   MAX_SOURCE_SIZE,
   SOURCE_PRIORITIES,
 } from "@/lib/ai-content/mimes";
-import type { HandleUploadBody } from "@vercel/blob/client";
+import { contentBucket, createUploadUrl, r2Configured } from "@/lib/storage/r2";
 
 export const dynamic = "force-dynamic";
 
@@ -38,33 +39,26 @@ function parseClientPayload(payload: string | null | undefined): { projectId: st
   }
 }
 
-// ── Upload direct din client la Vercel Blob ────────────────────────────────
-// Clientul cere aici un "client token" (payload JSON), apoi trimite fișierul
-// direct la Blob — nu trece prin serverless function, deci nici limita de
-// 4.5 MB a Vercel nu se aplică. Înregistrarea în DB o face clientul după
-// upload, printr-un apel separat autentificat (ruta /register).
-async function handleBlobUpload(
-  req: Request,
-  body: HandleUploadBody
-): Promise<Response> {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+// ── Upload direct din client la R2 (bucket privat) ────────────────────────
+// Clientul cere aici un presigned PUT (payload JSON), apoi trimite fișierul
+// direct la R2 — nu trece prin serverless function, deci nici limita de 4.5 MB
+// a Vercel nu se aplică. Bucketul e PRIVAT: nu există URL public, iar
+// fișierul e accesibil doar server-side (GetObject) sau presigned cu expirare.
+// Înregistrarea în DB o face clientul după upload, printr-un apel separat
+// autentificat (ruta /register).
+async function handlePresignedUpload(req: Request, payload: string | null | undefined): Promise<Response> {
+  if (!r2Configured()) {
     return new Response(
-      JSON.stringify({ error: "Vercel Blob nu e configurat. Adaugă BLOB_READ_WRITE_TOKEN în variabilele de mediu." }),
+      JSON.stringify({ error: "Stocarea R2 nu e configurată. Adaugă variabilele R2_* în mediul de rulare." }),
       { status: 503 }
     );
-  }
-
-  if (body.type !== "blob.generate-client-token") {
-    // Nu folosim webhook-ul de completare (callback URL nepus) — înregistrarea
-    // în DB o face clientul după upload, prin ruta /register. Doar ack.
-    return Response.json({ type: body.type, response: "ok" });
   }
 
   const user = await currentUser();
   if (!user || !hasPermission(user, "MANAGE_AI_CONTENT")) {
     return new Response(JSON.stringify({ error: "Neautorizat" }), { status: 401 });
   }
-  const info = parseClientPayload(body.payload?.clientPayload);
+  const info = parseClientPayload(payload);
   if (!info || !info.projectId) {
     return new Response(JSON.stringify({ error: "Cerere invalidă: lipsește proiectul." }), { status: 400 });
   }
@@ -76,25 +70,50 @@ async function handleBlobUpload(
     return new Response(JSON.stringify({ error: "Proiect inexistent." }), { status: 404 });
   }
 
-  const { handleUpload } = await import("@vercel/blob/client");
-  const res = await handleUpload({
-    token: process.env.BLOB_READ_WRITE_TOKEN,
-    request: req,
-    body,
-    onBeforeGenerateToken: async () => ({
-      allowedContentTypes: [...Object.keys(ALLOWED_MIMES), "text/*"],
-      maximumSizeInBytes: MAX_FILE_SIZE,
-      addRandomSuffix: true,
-      validUntil: Date.now() + 30 * 60 * 1000,
-    }),
-  });
-  return Response.json(res);
+  let body: { fileName?: unknown; contentType?: unknown; size?: unknown };
+  try {
+    body = (await req.json()) as typeof body;
+  } catch {
+    return new Response(JSON.stringify({ error: "Cerere JSON invalidă." }), { status: 400 });
+  }
+
+  const fileName = String(body.fileName || "");
+  const contentType = String(body.contentType || "").trim().toLowerCase();
+  const size = Number(body.size || 0);
+
+  if (!fileName.trim()) {
+    return new Response(JSON.stringify({ error: "Lipsesc numele fișierului." }), { status: 400 });
+  }
+  const allowedType =
+    contentType in ALLOWED_MIMES ||
+    (contentType.startsWith("text/") && contentType.length > 5);
+  if (!allowedType) {
+    return new Response(
+      JSON.stringify({ error: "Tip de fișier neacceptat. Folosește PDF, DOCX, TXT sau Markdown." }),
+      { status: 400 }
+    );
+  }
+  if (!Number.isFinite(size) || size <= 0 || size > MAX_FILE_SIZE) {
+    return new Response(JSON.stringify({ error: "Fișierul depășește 25 MB." }), { status: 413 });
+  }
+
+  try {
+    const key = `content-studio/${info.projectId}/${randomUUID()}-${safeName(fileName)}`;
+    const target = await createUploadUrl({ bucket: contentBucket(), key, contentType });
+    return Response.json(target);
+  } catch (err) {
+    console.error("ai-content presign error:", err);
+    return new Response(
+      JSON.stringify({ error: "Nu am putut genera URL-ul de upload. Verifică stocarea R2." }),
+      { status: 500 }
+    );
+  }
 }
 
-// ── Upload server-side (fallback local, fără Blob) ─────────────────────────
-// Folosit doar când BLOB_READ_WRITE_TOKEN lipsește (dev local): fișierul e
-// stocat pe disc în .content-studio/ (gitignored). Pe Vercel nu trebuie să
-// apară — acolo clientul folosește direct upload-ul la Blob.
+// ── Upload server-side (fallback local, fără R2) ──────────────────────────
+// Folosit doar când R2 lipsește (dev local): fișierul e stocat pe disc în
+// .content-studio/ (gitignored). Pe Vercel nu trebuie să apară — acolo
+// clientul folosește direct upload-ul la R2.
 async function handleMultipartUpload(req: Request): Promise<Response> {
   const user = await currentUser();
   if (!user || !hasPermission(user, "MANAGE_AI_CONTENT")) {
@@ -156,7 +175,7 @@ async function handleMultipartUpload(req: Request): Promise<Response> {
   } catch (err) {
     console.error("ai-content upload error:", err);
     return new Response(
-      JSON.stringify({ error: "Nu am putut salva sursa. Verifică stocarea (Vercel Blob) și încearcă din nou." }),
+      JSON.stringify({ error: "Nu am putut salva sursa. Verifică stocarea (R2) și încearcă din nou." }),
       { status: 500 }
     );
   }
@@ -165,18 +184,18 @@ async function handleMultipartUpload(req: Request): Promise<Response> {
 export async function POST(req: Request) {
   const contentType = req.headers.get("content-type") || "";
   if (!contentType.includes("multipart/form-data")) {
-    let body: HandleUploadBody;
+    let body: { clientPayload?: string | null } = {};
     try {
-      body = (await req.json()) as HandleUploadBody;
+      body = (await req.json()) as typeof body;
     } catch {
       return new Response(JSON.stringify({ error: "Cerere JSON invalidă." }), { status: 400 });
     }
     try {
-      return await handleBlobUpload(req, body);
+      return await handlePresignedUpload(req, body?.clientPayload);
     } catch (err) {
-      console.error("ai-content blob token error:", err);
+      console.error("ai-content presign error:", err);
       return new Response(
-        JSON.stringify({ error: "Nu am putut genera token-ul de upload. Verifică Vercel Blob." }),
+        JSON.stringify({ error: "Nu am putut genera token-ul de upload. Verifică stocarea R2." }),
         { status: 500 }
       );
     }
