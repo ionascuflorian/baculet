@@ -456,7 +456,7 @@ export async function generateItem(input: unknown) {
 
     await prisma.contentItem.update({
       where: { id: item.id },
-      data: { draft, status: "READY_FOR_REVIEW", sourceRefs: refs.length ? (refs as unknown as Prisma.InputJsonValue) : undefined },
+      data: { draft: draft as unknown as Prisma.InputJsonValue, status: "READY_FOR_REVIEW", sourceRefs: refs.length ? (refs as unknown as Prisma.InputJsonValue) : undefined },
     });
     await prisma.generationJob.update({
       where: { id: job.id },
@@ -584,7 +584,7 @@ export async function regenerateItemPart(input: unknown) {
     }
 
     await bumpVersion(item.id, prevDraft, `regenerat: ${body.instruction}`);
-    await prisma.contentItem.update({ where: { id: item.id }, data: { draft: nextDraft, status: "NEEDS_REVIEW" } });
+    await prisma.contentItem.update({ where: { id: item.id }, data: { draft: nextDraft as unknown as Prisma.InputJsonValue, status: "NEEDS_REVIEW" } });
     await logActivity(item.project.id, userId, `item:${body.part}-regenerat`, { itemId: item.id, index: body.index });
     revalidatePath(`/admin/ai-content/projects/${item.project.id}`);
     return { ok: true };

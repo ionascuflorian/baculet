@@ -4,118 +4,83 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/access";
 import { updateConceptMastery } from "@/lib/mastery";
 import { revalidateLearning } from "@/lib/revalidate";
+import { gatherCheckpointQuestions } from "@/lib/checkpoint-source";
+import { checkAnswer, normalizeQuestion, parseUserAnswer } from "@/lib/lesson/exercise-schema";
+import { getCheckpointNextAction, type NextAction } from "@/lib/next-action";
 
-export interface CheckpointQuestion {
-  id: string;
-  text: string;
-  options: string[];
-  correctIndex: number;
-  explanation?: string | null;
-  conceptId?: string | null;
-  conceptSlug?: string | null;
-}
+/** Pragul de trecere al checkpoint-ului (0–100). */
+const CHECKPOINT_PASS_PCT = 70;
 
-export async function submitCheckpoint(
-  checkpointSlug: string,
-  answers: Record<string, number>
-): Promise<{
+export interface CheckpointResult {
   attemptId: string;
   score: number;
   maxScore: number;
   pct: number;
   weakConcepts: { conceptId: string; name: string }[];
+  masteredConcepts: { conceptId: string; name: string }[];
   masteryUpdates: { conceptId: string; mastery: number }[];
-}> {
+  nextAction: NextAction;
+}
+
+const PASS_PCT = CHECKPOINT_PASS_PCT;
+
+export async function submitCheckpoint(
+  checkpointSlug: string,
+  answers: Record<string, unknown>
+): Promise<CheckpointResult> {
   const user = await requireUser();
   const userId = user.id;
 
   const checkpoint = await prisma.checkpoint.findUnique({
     where: { slug: checkpointSlug },
-    include: {
-      chapter: { select: { id: true } },
-      unit: { select: { id: true, chapterId: true } },
-    },
+    select: { id: true, slug: true, unitId: true, chapterId: true },
   });
   if (!checkpoint) throw new Error("Checkpoint inexistent");
 
-  // ia întrebările checkpoint-ului (din quiz-uri legate de capitol/unit sau din conceptele capitolului)
-  // Pentru demo, luăm 10 întrebări din baza existentă, distribuite pe concepte
-  const chapterId = checkpoint.chapterId ?? checkpoint.unit?.chapterId;
-  let questions: CheckpointQuestion[] = [];
-  if (chapterId) {
-    const qs = await prisma.question.findMany({
-      where: { quiz: { chapterId } },
-      orderBy: { order: "asc" },
-      take: 10,
-      select: { id: true, text: true, options: true, correctIndex: true, explanation: true, conceptId: true, concept: true, conceptRef: { select: { id: true, name: true, slug: true } } },
-    });
-    questions = qs.map((q) => ({
-      id: q.id,
-      text: q.text,
-      options: q.options as string[],
-      correctIndex: q.correctIndex,
-      explanation: q.explanation,
-      conceptId: q.conceptId ?? q.conceptRef?.id ?? null,
-      conceptSlug: q.conceptRef?.slug ?? q.concept ?? null,
-    }));
-  }
-  if (questions.length < 5) {
-    const more = await prisma.question.findMany({
-      where: { quiz: { subject: { chapters: { some: { id: chapterId } } } } },
-      take: 10 - questions.length,
-      orderBy: { order: "asc" },
-      select: { id: true, text: true, options: true, correctIndex: true, explanation: true, conceptId: true, concept: true, conceptRef: { select: { id: true, name: true, slug: true } } },
-    });
-    questions = [
-      ...questions,
-      ...more.map((q) => ({
-        id: q.id,
-        text: q.text,
-        options: q.options as string[],
-        correctIndex: q.correctIndex,
-        explanation: q.explanation,
-        conceptId: q.conceptId ?? q.conceptRef?.id ?? null,
-        conceptSlug: q.conceptRef?.slug ?? q.concept ?? null,
-      })),
-    ];
-  }
-  if (questions.length === 0) throw new Error("Nu există exerciții pentru acest checkpoint");
+  const rows = await gatherCheckpointQuestions(checkpointSlug);
+  if (rows.length === 0) throw new Error("Nu există exerciții pentru acest checkpoint");
 
-  const score = questions.filter((q) => answers[q.id] === q.correctIndex).length;
-  const maxScore = questions.length;
-  const pct = Math.round((score / maxScore) * 100);
+  // Scorare autoritativă pe server, folosind același motor ca lecțiile
+  // interactive (normalizeQuestion + parseUserAnswer + checkAnswer).
+  const scored = rows.map((row) => {
+    const exercise = normalizeQuestion(row as Parameters<typeof normalizeQuestion>[0]);
+    return {
+      row,
+      exercise,
+      parsed: parseUserAnswer(exercise.kind, answers[row.id]),
+    };
+  });
 
-  // actualizează mastery per concept + UserUnitProgress
-  const byConcept = new Map<string, { correct: number; total: number; name: string; id: string | null; slug: string }>();
-  const masteryUpdates: { conceptId: string; mastery: number }[] = [];
+  const byConcept = new Map<string, { id: string | null; slug: string | null; name: string; correct: number; total: number }>();
+  let score = 0;
 
-  // Rezolvă conceptId din slug înainte de tranzacție (read-uri separate).
-  const conceptSlugs = new Set<string>();
-  for (const q of questions) {
-    const key = q.conceptId ?? q.conceptSlug ?? "general";
-    if (q.conceptSlug && !q.conceptId && q.conceptSlug !== "general") conceptSlugs.add(q.conceptSlug);
-    const cur = byConcept.get(key) ?? { correct: 0, total: 0, name: q.conceptSlug ?? "Concept", id: q.conceptId ?? null, slug: q.conceptSlug ?? "general" };
+  for (const s of scored) {
+    const correct = checkAnswer(s.exercise, s.parsed);
+    if (correct) score += 1;
+
+    const conceptId = s.row.conceptId ?? s.row.conceptRef?.id ?? null;
+    const slug = s.row.conceptRef?.slug ?? s.row.concept ?? null;
+    const name = s.row.conceptRef?.name ?? s.row.concept ?? "Concept";
+    const key = conceptId ?? slug ?? "general";
+    const cur = byConcept.get(key) ?? { id: conceptId, slug, name, correct: 0, total: 0 };
     cur.total += 1;
-    if (answers[q.id] === q.correctIndex) cur.correct += 1;
-    if (!cur.id && q.conceptId) cur.id = q.conceptId;
+    if (correct) cur.correct += 1;
+    if (!cur.id && conceptId) cur.id = conceptId;
     byConcept.set(key, cur);
   }
-  if (conceptSlugs.size > 0) {
-    const found = await prisma.concept.findMany({ where: { slug: { in: [...conceptSlugs] } }, select: { id: true, slug: true } });
-    for (const f of found) {
-      const entry = byConcept.get(f.slug);
-      if (entry && !entry.id) entry.id = f.id;
-    }
-  }
+
+  const maxScore = scored.length;
+  const pct = Math.round((score / maxScore) * 100);
 
   const weakConcepts: { conceptId: string; name: string }[] = [];
-  for (const [key, data] of byConcept.entries()) {
+  const masteredConcepts: { conceptId: string; name: string }[] = [];
+  for (const [, data] of byConcept.entries()) {
     const isWeak = data.correct < data.total;
-    if (isWeak) {
-      const cid = data.id ?? key;
-      weakConcepts.push({ conceptId: cid, name: data.name });
-    }
+    const idResolved = data.id ?? data.slug ?? "general";
+    (isWeak ? weakConcepts : masteredConcepts).push({ conceptId: idResolved, name: data.name });
   }
+
+  const masteryUpdates: { conceptId: string; mastery: number }[] = [];
 
   // Tranzacție: attempt + mastery + progres unitate merg împreună.
   const attempt = await prisma.$transaction(async (tx) => {
@@ -125,7 +90,7 @@ export async function submitCheckpoint(
         checkpointId: checkpoint.id,
         score,
         maxScore,
-        answers,
+        answers: answers as object,
       },
     });
 
@@ -137,7 +102,7 @@ export async function submitCheckpoint(
     }
 
     if (checkpoint.unitId) {
-      const status = pct >= 70 ? "COMPLETED" : "NEEDS_REVIEW";
+      const status = pct >= PASS_PCT ? "COMPLETED" : "NEEDS_REVIEW";
       await tx.userUnitProgress.upsert({
         where: { userId_unitId: { userId, unitId: checkpoint.unitId } },
         update: { progress: 100, status, score: pct, completedAt: new Date() },
@@ -148,7 +113,21 @@ export async function submitCheckpoint(
     return att;
   });
 
+  const nextAction = await getCheckpointNextAction(userId, checkpoint, pct, weakConcepts);
+
   revalidateLearning(`/checkpoint/${checkpointSlug}`);
 
-  return { attemptId: attempt.id, score, maxScore, pct, weakConcepts, masteryUpdates };
+  return {
+    attemptId: attempt.id,
+    score,
+    maxScore,
+    pct,
+    weakConcepts,
+    masteredConcepts,
+    masteryUpdates,
+    nextAction,
+  };
 }
+
+// Menținut pentru compatibilitate cu apeluri care importă tipul statutului.
+export type { NextAction };

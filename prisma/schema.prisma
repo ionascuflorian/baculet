@@ -39,6 +39,14 @@ enum QuestionType {
   CLOZE
   FLASHCARD
   DRAG_DROP
+  SINGLE_CHOICE
+  TRUE_FALSE
+  MULTIPLE_CHOICE
+  FILL_BLANK
+  MATCHING
+  ORDERING
+  IMAGE_CHOICE
+  CLASSIFICATION
 }
 
 enum UnitType {
@@ -261,6 +269,8 @@ model Lesson {
   title     String
   slug      String
   content   String
+  objective String?
+  estimatedMinutes Int?
   videoUrl  String?
   pdfUrl    String?
   order     Int     @default(0)
@@ -459,9 +469,11 @@ model Question {
   text         String
   options      Json
   correctIndex Int
+  answer       Json? // schemă de răspuns pentru tipurile interactive (multi/ordering/matching/classification/etc.); legacy folosește correctIndex
   explanation  String?
   type         QuestionType @default(SINGLE)
   concept      String?
+  difficulty   Int          @default(1)
   order        Int          @default(0)
 
   quiz        Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)

@@ -8,10 +8,10 @@ import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { completeLessonStep, markStepRead, uncompleteLessonStep } from "@/lib/actions/progress";
-import { cn } from "@/lib/utils";
 import { motion, AnimatePresence, MotionConfig, useReducedMotion } from "framer-motion";
 import { ConfettiBurst } from "@/components/confetti-burst";
 import { InlineQuiz, type InlineQuizData } from "./inline-quiz";
+import { LessonProgressHeader } from "./lesson-progress-header";
 
 export interface StepData {
   id: string;
@@ -142,39 +142,20 @@ export function LessonSteps({ lessonId, lessonSlugPath, steps, doneStepIds, isLe
   return (
     <div className="space-y-4">
       {/* Bara de progres universală */}
-      <div className="sticky top-[calc(65px+env(safe-area-inset-top))] z-20 -mx-4 border-b border-feather bg-background/80 px-4 py-3 backdrop-blur-md sm:mx-0 sm:rounded-2xl sm:border overflow-visible">
-        <div className="mb-1 flex items-center justify-between text-xs font-bold">
-          <span className="text-ink">Progres lecție</span>
-          <span className="text-accent">Secțiunea {active + 1} din {steps.length} · {pct}%</span>
-        </div>
-        <Progress value={pct} />
-        <div className="mt-3 flex gap-1.5 overflow-x-auto overflow-y-visible py-1.5 -my-1.5 px-1 -mx-1 scrollbar-thin">
-          {steps.map((s, idx) => {
-            const done = localDone.has(s.id);
-            const locked = isLocked(idx);
-            const activeIs = idx === active;
-            return (
-              <button
-                key={s.id}
-                onClick={() => {
-                  if (isLocked(idx)) {
-                    showToast("Finalizează secțiunea anterioară mai întâi.");
-                    return;
-                  }
-                  setActive(idx);
-                }}
-                className={cn(
-                  "flex h-8 min-h-8 min-w-8 shrink-0 items-center justify-center rounded-full border-2 text-xs font-extrabold transition-all",
-                  activeIs ? "scale-105 border-accent bg-accent text-white shadow-md" : done ? "border-success bg-success/10 text-success" : locked ? "border-warning/30 bg-warning/10 text-warning" : "border-feather bg-card text-subtle hover:border-accent/40"
-                )}
-                title={(s.title ?? `Pasul ${idx + 1}`) + (locked ? " (recomandat să parcurgi anteriorul)" : "")}
-              >
-                {done ? <CheckCircle2 className="h-3.5 w-3.5" /> : locked ? <Lock className="h-3 w-3" /> : idx + 1}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <LessonProgressHeader
+        steps={steps}
+        activeId={current.id}
+        doneIds={localDone}
+        isLocked={isLocked}
+        onSelect={(idx) => {
+          if (isLocked(idx)) {
+            showToast("Finalizează secțiunea anterioară mai întâi.");
+            return;
+          }
+          setActive(idx);
+        }}
+        pct={pct}
+      />
 
       {/* Pas curent */}
       <div className={`rounded-2xl border bg-card p-5 sm:p-6 ${accent.border}`}>

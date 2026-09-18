@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { CheckpointFlow } from "@/components/checkpoint/checkpoint-flow";
+import { gatherCheckpointQuestions, toCheckpointQuestionDto } from "@/lib/checkpoint-source";
 
 export default async function CheckpointPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -18,59 +19,16 @@ export default async function CheckpointPage({ params }: { params: Promise<{ slu
   const chapterSlug = checkpoint.chapter?.slug ?? checkpoint.unit?.chapter.slug ?? "";
   const title = checkpoint.title;
 
-  // Checkpoint distinct: 10 exerciții grupate pe concepte (nu lecții)
-  const questions = await prisma.question.findMany({
-    where: {
-      quiz: { subject: { slug: subjectSlug }, chapter: { slug: chapterSlug } },
-    },
-    take: 10,
-    orderBy: { order: "asc" },
-    select: {
-      id: true,
-      text: true,
-      options: true,
-      correctIndex: true,
-      explanation: true,
-      conceptId: true,
-      concept: true,
-      conceptRef: { select: { name: true, slug: true } },
-    },
-  });
-  const fallback =
-    questions.length < 5
-      ? await prisma.question.findMany({
-          where: { quiz: { subject: { slug: subjectSlug } } },
-          take: 10 - questions.length,
-          orderBy: { order: "asc" },
-          select: {
-            id: true,
-            text: true,
-            options: true,
-            correctIndex: true,
-            explanation: true,
-            conceptId: true,
-            concept: true,
-            conceptRef: { select: { name: true, slug: true } },
-          },
-        })
-      : [];
-  const allQs = [...questions, ...fallback]
-    .slice(0, 10)
-    .map((q) => ({
-      id: q.id,
-      text: q.text,
-      options: q.options as string[],
-      correctIndex: q.correctIndex,
-      explanation: q.explanation,
-      conceptId: q.conceptId,
-      conceptSlug: q.conceptRef?.slug ?? q.concept ?? null,
-    }));
+  // Întrebările vin din lecțiile unității pe care checkpoint-ul o încheie
+  // (plus fallback pe capitol/materie) — aceleași ca în formularul de lecție.
+  const rows = await gatherCheckpointQuestions(slug);
+  const questions = rows.map(toCheckpointQuestionDto);
 
   return (
     <CheckpointFlow
       checkpointSlug={slug}
       title={title}
-      questions={allQs}
+      questions={questions}
       subjectSlug={subjectSlug}
       chapterSlug={chapterSlug}
     />

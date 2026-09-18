@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { INTERACTIVE_STEP_TYPES, LEGACY_STEP_TYPES } from "@/lib/lesson/step-kinds";
 
 // ── Source refs ──────────────────────────────────────────────────────────────
 // Legătura dintre un item generat și chunks-urile din sursele proiectului.
@@ -12,14 +13,38 @@ export const sourceRefSchema = z.object({
 });
 export type SourceRef = z.infer<typeof sourceRefSchema>;
 
+// ── Tipurile canonice de întrebări (alineate cu enum-ul QuestionType) ─────────
+export const QUESTION_TYPES = [
+  "SINGLE",
+  "CLOZE",
+  "FLASHCARD",
+  "DRAG_DROP",
+  "SINGLE_CHOICE",
+  "TRUE_FALSE",
+  "MULTIPLE_CHOICE",
+  "FILL_BLANK",
+  "MATCHING",
+  "ORDERING",
+  "IMAGE_CHOICE",
+  "CLASSIFICATION",
+] as const;
+
+/** Tipurile de pași acceptate într-un draft de lecție (interactive + legacy). */
+export const LESSON_STEP_TYPES = [...INTERACTIVE_STEP_TYPES, ...LEGACY_STEP_TYPES] as const;
+
 // ── Draft întrebare (același shape ca Question) ──────────────────────────────
 export const questionDraftSchema = z.object({
   id: z.string().optional(),
   text: z.string().min(2),
   options: z.array(z.string()).min(2).max(6),
-  correctIndex: z.coerce.number().int().min(0),
+  // correctIndex rămâne pentru tipurile legacy (SINGLE etc.) și ca fallback.
+  correctIndex: z.coerce.number().int().min(0).default(0),
   explanation: z.string().default(""),
-  type: z.enum(["SINGLE", "CLOZE", "FLASHCARD", "DRAG_DROP"]).default("SINGLE"),
+  type: z.enum(QUESTION_TYPES).default("SINGLE_CHOICE"),
+  // Schemă de răspuns pentru tipurile interactive (vezi exercise-schema): de
+  // exemplu { kind: "fill_blank", accepted: [...] } sau { kind: "matching", ... }.
+  answer: z.unknown().optional(),
+  difficulty: z.coerce.number().int().min(1).max(3).default(1),
   concept: z.string().optional(),
 });
 export type QuestionDraft = z.infer<typeof questionDraftSchema>;
@@ -28,9 +53,7 @@ export type QuestionDraft = z.infer<typeof questionDraftSchema>;
 export const lessonStepDraftSchema = z.object({
   id: z.string().optional(),
   title: z.string().optional(),
-  type: z
-    .enum(["DESCOPERĂ", "ÎNȚELEGE", "VEZI UN EXEMPLU", "ÎNCEARCĂ", "EXERSEAZĂ", "APLICĂ", "RECAPITULEAZĂ"])
-    .default("DESCOPERĂ"),
+  type: z.enum(LESSON_STEP_TYPES).default("DESCOPERĂ"),
   content: z.string().min(2),
   minReadTime: z.coerce.number().int().min(5).max(600).default(15),
   quiz: questionDraftSchema.array().optional(), // pentru steps de tip EXERSEAZĂ / APLICĂ
@@ -42,6 +65,8 @@ export const lessonDraftSchema = z.object({
   slug: z.string().optional(),
   description: z.string().optional(),
   content: z.string().optional(),
+  objective: z.string().optional(),
+  estimatedMinutes: z.coerce.number().int().min(1).max(600).default(15),
   difficulty: z.coerce.number().int().min(1).max(3).default(1),
   concepts: z
     .array(z.object({ name: z.string().min(2), description: z.string().optional() }))

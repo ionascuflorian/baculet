@@ -292,6 +292,9 @@ async function main() {
     ],
   });
 
+  // Lecția demo interactivă (migrarea „Funcții de gradul I" în noul format)
+  await seedInteractiveLessonDemo();
+
   await upsertQuiz(mate.id, "trigonometrie", {
     title: "Test — Trigonometrie",
     slug: "test-trigonometrie",
@@ -1036,6 +1039,292 @@ async function upsertQuiz(
   });
 
   return quiz;
+}
+
+// ─── Lecție demo interactivă (format nou de micro-learning) ────────────
+async function upsertInteractiveQuiz(
+  subjectId: string,
+  chapterId: string | null,
+  data: {
+    slug: string;
+    title: string;
+    difficulty: number;
+    questions: {
+      text: string;
+      type: string;
+      options: unknown[];
+      answer: unknown;
+      correctIndex?: number;
+      explanation?: string;
+      conceptSlug?: string | null;
+      difficulty?: number;
+    }[];
+  },
+  conceptBySlug: Map<string, string>
+) {
+  const quiz = await prisma.quiz.upsert({
+    where: { subjectId_slug: { subjectId, slug: data.slug } },
+    update: { title: data.title, difficulty: data.difficulty, chapterId },
+    create: {
+      subjectId,
+      chapterId: chapterId ?? null,
+      title: data.title,
+      slug: data.slug,
+      difficulty: data.difficulty,
+      order: 200,
+    },
+  });
+  await prisma.question.deleteMany({ where: { quizId: quiz.id } });
+  await prisma.question.createMany({
+    data: data.questions.map((q, i) => ({
+      quizId: quiz.id,
+      text: q.text,
+      options: q.options as never,
+      correctIndex: q.correctIndex ?? 0,
+      answer: q.answer as never,
+      explanation: q.explanation ?? null,
+      type: q.type as never,
+      concept: null,
+      conceptId: q.conceptSlug ? (conceptBySlug.get(q.conceptSlug) ?? null) : null,
+      difficulty: q.difficulty ?? 1,
+      order: i,
+    })),
+  });
+  return quiz;
+}
+
+type InteractiveSeedStep = {
+  type: string;
+  title: string;
+  content: string;
+  quiz?: Parameters<typeof upsertInteractiveQuiz>[2];
+};
+
+/** Migrează „Funcții de gradul I" în formatul interactiv (pas cu pas + mini-test). */
+async function seedInteractiveLessonDemo() {
+  const subject = await prisma.subject.findUnique({ where: { slug: "matematica" }, select: { id: true } });
+  const chapter = await prisma.chapter.findFirst({
+    where: { subject: { slug: "matematica" }, slug: "algebra" },
+    select: { id: true },
+  });
+  if (!subject || !chapter) return;
+  const lesson = await prisma.lesson.findUnique({
+    where: { chapterId_slug: { chapterId: chapter.id, slug: "functii-de-gradul-i" } },
+    include: { steps: { select: { id: true, quizId: true } } },
+  });
+  if (!lesson) return;
+
+  const concepts = await prisma.concept.findMany({
+    where: { lessonId: lesson.id },
+    select: { id: true, slug: true },
+  });
+  const conceptBySlug = new Map(concepts.map((c) => [c.slug, c.id]));
+
+  // înlocuim pașii moșteniți din markdown cu pașii interactivi
+  const oldQuizIds = lesson.steps.map((s) => s.quizId).filter((id): id is string => Boolean(id));
+  await prisma.lessonStep.deleteMany({ where: { lessonId: lesson.id } });
+  if (oldQuizIds.length > 0) await prisma.quiz.deleteMany({ where: { id: { in: oldQuizIds } } });
+
+  await prisma.lesson.update({
+    where: { id: lesson.id },
+    data: {
+      objective:
+        "Înveți forma unei funcții de gradul I, calculezi rădăcina, interpretezi panta și semnul, rezolvi un exemplu pas cu pas și verifici totul printr-un mini-test.",
+      estimatedMinutes: 12,
+    },
+  });
+
+  const steps: InteractiveSeedStep[] = [
+    {
+      type: "INTRO",
+      title: "Funcții de gradul I",
+      content: "",
+    },
+    {
+      type: "MICRO_LESSON",
+      title: "Ce este o funcție de gradul I?",
+      content: [
+        "O **funcție de gradul I** are forma:",
+        "$$f: \\mathbb{R} \\to \\mathbb{R}, \\quad f(x) = ax + b$$",
+        "cu $a, b \\in \\mathbb{R}$ și $a \\neq 0$.",
+        "",
+        "- Graficul este o **dreaptă**.",
+        "- Intersecția cu axa $Oy$ este $(0, b)$.",
+        "- **Rădăcina** (intersecția cu axa $Ox$) este $x = -\\dfrac{b}{a}$.",
+        "- Coeficientul $a$ se numește **pantă**: dacă $a > 0$ funcția este strict **crescătoare**, dacă $a < 0$ este strict **descrescătoare**.",
+        "",
+        "- Dacă $a > 0$, funcția e **negativă** pentru $x < -b/a$ și **pozitivă** pentru $x > -b/a$.",
+        "- Dacă $a < 0$, semnele se inversează.",
+      ].join("\n"),
+    },
+    {
+      type: "QUICK_EXERCISE",
+      title: "Găsește rădăcina",
+      content: "",
+      quiz: {
+        slug: "interactiv-functii-grad1-radacina",
+        title: "Rădăcina funcției",
+        difficulty: 1,
+        questions: [
+          {
+            text: "Care este rădăcina funcției $f(x) = 2x - 6$?",
+            type: "SINGLE_CHOICE",
+            options: ["x = 2", "x = 3", "x = -3", "x = 6"],
+            answer: { kind: "single", index: 1 },
+            correctIndex: 1,
+            explanation: "2x - 6 = 0 ⇒ 2x = 6 ⇒ x = 3.",
+            conceptSlug: "functii-de-gradul-i-aplicare",
+          },
+        ],
+      },
+    },
+    {
+      type: "EXAMPLE",
+      title: "Un exemplu rezolvat",
+      content: [
+        "Determinăm rădăcina funcției $f(x) = 2x - 4$:",
+        "1. Punem condiția $f(x) = 0$.",
+        "2. $2x - 4 = 0 \\Rightarrow 2x = 4 \\Rightarrow x = 2$.",
+        "Deci graficul taie axa $Ox$ în punctul $(2, 0)$.",
+        "",
+        "Fiindcă $a = 2 > 0$, funcția este strict crescătoare.",
+      ].join("\n"),
+      quiz: {
+        slug: "interactiv-functii-grad1-exemplu",
+        title: "Verificare exemplu",
+        difficulty: 1,
+        questions: [
+          {
+            text: "Pentru $f(x) = 2x - 4$, funcția este strict crescătoare pentru că:",
+            type: "SINGLE_CHOICE",
+            options: [
+              "a = 2 > 0, deci crescătoare",
+              "a = -2 < 0, deci crescătoare",
+              "b = -4 implică descrescătoare",
+              "este constantă",
+            ],
+            answer: { kind: "single", index: 0 },
+            correctIndex: 0,
+            explanation: "Semnul pantei decide monotonia: a > 0 ⇒ strict crescătoare.",
+            conceptSlug: "functii-de-gradul-i-aplicare",
+          },
+        ],
+      },
+    },
+    {
+      type: "APPLY",
+      title: "Aplică: monotonie și semn",
+      content: "",
+      quiz: {
+        slug: "interactiv-functii-grad1-aplica",
+        title: "Aplicare — monotonie și semn",
+        difficulty: 2,
+        questions: [
+          {
+            text: "Dacă $a > 0$, funcția $f(x) = ax + b$ este strict crescătoare.",
+            type: "TRUE_FALSE",
+            options: ["Adevărat", "Fals"],
+            answer: { kind: "single", index: 0 },
+            correctIndex: 0,
+            explanation: "O pantă pozitivă înseamnă o dreaptă care urcă.",
+            conceptSlug: "functii-de-gradul-i-aplicare",
+          },
+          {
+            text: "Dacă $a < 0$, funcția $f(x) = ax + b$ este strict crescătoare pe $\\mathbb{R}$.",
+            type: "TRUE_FALSE",
+            options: ["Adevărat", "Fals"],
+            answer: { kind: "single", index: 1 },
+            correctIndex: 1,
+            explanation: "a < 0 ⇒ funcția este strict descrescătoare.",
+            conceptSlug: "functii-de-gradul-i-notiuni",
+          },
+        ],
+      },
+    },
+    {
+      type: "RECALL",
+      title: "Recapitulează pașii",
+      content: "Așează în ordine pașii pentru a afla rădăcina lui $f(x) = 3x - 9$.",
+      quiz: {
+        slug: "interactiv-functii-grad1-recap",
+        title: "Ordinea rezolvării",
+        difficulty: 2,
+        questions: [
+          {
+            text: "Pune în ordine pașii pentru a afla rădăcina lui $f(x) = 3x - 9$.",
+            type: "ORDERING",
+            options: ["x = 3 și verificăm", "3x = 9", "f(x) = 0", "3x - 9 = 0"],
+            answer: { kind: "ordering", order: [2, 3, 1, 0] },
+            correctIndex: 0,
+            explanation: "Scriem f(x) = 0, înlocuim, separăm și aflăm x = 3.",
+            conceptSlug: "functii-de-gradul-i-bac",
+          },
+        ],
+      },
+    },
+    {
+      type: "MINI_TEST",
+      title: "Mini-test: ești gata?",
+      content: "Răspunde corect la minimum 70% pentru a finaliza lecția.",
+      quiz: {
+        slug: "interactiv-functii-grad1-minitest",
+        title: "Mini-test — Funcții de gradul I",
+        difficulty: 2,
+        questions: [
+          {
+            text: "Rădăcina funcției $f(x) = 5x - 10$ este:",
+            type: "SINGLE_CHOICE",
+            options: ["x = 2", "x = -2", "x = 5", "x = 10"],
+            answer: { kind: "single", index: 0 },
+            correctIndex: 0,
+            explanation: "5x - 10 = 0 ⇒ x = 2.",
+            conceptSlug: "functii-de-gradul-i-aplicare",
+          },
+          {
+            text: "Graficul funcției $f(x) = ax + b$, cu $a \\neq 0$, este o dreaptă.",
+            type: "TRUE_FALSE",
+            options: ["Adevărat", "Fals"],
+            answer: { kind: "single", index: 0 },
+            correctIndex: 0,
+            explanation: "Orice funcție de gradul I are ca grafic o dreaptă.",
+            conceptSlug: "functii-de-gradul-i-notiuni",
+          },
+          {
+            text: "Panta funcției $f(x) = 3x + 1$ este:",
+            type: "SINGLE_CHOICE",
+            options: ["3", "1", "-3", "0"],
+            answer: { kind: "single", index: 0 },
+            correctIndex: 0,
+            explanation: "În forma f(x) = ax + b, panta este a = 3.",
+            conceptSlug: "functii-de-gradul-i-notiuni",
+          },
+          {
+            text: "Intersecția graficului lui $f(x) = 2x + 4$ cu axa $Ox$ are coordonatele:",
+            type: "SINGLE_CHOICE",
+            options: ["(-2, 0)", "(2, 0)", "(0, 4)", "(4, 0)"],
+            answer: { kind: "single", index: 0 },
+            correctIndex: 0,
+            explanation: "2x + 4 = 0 ⇒ x = -2, deci punctul este (-2, 0).",
+            conceptSlug: "functii-de-gradul-i-bac",
+          },
+        ],
+      },
+    },
+  ];
+
+  for (let i = 0; i < steps.length; i++) {
+    const st = steps[i];
+    let quizId: string | null = null;
+    if (st.quiz) {
+      const quiz = await upsertInteractiveQuiz(subject.id, chapter.id, st.quiz, conceptBySlug);
+      quizId = quiz.id;
+    }
+    await prisma.lessonStep.create({
+      data: { lessonId: lesson.id, title: st.title, content: st.content, order: i, stepType: st.type, quizId, manual: true },
+    });
+  }
+
+  console.log("  Lecție interactivă: Funcții de gradul I ✓");
 }
 
 async function upsertExam(

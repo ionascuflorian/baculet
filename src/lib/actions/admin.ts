@@ -496,15 +496,49 @@ async function revalidateSectionPaths(lessonId: string) {
 const quickQuestionSchema = z.object({
   text: z.string().min(2),
   options: z.array(z.string()).min(2),
-  correctIndex: z.coerce.number().int().min(0),
+  correctIndex: z.coerce.number().int().min(0).default(0),
   explanation: z.string().optional().default(""),
-  type: z.enum(["SINGLE", "CLOZE", "FLASHCARD", "DRAG_DROP"]).default("SINGLE"),
+  type: z
+    .enum([
+      "SINGLE",
+      "CLOZE",
+      "FLASHCARD",
+      "DRAG_DROP",
+      "SINGLE_CHOICE",
+      "TRUE_FALSE",
+      "MULTIPLE_CHOICE",
+      "FILL_BLANK",
+      "MATCHING",
+      "ORDERING",
+      "IMAGE_CHOICE",
+      "CLASSIFICATION",
+    ])
+    .default("SINGLE_CHOICE"),
+  answer: z.unknown().optional(),
 });
 
 const quickQuizSchema = z.object({
   title: z.string().min(2),
   questions: z.array(quickQuestionSchema).min(1),
 });
+
+function validateQuickQuestion(q: z.infer<typeof quickQuestionSchema>) {
+  if (q.type === "FILL_BLANK") {
+    const accepted = (q.answer as { accepted?: unknown[] } | undefined)?.accepted ?? [];
+    if (accepted.length === 0) {
+      throw new Error("Pentru întrebarea de tip „Completează” adaugă măcar un răspuns acceptat.");
+    }
+  }
+  if (q.type === "MULTIPLE_CHOICE") {
+    const indices = (q.answer as { indices?: unknown[] } | undefined)?.indices ?? [];
+    if (indices.length === 0) {
+      throw new Error("Pentru întrebarea de tip „Alege toate” marchează cel puțin o variantă corectă.");
+    }
+  }
+  if (q.correctIndex >= q.options.length) {
+    throw new Error("Indexul răspunsului corect este în afara variantelor.");
+  }
+}
 
 export async function createQuickQuiz(
   lessonId: string,
@@ -523,9 +557,7 @@ export async function createQuickQuiz(
   if (!lesson) throw new Error("Lecția nu există");
 
   for (const q of data.questions) {
-    if (q.correctIndex >= q.options.length) {
-      throw new Error("Indexul răspunsului corect este în afara variantelor.");
-    }
+    validateQuickQuestion(q);
   }
 
   // slug unic pe materie
@@ -558,6 +590,7 @@ export async function createQuickQuiz(
       text: q.text,
       options: q.options,
       correctIndex: q.correctIndex,
+      answer: q.answer ?? undefined,
       explanation: q.explanation || null,
       type: q.type as unknown as never,
       order: i,

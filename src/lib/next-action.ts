@@ -155,3 +155,103 @@ export async function getGlobalNextAction(userId: string): Promise<NextAction | 
   // fallback: prima materie (rezultatul a fost deja calculat în paralel)
   return actions[0] ?? null;
 }
+
+/**
+ * Următoarea acțiune după un checkpoint, determinist și legat de unitate.
+ * Când pct < pragul de trecere, conduce la lecția conceptului cel mai slab;
+ * când trece, conduce la prima unitate/lecție nefinalizată din traseu.
+ */
+export async function getCheckpointNextAction(
+  userId: string,
+  checkpoint: { slug: string; unitId: string | null; chapterId: string | null },
+  pct: number,
+  weakConcepts: { conceptId: string; name: string }[]
+): Promise<NextAction> {
+  const chapter = checkpoint.chapterId
+    ? await prisma.chapter.findUnique({
+        where: { id: checkpoint.chapterId },
+        select: {
+          slug: true,
+          subject: { select: { slug: true } },
+        },
+      })
+    : null;
+  const subjectSlug = chapter?.subject.slug ?? "";
+  const chapterSlug = chapter?.slug ?? "";
+
+  // Sub prag: review pe conceptul cel mai slab → lecția lui (dacă există).
+  if (pct < 70 && weakConcepts.length > 0) {
+    const weak = weakConcepts[0];
+    if (weak.conceptId && weak.conceptId !== "general") {
+      const concept = await prisma.concept.findUnique({
+        where: { id: weak.conceptId },
+        select: {
+          name: true,
+          lesson: {
+            select: {
+              slug: true,
+              chapter: { select: { slug: true, subject: { select: { slug: true } } } },
+            },
+          },
+        },
+      });
+      if (concept?.lesson?.slug) {
+        return {
+          type: "REVIEW_WEAK",
+          title: `Revizuiește: ${concept.name}`,
+          description: `Recitește lecția și reia exercițiile pentru ${weak.name}.`,
+          href: `/materii/${concept.lesson.chapter.subject.slug}/${concept.lesson.chapter.slug}/${concept.lesson.slug}`,
+          meta: "Review concept",
+          priority: 1,
+        };
+      }
+    }
+    return {
+      type: "REVIEW_WEAK",
+      title: "Recapitulare personalizată",
+      description: `${weakConcepts.length} concepte de consolidat — repetă-le pe cele greșite.`,
+      href: "/recapitulare",
+      meta: "Review",
+      priority: 1,
+    };
+  }
+
+  // Peste prag: prima unitate nefinalizată de după unitatea checkpoint-ului.
+  if (chapter && checkpoint.unitId && checkpoint.chapterId) {
+    const path = await getLearningPathForChapter(userId, checkpoint.chapterId);
+    const idx = path.findIndex((u) => u.id === checkpoint.unitId);
+    const next = path.slice(idx + 1).find((u) => u.status === "AVAILABLE" || u.status === "IN_PROGRESS");
+    if (next) {
+      if (next.type === "CHECKPOINT") {
+        const cp = await prisma.checkpoint.findFirst({ where: { unitId: next.id }, select: { slug: true } });
+        return {
+          type: "CHECKPOINT",
+          title: next.title,
+          description: `Continuă traseul — ${chapterSlug}.`,
+          href: cp?.slug ? `/checkpoint/${cp.slug}` : `/materii/${subjectSlug}/${chapterSlug}#checkpoint`,
+          meta: "Checkpoint",
+          priority: 4,
+        };
+      }
+      if (next.lessons[0]) {
+        return {
+          type: "NEXT_LESSON",
+          title: next.lessons[0].title,
+          description: `Următoarea lecție — ${next.title}.`,
+          href: `/materii/${subjectSlug}/${chapterSlug}/${next.lessons[0].slug}`,
+          meta: "Următoarea lecție",
+          priority: 4,
+        };
+      }
+    }
+  }
+
+  return {
+    type: "PRACTICE",
+    title: "Continuă modulul",
+    description: subjectSlug ? `Mergi la ${chapterSlug}.` : "Înapoi la materii.",
+    href: subjectSlug ? `/materii/${subjectSlug}/${chapterSlug}` : "/materii",
+    meta: "Modul",
+    priority: 6,
+  };
+}

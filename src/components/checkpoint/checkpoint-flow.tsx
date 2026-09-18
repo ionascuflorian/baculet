@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Target, CheckCircle2, XCircle, ArrowRight, Sparkles, RefreshCcw, BookOpen } from "lucide-react";
+import { useMemo, useState, useTransition } from "react";
+import { motion } from "framer-motion";
+import { Target, CheckCircle2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { submitCheckpoint } from "@/lib/actions/checkpoint";
+import { submitCheckpoint, type CheckpointResult } from "@/lib/actions/checkpoint";
+import { normalizeQuestion, parseUserAnswer, checkAnswer, type Exercise } from "@/lib/lesson/exercise-schema";
+import { ExerciseInput } from "@/components/lesson/exercise-input";
+import { ExerciseFeedback } from "@/components/lesson/exercise-feedback";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { ConfettiBurst } from "@/components/confetti-burst";
@@ -13,11 +16,15 @@ import { ConfettiBurst } from "@/components/confetti-burst";
 interface Question {
   id: string;
   text: string;
-  options: string[];
+  options: unknown;
   correctIndex: number;
+  answer?: unknown;
   explanation?: string | null;
+  type: string;
+  difficulty?: number;
   conceptId?: string | null;
   conceptSlug?: string | null;
+  conceptName?: string | null;
 }
 
 interface Props {
@@ -30,42 +37,71 @@ interface Props {
 
 type Phase = "intro" | "playing" | "results";
 
+function hasAnswer(kind: Exercise["kind"], value: unknown): boolean {
+  if (value === null || value === undefined) return false;
+  switch (kind) {
+    case "fill_blank":
+      return typeof value === "string" && value.trim().length > 0;
+    case "multiple":
+      return Array.isArray(value) && value.length > 0;
+    case "matching":
+      return Array.isArray(value) && value.length > 0;
+    case "ordering":
+      return Array.isArray(value) && value.length > 0;
+    case "classification":
+      return typeof value === "object" && value !== null && Object.keys(value as Record<string, unknown>).length > 0;
+    default:
+      return true;
+  }
+}
+
 export function CheckpointFlow({ checkpointSlug, title, questions, chapterSlug, subjectSlug }: Props) {
   const [phase, setPhase] = useState<Phase>("intro");
   const [idx, setIdx] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, number>>({});
-  const [selected, setSelected] = useState<number | null>(null);
+  const [answers, setAnswers] = useState<Record<string, unknown>>({});
+  const [selected, setSelected] = useState<unknown | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [pending, start] = useTransition();
-  const [result, setResult] = useState<null | { score: number; maxScore: number; pct: number; weakConcepts: { conceptId: string; name: string }[] }>(null);
+  const [result, setResult] = useState<CheckpointResult | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const total = questions.length;
   const q = questions[idx];
-  const pct = Math.round(((idx + (revealed ? 1 : 0)) / total) * 100);
+  const exercise = useMemo(
+    () =>
+      q
+        ? normalizeQuestion({
+            id: q.id,
+            text: q.text,
+            options: q.options,
+            correctIndex: q.correctIndex,
+            answer: q.answer,
+            explanation: q.explanation,
+            type: q.type,
+            difficulty: q.difficulty,
+            conceptId: q.conceptId,
+            concept: q.conceptName ?? q.conceptSlug ?? null,
+          })
+        : null,
+    [q]
+  );
+  const pct = Math.round(((idx + (revealed ? 1 : 0)) / Math.max(total, 1)) * 100);
   const isLast = idx === total - 1;
 
   function startCheckpoint() {
     setPhase("playing");
   }
 
-  function handleSelect(i: number) {
-    if (revealed) return;
-    setSelected(i);
-  }
-
   function reveal() {
-    if (selected === null) return;
+    if (!exercise || !hasAnswer(exercise.kind, selected)) return;
     setRevealed(true);
   }
 
   function next() {
-    if (selected !== null && q) {
-      setAnswers((a) => ({ ...a, [q.id]: selected }));
-    }
+    if (!q || selected === undefined) return;
+    const finalAnswers = { ...answers, [q.id]: selected };
+    setAnswers(finalAnswers);
     if (isLast) {
-      // submit
-      const finalAnswers = selected !== null && q ? { ...answers, [q.id]: selected } : answers;
       start(async () => {
         try {
           const res = await submitCheckpoint(checkpointSlug, finalAnswers);
@@ -83,21 +119,29 @@ export function CheckpointFlow({ checkpointSlug, title, questions, chapterSlug, 
     }
   }
 
+  const goBack = () => {
+    if (idx === 0) return;
+    setIdx((i) => i - 1);
+    const prev = questions[idx - 1];
+    setSelected(prev ? (answers[prev.id] ?? null) : null);
+    setRevealed(false);
+  };
+
   if (phase === "intro") {
     return (
-      <div className="mx-auto max-w-xl space-y-6 text-center py-8">
+      <div className="mx-auto max-w-xl space-y-6 py-8 text-center">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10">
           <Target className="h-8 w-8 text-accent" />
         </div>
         <div>
           <p className="text-xs font-extrabold uppercase tracking-widest text-accent">CHECKPOINT</p>
           <h1 className="mt-1 text-2xl font-extrabold text-ink">{title}</h1>
-          <p className="mt-2 text-sm text-subtle">Ai terminat primele 4 unități. Acum verificăm cât de bine ai înțeles conceptele.</p>
+          <p className="mt-2 text-sm text-subtle">Verificăm cât de bine ai înțeles conceptele parcurse în această etapă.</p>
         </div>
         <div className="rounded-2xl border bg-card p-4 text-left">
           <div className="flex items-center justify-between text-sm font-bold">
             <span>{total} exerciții</span>
-            <span>~{Math.ceil(total * 0.8)} minute</span>
+            <span>~{Math.ceil(Math.max(total, 1) * 0.8)} minute</span>
           </div>
           <div className="mt-2 text-xs text-subtle">• Concepte grupate • Feedback imediat • Review personalizat după</div>
         </div>
@@ -109,8 +153,8 @@ export function CheckpointFlow({ checkpointSlug, title, questions, chapterSlug, 
     );
   }
 
-  if (phase === "playing" && q) {
-    const isCorrect = selected === q.correctIndex;
+  if (phase === "playing" && q && exercise) {
+    const localCorrect = checkAnswer(exercise, parseUserAnswer(exercise.kind, selected as never));
     return (
       <div className="mx-auto max-w-xl space-y-5">
         <div>
@@ -120,44 +164,23 @@ export function CheckpointFlow({ checkpointSlug, title, questions, chapterSlug, 
           </div>
           <Progress value={pct} />
         </div>
-        <h2 className="text-lg font-extrabold text-ink">{q.text}</h2>
-        <div className="space-y-2">
-          {q.options.map((opt, i) => {
-            const sel = selected === i;
-            const showCorrect = revealed && i === q.correctIndex;
-            const showWrong = revealed && sel && !isCorrect;
-            return (
-              <button
-                key={i}
-                onClick={() => handleSelect(i)}
-                disabled={revealed}
-                className={cn(
-                  "flex w-full items-center gap-3 rounded-xl border-2 p-3 text-left text-sm font-semibold transition-all",
-                  !revealed && sel ? "border-accent bg-accent/10 ring-2 ring-accent/20" : !revealed ? "border-feather hover:border-accent/30" : showCorrect ? "border-success bg-success/10" : showWrong ? "border-danger bg-danger/10" : "border-feather opacity-60"
-                )}
-              >
-                <span className={cn("flex h-7 w-7 items-center justify-center rounded-full text-xs font-extrabold", sel ? "bg-accent text-white" : "bg-ink/5")}>
-                  {String.fromCharCode(65 + i)}
-                </span>
-                {opt}
-                {showCorrect && <CheckCircle2 className="ml-auto h-4 w-4 text-success" />}
-                {showWrong && <XCircle className="ml-auto h-4 w-4 text-danger" />}
-              </button>
-            );
-          })}
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <span className="rounded-full bg-accent/10 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-widest text-accent">
+            {q.conceptName ?? "Checkpoint"}
+          </span>
         </div>
-        {revealed && q.explanation && <p className="rounded-xl bg-accent/10 p-3 text-sm text-ink">💡 {q.explanation}</p>}
+        <h2 className="text-lg font-extrabold text-ink">{q.text}</h2>
+        <ExerciseInput exercise={exercise} value={selected ?? null} onChange={setSelected} disabled={revealed} />
+        {revealed && <ExerciseFeedback correct={localCorrect} explanation={q.explanation} />}
         {submitError && (
-          <p className="rounded-xl bg-danger/10 px-4 py-2.5 text-sm font-semibold text-danger">
-            {submitError}
-          </p>
+          <p className="rounded-xl bg-danger/10 px-4 py-2.5 text-sm font-semibold text-danger">{submitError}</p>
         )}
         <div className="flex justify-between">
-          <Button variant="ghost" size="sm" onClick={() => setIdx((v) => Math.max(0, v - 1))} disabled={idx === 0}>
+          <Button variant="ghost" size="sm" onClick={goBack} disabled={idx === 0}>
             Înapoi
           </Button>
           {!revealed ? (
-            <Button size="sm" onClick={reveal} disabled={selected === null}>
+            <Button size="sm" onClick={reveal} disabled={!hasAnswer(exercise.kind, selected)}>
               Verifică
             </Button>
           ) : (
@@ -171,7 +194,6 @@ export function CheckpointFlow({ checkpointSlug, title, questions, chapterSlug, 
   }
 
   if (phase === "results" && !result) {
-    // Race: phase a ajuns la "results", dar rezultatul încă se încarcă (sau a eșuat).
     return (
       <div className="mx-auto max-w-xl space-y-4 py-16 text-center">
         <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-accent border-t-transparent" />
@@ -189,13 +211,10 @@ export function CheckpointFlow({ checkpointSlug, title, questions, chapterSlug, 
   }
 
   if (phase === "results" && result) {
-    const mastered = result.weakConcepts.length === 0;
+    const excellent = result.pct >= 90;
     const ready = result.pct >= 70 && result.pct < 90;
     const needsPractice = result.pct < 70;
-
-    // determină exerciții stăpânite vs de consolidat (mock: cele corecte vs greșite)
-    const masteredConcepts = result.pct >= 90 ? ["Calculul valorii funcției", "Identificarea funcțiilor"] : result.pct >= 70 ? ["Baze"] : [];
-    const weakNames = result.weakConcepts.map((w) => w.name);
+    const na = result.nextAction;
 
     return (
       <div className="mx-auto max-w-xl space-y-6">
@@ -207,7 +226,7 @@ export function CheckpointFlow({ checkpointSlug, title, questions, chapterSlug, 
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10">
             <Target className="h-6 w-6 text-accent" />
           </div>
-          <p className="mt-2 text-xs font-extrabold uppercase tracking-widest text-accent">🎯 CHECKPOINT FINALIZAT</p>
+          <p className="mt-2 text-xs font-extrabold uppercase tracking-widest text-accent">CHECKPOINT FINALIZAT</p>
           <p className="mt-1 text-3xl font-extrabold text-ink">
             {result.score} / {result.maxScore}
           </p>
@@ -215,72 +234,70 @@ export function CheckpointFlow({ checkpointSlug, title, questions, chapterSlug, 
             <div className="h-full bg-accent" style={{ width: `${result.pct}%` }} />
           </div>
           <p className="mt-2 text-sm font-bold text-ink">
-            {result.pct >= 90 ? "Excelent! Ai stăpânit această etapă." : result.pct >= 70 ? "Ai înțeles baza. Mai avem câteva lucruri de consolidat." : "Mai avem câteva concepte importante de consolidat."}
+            {excellent ? "Excelent! Ai stăpânit această etapă." : ready ? "Ai înțeles baza. Mai avem câteva lucruri de consolidat." : "Mai avem câteva concepte importante de consolidat."}
           </p>
-          <p className="text-xs text-subtle">{result.pct >= 90 ? "Următoarea unitate s-a deblocat." : result.pct >= 70 ? "Poți continua, dar îți recomandăm un review scurt." : "Îți recomandăm o sesiune de review înainte să continui."}</p>
+          <p className="text-xs text-subtle">{na.description}</p>
         </motion.div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="rounded-2xl border border-success/20 bg-success/5 p-4">
-            <p className="text-sm font-extrabold text-success">Ai stăpânit</p>
-            {masteredConcepts.length > 0 ? (
-              masteredConcepts.map((m) => (
-                <p key={m} className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-ink">
-                  <CheckCircle2 className="h-4 w-4 text-success" /> {m}
-                </p>
-              ))
-            ) : (
-              <p className="text-sm text-subtle">✓ Concepte cu răspunsuri corecte</p>
+        {(result.masteredConcepts.length > 0 || result.weakConcepts.length > 0) && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {result.masteredConcepts.length > 0 && (
+              <div className="rounded-2xl border border-success/20 bg-success/5 p-4">
+                <p className="text-sm font-extrabold text-success">Ai stăpânit</p>
+                {result.masteredConcepts.map((m) => (
+                  <p key={m.conceptId} className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-ink">
+                    <CheckCircle2 className="h-4 w-4 text-success" /> {m.name}
+                  </p>
+                ))}
+              </div>
             )}
+            <div className={cn("rounded-2xl border p-4", result.weakConcepts.length > 0 ? "border-warning/20 bg-warning/5" : "border-success/20 bg-success/5")}>
+              <p className={cn("text-sm font-extrabold", result.weakConcepts.length > 0 ? "text-warning" : "text-success")}>
+                {result.weakConcepts.length > 0 ? "Mai avem de consolidat" : "Nimic de consolidat"}
+              </p>
+              {result.weakConcepts.length > 0 ? (
+                result.weakConcepts.map((w) => (
+                  <p key={w.conceptId} className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-ink">
+                    <span className="text-warning">⚠️</span> {w.name}
+                  </p>
+                ))
+              ) : (
+                <p className="text-sm text-subtle">— niciunul, bravo!</p>
+              )}
+            </div>
           </div>
-          <div className="rounded-2xl border border-warning/20 bg-warning/5 p-4">
-            <p className="text-sm font-extrabold text-warning">Mai avem de consolidat</p>
-            {weakNames.length > 0 ? (
-              weakNames.map((w) => (
-                <p key={w} className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-ink">
-                  <span className="text-warning">⚠️</span> {w}
-                </p>
-              ))
-            ) : (
-              <p className="text-sm text-subtle">— niciunul, bravo!</p>
-            )}
-          </div>
-        </div>
+        )}
 
-        {result.pct >= 90 && (
+        {(excellent || ready) && (
           <div className="flex flex-col gap-2">
-            <Button asChild size="lg">
-              <Link href={`/materii/${subjectSlug}`}>Continuă →</Link>
-            </Button>
-            <ConfettiBurst pieces={30} />
+            {na.href && (
+              <Button asChild size="lg" className="w-full">
+                <Link href={na.href}>{na.title} <ArrowRight className="h-5 w-5" /></Link>
+              </Button>
+            )}
+            {(excellent || (ready && result.weakConcepts.length > 0)) && (
+              <Button asChild variant="outline">
+                <Link href="/recapitulare">Exersează recomandarea</Link>
+              </Button>
+            )}
           </div>
         )}
-        {ready && (
-          <div className="flex flex-col gap-2">
-            <Button asChild size="lg">
-              <Link href={`/materii/${subjectSlug}`}>Continuă</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href={`/recapitulare?checkpoint=${checkpointSlug}`}>Exersează recomandarea</Link>
-            </Button>
-          </div>
-        )}
+        {excellent && <ConfettiBurst pieces={30} />}
         {needsPractice && (
           <div className="flex flex-col gap-2">
-            <Button asChild size="lg">
-              <Link href={`/recapitulare?checkpoint=${checkpointSlug}`}>Începe sesiunea de review</Link>
-            </Button>
-            <Button asChild variant="ghost" size="sm">
-              <Link href={`/checkpoint/${checkpointSlug}`}>Vezi ce trebuie să exersezi</Link>
-            </Button>
+            {na.href && (
+              <Button asChild size="lg" className="w-full">
+                <Link href={na.href}>{na.title} <ArrowRight className="h-5 w-5" /></Link>
+              </Button>
+            )}
             <Button asChild variant="outline">
-              <Link href={`/materii/${subjectSlug}`}>Continuă oricum</Link>
+              <Link href={`/materii/${subjectSlug}/${chapterSlug}`}>Continuă oricum</Link>
             </Button>
           </div>
         )}
 
         <div className="rounded-xl bg-feather/30 p-3 text-xs text-subtle">
-          Mastery actualizat pentru {result.weakConcepts.length} concepte slabe. Următoarea unitate e deja disponibilă — checkpoint-ul rămâne cu statusul "{needsPractice ? "de revizuit" : "finalizat"}" în traseu.
+          Mastery actualizat pentru {result.weakConcepts.length} concepte de consolidat. {needsPractice ? "Checkpoint-ul rămâne „de revizuit” până trece pragul de 70%." : "Următoarea unitate e disponibilă în traseu."}
         </div>
       </div>
     );

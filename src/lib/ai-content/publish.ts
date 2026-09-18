@@ -2,7 +2,7 @@
 // Toate scrierile se fac într-o singură $transaction; orice eroare → rollback.
 import { prisma } from "@/lib/db";
 import { slugifyName } from "@/lib/username";
-import type { ContentItem, CurriculumNode } from "@/generated/prisma/client";
+import type { ContentItem, CurriculumNode, QuestionType } from "@/generated/prisma/client";
 import type {
   LessonDraft,
   QuizDraft,
@@ -105,9 +105,11 @@ async function createQuestions(
         quizId,
         text: q.text,
         options: q.options,
-        correctIndex: q.correctIndex,
+        correctIndex: q.correctIndex ?? 0,
+        answer: q.answer ?? undefined,
         explanation: q.explanation || null,
-        type: q.type,
+        type: q.type as QuestionType,
+        difficulty: q.difficulty ?? 1,
         concept: concept ? undefined : (q.concept ?? null),
         conceptId: concept?.id ?? null,
         order: i,
@@ -138,6 +140,8 @@ export async function publishLesson(
         title: draft.title,
         slug,
         content: draft.content || draft.description || "",
+        objective: draft.objective ?? null,
+        estimatedMinutes: draft.estimatedMinutes ?? 15,
         order: item.version,
         difficulty: draft.difficulty ?? 1,
       },

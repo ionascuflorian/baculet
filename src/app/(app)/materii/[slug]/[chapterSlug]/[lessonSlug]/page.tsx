@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { MarkLessonComplete } from "@/components/mark-lesson-complete";
 import { LessonSteps } from "@/components/lesson/lesson-steps";
+import { LessonPlayer } from "@/components/lesson/lesson-player";
+import { isInteractiveStepType } from "@/lib/lesson/step-kinds";
 import { Markdown } from "@/components/markdown";
 
 export default async function LessonPage({
@@ -43,6 +45,12 @@ export default async function LessonPage({
       content: true,
       videoUrl: true,
       pdfUrl: true,
+      objective: true,
+      estimatedMinutes: true,
+      concepts: {
+        orderBy: { order: "asc" },
+        select: { id: true, name: true, description: true },
+      },
       steps: {
         orderBy: { order: "asc" },
         select: {
@@ -56,7 +64,22 @@ export default async function LessonPage({
             select: {
               id: true,
               title: true,
-              questions: { orderBy: { order: "asc" }, select: { id: true, text: true, options: true, correctIndex: true, explanation: true, type: true } },
+              questions: {
+                orderBy: { order: "asc" },
+                select: {
+                  id: true,
+                  text: true,
+                  options: true,
+                  correctIndex: true,
+                  answer: true,
+                  explanation: true,
+                  type: true,
+                  difficulty: true,
+                  concept: true,
+                  conceptId: true,
+                  conceptRef: { select: { name: true, description: true } },
+                },
+              },
             },
           },
         },
@@ -88,6 +111,7 @@ export default async function LessonPage({
 
   const path = `/materii/${slug}/${chapterSlug}/${lessonSlug}`;
   const hasSteps = lesson.steps.length > 0;
+  const isInteractive = lesson.steps.some((s) => isInteractiveStepType(s.stepType));
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -123,7 +147,44 @@ export default async function LessonPage({
         </div>
       )}
 
-      {hasSteps ? (
+      {hasSteps && isInteractive ? (
+        <LessonPlayer
+          lessonId={lesson.id}
+          lessonSlugPath={path}
+          steps={lesson.steps.map((s) => ({
+            id: s.id,
+            title: s.title,
+            content: s.content,
+            order: s.order,
+            stepType: s.stepType,
+            quiz: s.quiz
+              ? {
+                  id: s.quiz.id,
+                  title: s.quiz.title,
+                  questions: s.quiz.questions.map((q) => ({
+                    id: q.id,
+                    text: q.text,
+                    options: q.options,
+                    correctIndex: q.correctIndex,
+                    answer: q.answer,
+                    explanation: q.explanation,
+                    type: (q.type ?? "SINGLE") as string,
+                    difficulty: q.difficulty ?? 1,
+                    conceptId: q.conceptId,
+                    concept: q.conceptRef?.name ?? q.concept ?? null,
+                  })),
+                }
+              : null,
+          }))}
+          doneStepIds={doneStepIds}
+          objective={lesson.objective}
+          estimatedMinutes={lesson.estimatedMinutes}
+          concepts={lesson.concepts.map((c) => ({ id: c.id, name: c.name, description: c.description }))}
+          nextHref={next ? `/materii/${slug}/${chapterSlug}/${next.slug}` : null}
+          chapterHref={`/materii/${slug}`}
+          nextTitle={next?.title ?? null}
+        />
+      ) : hasSteps ? (
         <LessonSteps
           lessonId={lesson.id}
           lessonSlugPath={path}
