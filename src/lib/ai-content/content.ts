@@ -348,7 +348,7 @@ export async function generateCheckpointDraft(input: {
         `Materie: ${input.subjectName}.`,
         `Checkpoint pentru unitatea „${input.unitTitle}”${input.unitDescription ? ` — ${input.unitDescription}` : ""}.`,
         `Concepte-cheie evaluate: ${input.concepts.length ? input.concepts.join(", ") : "toate din unitate"}.`,
-        `Generează exact ${count} întrebări de tip grilă (SINGLE), care să verifice înțelegerea profundă (nu memorarea).`,
+        `Generează exact ${count} întrebări interactive (min 4), care să verifice înțelegerea profundă (nu memorarea), folosind tipurile SINGLE_CHOICE, TRUE_FALSE, MULTIPLE_CHOICE, FILL_BLANK, ORDERING cu câmpul answer conform structurii cerute.`,
         `Titlul checkpoint: „${input.checkpointTitle}”, titlul quiz-ului asociat: „${input.quizTitle || `Checkpoint ${input.unitTitle}`}”.`,
         "\nSURSELE (sursă unică de adevăr):",
         ...hits.map((h, i) => `[S${i + 1}] Sursa „${h.sourceName}${h.page ? `, p.${h.page}` : ""}”: ${h.text.slice(0, 1400)}`),
@@ -478,7 +478,7 @@ export async function regenerateLessonStep(input: {
       prompt: [
         input.unitContext,
         `Recreează DOAR pasul cu indexul ${input.stepIndex} din draft-ul lecției de mai jos, aplicând cerința: „${input.instruction}”.`,
-        `Păstrează tipul pasului (DESCOPERĂ/VEZI UN EXEMPLU/EXERSEAZĂ) și rolul lui în lecție.`,
+        `Păstrează tipul pasului (INTRO/MICRO_LESSON/EXAMPLE/QUICK_EXERCISE/APPLY/RECALL/MINI_TEST) și rolul lui în lecție. Dacă pasul are quiz, păstrează tipurile interactive ale întrebărilor (SINGLE_CHOICE/TRUE_FALSE/MULTIPLE_CHOICE/FILL_BLANK/ORDERING) și câmpul answer corect.`,
         `Draft-ul curent al pașului:\n${JSON.stringify(input.current, null, 2)}`,
         "\nSURSELE (sursă unică de adevăr):",
         ...input.references.map((h, i) => `[S${i + 1}] Sursa „${h.sourceName}${h.page ? `, p.${h.page}` : ""}”: ${h.text.slice(0, 1200)}`),
@@ -503,7 +503,7 @@ export async function regenerateQuestion(input: {
       prompt: [
         input.unitContext,
         `Recreează DOAR întrebarea cu indexul ${input.qIndex} din quiz-ul de mai jos, aplicând cerința: „${input.instruction}”.`,
-        `Păstrează tipul întrebării (SINGLE/CLOZE/FLASHCARD/DRAG_DROP)... dacă nu se cere altceva explicit.`,
+        `Păstrează tipul întrebării (SINGLE_CHOICE/TRUE_FALSE/MULTIPLE_CHOICE/FILL_BLANK/ORDERING) și câmpul answer conform structurii cerute, dacă nu se cere altceva explicit.`,
         `Întrebarea curentă:\n${JSON.stringify(input.current, null, 2)}`,
         "\nSURSELE (sursă unică de adevăr):",
         ...input.references.map((h, i) => `[S${i + 1}] Sursa „${h.sourceName}${h.page ? `, p.${h.page}` : ""}”: ${h.text.slice(0, 1200)}`),

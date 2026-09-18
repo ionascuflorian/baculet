@@ -42,9 +42,24 @@ const questionTypeLabels: Record<string, string> = {
   CLOZE: "Completare",
   FLASHCARD: "Card",
   DRAG_DROP: "Potrivire",
+  SINGLE_CHOICE: "Grilă",
+  TRUE_FALSE: "Adevărat/Fals",
+  MULTIPLE_CHOICE: "Alege toate",
+  FILL_BLANK: "Completează",
+  MATCHING: "Potrivește",
+  ORDERING: "Ordonează",
+  IMAGE_CHOICE: "Alege imaginea",
+  CLASSIFICATION: "Clasifică",
 };
 
 const stepTypeLabels: Record<string, string> = {
+  INTRO: "Obiectiv",
+  MICRO_LESSON: "Concept",
+  QUICK_EXERCISE: "Exercițiu rapid",
+  EXAMPLE: "Exemplu",
+  APPLY: "Aplică",
+  RECALL: "Recapitulează",
+  MINI_TEST: "Mini-test",
   DESCOPERĂ: "Descoperă",
   ÎNȚELEGE: "Înțelege",
   "VEZI UN EXEMPLU": "Vezi un exemplu",
@@ -55,6 +70,13 @@ const stepTypeLabels: Record<string, string> = {
 };
 
 const stepTypeColors: Record<string, string> = {
+  INTRO: "bg-accent/10 text-accent",
+  MICRO_LESSON: "bg-sky-500/10 text-sky-700",
+  QUICK_EXERCISE: "bg-orange-500/10 text-orange-700",
+  EXAMPLE: "bg-emerald-500/10 text-emerald-700",
+  APPLY: "bg-violet-500/10 text-violet-700",
+  RECALL: "bg-amber-500/10 text-amber-700",
+  MINI_TEST: "bg-accent/10 text-accent",
   DESCOPERĂ: "bg-sky-500/10 text-sky-700",
   ÎNȚELEGE: "bg-violet-500/10 text-violet-700",
   "VEZI UN EXEMPLU": "bg-amber-500/10 text-amber-700",

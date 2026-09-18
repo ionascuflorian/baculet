@@ -62,11 +62,21 @@ export function curriculumPrompt(input: {
 export function lessonSystem(): string {
   return [
     BASE,
-    "Rolul tău acum: generezi o lecție completă (draft) pentru elev, structurată în pași (LessonSteps): teorie (DESCOPERĂ), exemple (VEZI UN EXEMPLU) și exerciții (EXERSEAZĂ).",
-    "Lecția se bazează STRICT pe referințele oferite din surse; când o afirmație vine dintr-o sursă, o susții cu aceasta.",
-    "Pașii de tip EXERSEAZĂ/APLICĂ primesc o listă de întrebări (quiz) de 3-6 întrebări cu variante, un singur răspuns corect și explicație scurtă.",
-    "Conținutul pașilor: text clar, cu exemple numerice/reale conform sursei. Nu scrie cod.",
-    "FORMAT (strict): răspunde DOAR cu un obiect JSON, fără text înainte/după, fără backticks sau markup. Câmpuri la rădăcină: title (string), difficulty (număr întreg 1-3), concepts (array de {name, description}), steps (array de 2-5 obiecte). Fiecare step are DOAR: type — UNA din DESCOPERĂ, ÎNȚELEGE, VEZI UN EXEMPLU, ÎNCEARCĂ, EXERSEAZĂ, APLICĂ, RECAPITULEAZĂ (păstrează diacriticele!) —, content (string), minReadTime (număr întreg de secunde) și, pentru EXERSEAZĂ/APLICĂ, opțional quiz (array de întrebări cu text, options, correctIndex, explanation, type).",
+    "Rolul tău acum: generezi o lecție INTERACTIVĂ, pe pași scurți de micro-learning. Nu scrie un capitol lung — lecția se parcurge pas cu pas, cu feedback imediat.",
+    "Tipurile de pași (acronime, fără diacritice): INTRO (obiectivul lecției, 2-3 propoziții ce va ști elevul), MICRO_LESSON (o singură idee teoretică, compactă), EXAMPLE (exemplu rezolvat pas cu pas), QUICK_EXERCISE (2-3 întrebări scurte pe ideea tocmai predată), APPLY (o aplicare pe o problemă nouă), RECALL (recapitularea „de reținut”) și MINI_TEST (3-5 întrebări de autoevaluare, la final).",
+    "Structura ideală: 1×INTRO → 1-2×MICRO_LESSON intercalate cu EXAMPLE → QUICK_EXERCISE sau APPLY → RECALL → MINI_TEST final. Per total 4-6 pași.",
+    "Doar pașii QUICK_EXERCISE, APPLY și MINI_TEST au quiz (întrebări interactive). INTRO, MICRO_LESSON, EXAMPLE și RECALL NU au quiz — doar content + minReadTime.",
+    "Reguli pedagogice: o singură idee pe pas, text scurt; exercițiile ilustrează exact teoria din pașii anteriori; răspunsurile corecte sunt susținute de surse.",
+    "Tipuri de întrebări interactive (câmpurile type + answer + options):",
+    "SINGLE_CHOICE: options = 4 variante, correctIndex = indexul variantei corecte (0-based), FĂRĂ answer.",
+    "TRUE_FALSE: options = [\"Adevărat\",\"Fals\"], correctIndex = 0 sau 1, FĂRĂ answer.",
+    "MULTIPLE_CHOICE: options = 4-5 variante, answer = {\"kind\":\"multiple\",\"indices\":[1,3]} (indici strct ai variantelor corecte), corectIndex = primul dintre ele.",
+    "FILL_BLANK: options = variante plauzibile de răspuns, answer = {\"kind\":\"fill_blank\",\"accepted\":[\"raspuns1\",\"raspuns2\"]} (variante acceptate; normalizăm automat fără diacritice, deci scrie-le simplu)",
+    "ORDERING: options = elementele în ordinea CORECTĂ, answer = {\"kind\":\"ordering\",\"order\":[0,1,2,...]} (indici în ordinea corectă).",
+    "FORMAT (strict): răspunde DOAR cu un obiect JSON valid, fără text înainte/după, fără backticks sau markup.",
+    "Câmpuri la rădăcină: title (string), objective (string — o propoziție: ce știe/să știe elevul la final), estimatedMinutes (număr întreg 5-20), difficulty (număr întreg 1-3), concepts (array de {name, description}), steps (array de 4-6 obiecte).",
+    "Fiecare step are: type (UNA din INTRO, MICRO_LESSON, EXAMPLE, QUICK_EXERCISE, APPLY, RECALL, MINI_TEST), title (string scurt, opțional), content (string scurt), minReadTime (număr întreg de secunde, 10-90) și, pentru pașii cu exerciții, quiz (array de 3-5 întrebări).",
+    "Fiecare întrebare are: text (string), options (array), correctIndex (număr întreg, 0-based, acolo unde se aplică), answer (obiect după tip, acolo unde se aplică), explanation (string scurt), type (una din SINGLE_CHOICE, TRUE_FALSE, MULTIPLE_CHOICE, FILL_BLANK, ORDERING).",
   ].join(" ");
 }
 
@@ -89,7 +99,7 @@ export function lessonPrompt(input: {
     `Titlul lecției de generat: „${input.lessonTitle}”. Nivel de dificultate dorit: ${input.difficulty}/3.`,
     "SURSELE (folosește-le ca sursă unică de adevăr; păstrează sourceRefs):\n" +
       formatReferences(input.references),
-    "Returnează draft-ul lecției cu pași logici (2-5 pași: teorie+exemple+exerciții) și listă de concepte asociate.",
+    "Returnează draft-ul lecției în format INTERACTIV: pași scurți cu tipurile INTRO/MICRO_LESSON/EXAMPLE/QUICK_EXERCISE/APPLY/RECALL/MINI_TEST (doar pașii de exercițiu au quiz interactiv cu tipurile SINGLE_CHOICE/TRUE_FALSE/MULTIPLE_CHOICE/FILL_BLANK/ORDERING, cu câmpul answer conform structurii cerute).",
     "FORMAT (strict): răspunde DOAR cu un obiect JSON valid; nu adăuga text, backticks sau markup în jurul lui.",
   ].join("\n\n");
 }
@@ -97,12 +107,16 @@ export function lessonPrompt(input: {
 export function quizSystem(): string {
   return [
     BASE,
-    "Rolul tău acum: generezi un quiz (grile și variante variate) care fixează conținutul unei unități didactice.",
-    "Întrebările - toate tipurile: SINGLE (grilă), CLOZE (completare), FLASHCARD, DRAG_DROP — variate.",
-    "Fiecare întrebare: 'text', 'options' 4-6 variante, 'correctIndex' (0-based), 'explanation' scurtă, 'type'.",
-    "Pentru CLOZE enunțul conține '…'; pentru DRAG_DROP enunțul listează elementele de potrivit iar options conțin ordinea corectă + distractori.",
+    "Rolul tău acum: generezi un quiz (întrebări variate și interactive) care fixează conținutul unei unități didactice.",
+    "Întrebările folosesc DOAR tipurile interactive: SINGLE_CHOICE (grilă clasică), TRUE_FALSE (Adevărat/Fals), MULTIPLE_CHOICE (mai multe răspunsuri corecte), FILL_BLANK (completare liberă), ORDERING (pune în ordine). Amestecă cel puțin 2 tipuri diferite.",
+    "Specificații per tip:",
+    "SINGLE_CHOICE: options = 4-6 variante, correctIndex = indexul variantei corecte (0-based), FĂRĂ answer.",
+    "TRUE_FALSE: options = [\"Adevărat\",\"Fals\"], correctIndex = 0 sau 1, FĂRĂ answer.",
+    "MULTIPLE_CHOICE: options = 4-5 variante, answer = {\"kind\":\"multiple\",\"indices\":[1,3]} cu indicii variantelor corecte.",
+    "FILL_BLANK: options = variante plauzibile, answer = {\"kind\":\"fill_blank\",\"accepted\":[\"raspuns1\",\"raspuns2\"]} (variante acceptate; scrie-le simplu, normalizăm automat fără diacritice).",
+    "ORDERING: options = elementele în ordinea corectă, answer = {\"kind\":\"ordering\",\"order\":[0,1,2,...]}.",
     "Nu inventa: fiecare întrebare trebuie să fie susținută de sursele oferite.",
-    "FORMAT (strict): răspunde DOAR cu un obiect JSON valid. Top-level: title (string), difficulty (număr întreg 1-3), questions (array). Fiecare întrebare are EXACT câmpurile: text (string), options (array de 4-6 strings), correctIndex (număr întreg, index tema din options, începând de la 0!), explanation (string scurtă), type (UNA din: SINGLE, CLOZE, FLASHCARD, DRAG_DROP; păstrează exact aceste litere mari). Nu adăuga alte câmpuri, nu folosi backticks sau text în jurul JSON-ului.",
+    "FORMAT (strict): răspunde DOAR cu un obiect JSON valid. Top-level: title (string), difficulty (număr întreg 1-3), questions (array). Fiecare întrebare are EXACT câmpurile: text (string), options (array de strings), correctIndex (număr întreg, 0-based, unde se aplică), answer (obiect, doar unde se aplică), explanation (string scurtă), type (una din SINGLE_CHOICE, TRUE_FALSE, MULTIPLE_CHOICE, FILL_BLANK, ORDERING). Nu adăuga alte câmpuri, nu folosi backticks sau text în jurul JSON-ului.",
   ].join(" ");
 }
 
