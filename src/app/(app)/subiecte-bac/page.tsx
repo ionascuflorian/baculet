@@ -106,31 +106,29 @@ export default async function SubiecteBacPage({
         </Card>
       )}
 
-      <div className="space-y-3">
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {exams.map((exam) => (
-          <Card key={exam.id}>
-            <CardContent className="flex flex-wrap items-center gap-4 py-4">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent/10">
-                <FileText className="h-5 w-5 text-accent" />
+          <Card key={exam.id} className="h-full">
+            <CardContent className="flex h-full flex-col p-5">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent/10 text-2xl">
+                {exam.subject.icon}
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="font-bold text-ink">
-                  {exam.subject.icon} {exam.subject.name} — {exam.title}
-                </p>
-                <div className="mt-1 flex flex-wrap gap-1.5">
-                  <Badge>{exam.year}</Badge>
-                  <Badge variant="neutral">{SESSION_LABELS[exam.session]}</Badge>
-                  <Badge variant="neutral">{PROFILE_LABELS[exam.profile]}</Badge>
-                </div>
+              <p className="mt-3 font-bold leading-tight text-ink">
+                {exam.subject.name} — {exam.title}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <Badge>{exam.year}</Badge>
+                <Badge variant="neutral">{SESSION_LABELS[exam.session]}</Badge>
+                <Badge variant="neutral">{PROFILE_LABELS[exam.profile]}</Badge>
               </div>
-              <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
-                <Button asChild variant="accent" size="sm">
+              <div className="mt-auto flex flex-col gap-2 pt-5 sm:flex-row">
+                <Button asChild variant="accent" size="sm" className="flex-1">
                   <a href={exam.pdfUrl} target="_blank" rel="noopener noreferrer">
                     <Download className="h-4 w-4" /> Subiect
                   </a>
                 </Button>
                 {exam.solutionUrl && (
-                  <Button asChild variant="outline" size="sm">
+                  <Button asChild variant="outline" size="sm" className="flex-1">
                     <a href={exam.solutionUrl} target="_blank" rel="noopener noreferrer">
                       <ArrowDownToLine className="h-4 w-4" /> Barem
                     </a>
