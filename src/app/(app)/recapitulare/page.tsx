@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/access";
-import { getDueReviews } from "@/lib/spaced-repetition";
+import { getReviewQueue } from "@/lib/spaced-repetition";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Brain } from "lucide-react";
@@ -11,7 +11,7 @@ export default async function RecapPage() {
   if (!sessionUser) redirect("/login");
   const userId = sessionUser.id;
 
-  const due = await getDueReviews(userId, 20);
+  const due = await getReviewQueue(userId, 20);
 
   if (due.length === 0) {
     return (

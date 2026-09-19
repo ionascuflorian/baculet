@@ -65,25 +65,27 @@ export async function recordReview(
   }
 }
 
+const reviewQuestionInclude = {
+  question: {
+    select: {
+      id: true,
+      text: true,
+      options: true,
+      correctIndex: true,
+      explanation: true,
+      concept: true,
+      quizId: true,
+      quiz: { select: { title: true, slug: true, subject: { select: { name: true, slug: true } } } },
+    },
+  },
+};
+
 export async function getDueReviews(userId: string, limit = 20) {
   return prisma.reviewItem.findMany({
     where: { userId, nextReviewAt: { lte: new Date() } },
     orderBy: [{ failCount: "desc" }, { nextReviewAt: "asc" }],
     take: limit,
-    include: {
-      question: {
-        select: {
-          id: true,
-          text: true,
-          options: true,
-          correctIndex: true,
-          explanation: true,
-          concept: true,
-          quizId: true,
-          quiz: { select: { title: true, slug: true, subject: { select: { name: true, slug: true } } } },
-        },
-      },
-    },
+    include: reviewQuestionInclude,
   });
 }
 
@@ -117,6 +119,24 @@ export async function getWeakConcepts(userId: string, limit = 6) {
     question: g.examples[0].question as unknown as { id: string; concept: string | null; text: string; quiz: { subject: { name: string } } },
     concept: g.concept,
   }));
+}
+
+// Coada de recapitulare: întâi itemele scadente, apoi completează cu punctele slabe
+// (failCount > 0) care încă nu sunt scadente, ca pagina să nu fie goală când există puncte slabe.
+export async function getReviewQueue(userId: string, limit = 20) {
+  const due = await getDueReviews(userId, limit);
+  if (due.length >= limit) return due;
+
+  const dueIds = new Set(due.map((r) => r.questionId));
+  const now = new Date();
+  const weakNotDue = await prisma.reviewItem.findMany({
+    where: { userId, failCount: { gt: 0 }, nextReviewAt: { gt: now } },
+    orderBy: [{ failCount: "desc" }, { nextReviewAt: "asc" }],
+    take: limit - due.length,
+    include: reviewQuestionInclude,
+  });
+
+  return [...due, ...weakNotDue.filter((r) => !dueIds.has(r.questionId))];
 }
 
 export async function getRecapQuizData(userId: string) {
