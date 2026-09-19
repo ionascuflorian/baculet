@@ -140,7 +140,7 @@ export default async function SubjectPage({
           <div className="grid gap-4 sm:grid-cols-2">
             {subject.quizzes.map((quiz) => (
               <Link key={quiz.id} href={`/teste/${quiz.slug}`}>
-                <Card className="flex h-full items-center gap-4 transition-all hover:-translate-y-0.5 hover:shadow-md">
+                <Card className="flex h-full items-center gap-4 transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-md">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent/10">
                     <ListChecks className="h-5 w-5 text-accent" />
                   </div>

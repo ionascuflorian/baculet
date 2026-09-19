@@ -96,7 +96,7 @@ export default async function QuizResultsPage({
                                 : "border-feather text-subtle"
                           )}
                         >
-                          <span className="font-extrabold">{LETTERS[i]}</span>
+                          <span className="font-extrabold">{LETTERS[i] ?? "–"}</span>
                           {opt}
                           {isCorrect && <CheckCircle2 className="ml-auto h-4 w-4 text-success" />}
                           {isUser && !isCorrect && (

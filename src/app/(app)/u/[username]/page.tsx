@@ -100,7 +100,7 @@ export default async function UserProfilePage({
           (isSelf ? (
             <Link
               href="/cont"
-              className="flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-bold text-white transition-all hover:opacity-90"
+              className="flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90"
             >
               <Settings className="h-4 w-4" /> Setări cont
             </Link>

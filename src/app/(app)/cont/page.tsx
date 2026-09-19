@@ -54,6 +54,8 @@ export default async function AccountPage({
               <img
                 src={user.image}
                 alt={user.name}
+                width={80}
+                height={80}
                 className="h-full w-full object-cover"
               />
             ) : (

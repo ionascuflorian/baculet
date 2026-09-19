@@ -16,7 +16,7 @@ export default async function RecapPage() {
   if (due.length === 0) {
     return (
       <div className="mx-auto max-w-2xl space-y-6 text-center">
-        <div className="flex justify-center"><div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-success/10 text-3xl">🧠</div></div>
+        <div className="flex justify-center"><div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-success/10 text-3xl"><span aria-hidden="true">🧠</span></div></div>
         <h1 className="text-3xl font-extrabold text-ink">Nimic de recapitulat</h1>
         <p className="text-subtle">Nu ai greșeli recente. Continuă să rezolvi teste și sistemul va genera automat recapitulări personalizate.</p>
         <Button asChild variant="secondary"><Link href="/materii">Mergi la materii</Link></Button>
@@ -53,7 +53,7 @@ export default async function RecapPage() {
                   <span key={i} className={`rounded-full px-2.5 py-1 text-xs font-bold ${i === r.question.correctIndex ? "bg-success/15 text-success" : "bg-feather text-subtle"}`}>{String.fromCharCode(65 + i)}. {opt}</span>
                 ))}
               </div>
-              {r.question.explanation && <p className="mt-2 rounded-lg bg-accent/10 px-3 py-2 text-sm text-ink">💡 {r.question.explanation}</p>}
+              {r.question.explanation && <p className="mt-2 rounded-lg bg-accent/10 px-3 py-2 text-sm text-ink"><span aria-hidden="true">💡</span> {r.question.explanation}</p>}
             </CardContent>
           </Card>
         ))}

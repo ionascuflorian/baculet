@@ -87,7 +87,7 @@ export default async function ChapterPage({
           const card = (
             <Card
               className={cn(
-                "flex items-center gap-4 transition-all hover:-translate-y-0.5 hover:shadow-md",
+                "flex items-center gap-4 transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-md",
                 isDone && "border-success/40"
               )}
             >
@@ -96,7 +96,7 @@ export default async function ChapterPage({
                   {idx + 1}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="font-bold text-ink flex items-center gap-2">{lesson.title} {recommendedLocked && <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-extrabold text-accent">RECOMANDAT SĂ TERMINI ANTERIOARA</span>}</p>
+                  <p className="font-bold text-ink flex items-center gap-2">{lesson.title} {recommendedLocked && <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-extrabold text-accent">RECOMANDAT SĂ TERMINI ANTERIOARĂ</span>}</p>
                   <p className="text-sm text-subtle">{totalSteps ? `${doneSteps}/${totalSteps} pași` : "Lecție"} · {pct}%</p>
                   {totalSteps > 0 && <div className="mt-1 w-32"><Progress value={pct} /></div>}
                 </div>
@@ -121,7 +121,7 @@ export default async function ChapterPage({
           <h2 className="text-lg font-bold text-ink">Teste pe acest modul</h2>
           {chapter.quizzes.map((quiz) => (
             <Link key={quiz.id} href={`/teste/${quiz.slug}`}>
-              <Card className="flex items-center justify-between transition-all hover:-translate-y-0.5 hover:shadow-md">
+              <Card className="flex items-center justify-between transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-md">
                 <CardContent className="flex w-full items-center gap-3 p-4">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/10">
                     <ListChecks className="h-5 w-5 text-accent" />

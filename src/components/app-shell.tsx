@@ -107,6 +107,12 @@ export function AppShell({
 
   return (
     <div className="app-shell flex min-h-screen flex-col bg-background">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:ring-2 focus:ring-accent"
+      >
+        Sari la conținut
+      </a>
       <header className="sticky top-0 z-40 border-b border-feather bg-background/80 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl flex-nowrap items-center justify-between gap-3 px-4 md:h-[72px] md:gap-4 md:px-6 lg:gap-5 lg:px-9 xl:gap-6">
           <div className="flex min-w-0 flex-nowrap items-center gap-3 md:gap-4 lg:gap-5 xl:gap-8">
@@ -159,7 +165,11 @@ export function AppShell({
         shadow={false}
       />
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-32 pt-6 md:pb-12">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="mx-auto w-full max-w-6xl flex-1 scroll-mt-24 px-4 pb-32 pt-6 md:pb-12"
+      >
         {children}
       </main>
 
