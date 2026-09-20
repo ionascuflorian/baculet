@@ -428,7 +428,6 @@ body {
     background: radial-gradient(closest-side, var(--orb-fog), transparent 70%);
     filter: blur(20px);
     opacity: 0.5;
-    animation: siera-fog-breathe 7s ease-in-out infinite;
     will-change: transform, opacity;
     pointer-events: none;
   }
@@ -446,10 +445,8 @@ body {
     box-shadow:
       0 0 18px var(--orb-halo),
       inset 0 0 14px var(--orb-halo);
-    opacity: calc(var(--orb-halo-o) + var(--hover-pull) * 0.25);
-    animation: siera-halo-pulse 4.6s ease-in-out infinite;
-    transition: opacity 0.14s linear;
-    will-change: transform;
+    opacity: calc(var(--orb-halo-o) + var(--hover-pull) * 0.25 + var(--orb-halo-dyn, 0));
+    will-change: transform, opacity;
     pointer-events: none;
   }
 
@@ -475,7 +472,6 @@ body {
       0 0 44px var(--orb-glow-outer),
       inset -10px -14px 30px color-mix(in srgb, var(--ink) 22%, transparent),
       inset 6px 8px 20px rgba(255, 255, 255, 0.07);
-    animation: siera-morph 9s ease-in-out infinite, siera-breathe 5.6s ease-in-out infinite;
     filter: brightness(calc(1 + var(--hover-pull) * 0.1));
     transition: filter 0.14s linear;
     will-change: transform;
@@ -497,7 +493,6 @@ body {
     );
     filter: blur(12px);
     opacity: 0.55;
-    animation: siera-energy-flow 14s linear infinite;
     will-change: transform;
     pointer-events: none;
   }
@@ -558,17 +553,8 @@ body {
   .siera-orb__eye--smile {
     stroke: var(--orb-eye-stroke);
   }
-  .siera-orb:not(.siera-orb--happy):not(.siera-orb--speaking) .siera-orb__eye-pair {
-    animation: siera-blink 6.4s ease-in-out infinite;
-  }
-  .siera-orb--speaking .siera-orb__eye-pair {
-    animation: siera-eye-talk 1.5s ease-in-out infinite;
-  }
-  .siera-orb--happy .siera-orb__eye-pair {
-    animation: siera-eye-joy 2.8s ease-in-out infinite;
-  }
 
-  /* Particule fine — praf de lumină care plutește în jur */
+  /* Particule fine — praf de lumină care plutește în jur (motion JS condusă) */
   .siera-orb__particles {
     position: absolute;
     inset: -8%;
@@ -583,7 +569,7 @@ body {
     background: var(--orb-particle);
     box-shadow: 0 0 8px var(--orb-particle);
     opacity: 0.65;
-    animation: siera-particle-float linear infinite;
+    will-change: transform, opacity;
   }
 
   /* Stările — urmăresc tema site-ului (card/ink/accent), cu gloanțe cyan + violet discret */
@@ -661,139 +647,9 @@ body {
   /* Thinking: energia se rotește mai lent, mai vizibilă; blob ușor mai luminos */
   .siera-orb--thinking .siera-orb__energy {
     opacity: 0.8;
-    animation-duration: 20s;
-  }
-  /* Speaking: puls discret, ca o voce */
-  .siera-orb--speaking .siera-orb {
-    animation:
-      siera-morph 9s ease-in-out infinite,
-      siera-talk-pulse 1.6s ease-in-out infinite;
-  }
-  .siera-orb--speaking .siera-orb__energy {
-    animation-duration: 7s;
-  }
-  /* Happy: puls cald, mai amplu */
-  .siera-orb--happy .siera-orb {
-    animation:
-      siera-morph 9s ease-in-out infinite,
-      siera-joy-pulse 2.8s ease-in-out infinite;
   }
 
-  @keyframes siera-fog-breathe {
-    0%,
-    100% {
-      opacity: 0.45;
-      transform: translate(-50%, -50%) scale(1);
-    }
-    50% {
-      opacity: 0.62;
-      transform: translate(-50%, -50%) scale(1.07);
-    }
-  }
-  @keyframes siera-halo-pulse {
-    0%,
-    100% {
-      transform: translate(-50%, -50%) scale(1);
-    }
-    50% {
-      transform: translate(-50%, -50%) scale(1.035);
-    }
-  }
-  @keyframes siera-morph {
-    0%,
-    100% {
-      border-radius: 46% 54% 58% 42% / 42% 46% 54% 58%;
-    }
-    25% {
-      border-radius: 54% 46% 43% 57% / 57% 50% 50% 43%;
-    }
-    50% {
-      border-radius: 48% 52% 56% 44% / 44% 58% 42% 56%;
-    }
-    75% {
-      border-radius: 57% 43% 48% 52% / 50% 44% 56% 50%;
-    }
-  }
-  @keyframes siera-breathe {
-    0%,
-    100% {
-      transform: scale(1);
-    }
-    50% {
-      transform: scale(1.03);
-    }
-  }
-  @keyframes siera-talk-pulse {
-    0%,
-    100% {
-      transform: scale(1);
-    }
-    50% {
-      transform: scale(1.025);
-    }
-  }
-  @keyframes siera-joy-pulse {
-    0%,
-    100% {
-      transform: scale(1);
-    }
-    50% {
-      transform: scale(1.045);
-    }
-  }
-  @keyframes siera-energy-flow {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg);
-    }
-  }
-  @keyframes siera-blink {
-    0%,
-    93.5%,
-    100% {
-      transform: scaleY(1);
-    }
-    95.5%,
-    96.5% {
-      transform: scaleY(0.12);
-    }
-  }
-  @keyframes siera-eye-talk {
-    0%,
-    100% {
-      transform: scale(1);
-    }
-    50% {
-      transform: scale(1.05);
-    }
-  }
-  @keyframes siera-eye-joy {
-    0%,
-    100% {
-      transform: scale(1);
-    }
-    50% {
-      transform: scale(1.07);
-    }
-  }
-  @keyframes siera-particle-float {
-    0% {
-      transform: translateY(0) scale(1);
-      opacity: 0;
-    }
-    18% {
-      opacity: 0.7;
-    }
-    82% {
-      opacity: 0.7;
-    }
-    100% {
-      transform: translateY(-36px) scale(0.55);
-      opacity: 0;
-    }
-  }
+  /* --- Keyframes păstrate pentru alte zone Siera (typing dots, ping) --- */
 
   /* --- Siera: spațiul — prezență centrală, glassmorphism pe fundal întunecat --- */
   .siera-sheet {

@@ -27,6 +27,7 @@ import {
   X,
 } from "lucide-react";
 import { SieraOrb, type SieraGaze, type SieraMood } from "@/components/siera/siera-orb";
+import type { SieraReaction } from "@/lib/siera/siera-motion";
 import { getSieraGreeting, type SuggestionIcon } from "@/lib/siera/page-suggestions";
 import { cn } from "@/lib/utils";
 
@@ -330,6 +331,9 @@ export function Siera() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [happy, setHappy] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
+  // Micro-reacție la trimitere (ochii se îndreaptă spre interfață, bule animat).
+  const [reaction, setReaction] = useState<SieraReaction | null>(null);
+  const reactionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Client-only (mounted via dynamic import cu ssr: false) → putem citi media
   // query direct în initializare; schimbările ulterioare vin din listener-ul de mai jos.
   const [mobile, setMobile] = useState(() =>
@@ -748,6 +752,9 @@ const clampFabDrag = (x: number, y: number) => {
     if (!trimmed || busy) return;
     sendMessage({ text: trimmed });
     setInput("");
+    setReaction("attention");
+    if (reactionTimer.current) clearTimeout(reactionTimer.current);
+    reactionTimer.current = setTimeout(() => setReaction(null), 1600);
   };
 
   // --- Rezizare lățime (sidebar + floating) ---
@@ -814,7 +821,13 @@ const clampFabDrag = (x: number, y: number) => {
 
   const heroOrb = (
     <div className="siera-hero__orb">
-      <SieraOrb mood={mood} gaze={gaze} className="h-full w-full" />
+      <SieraOrb
+        mood={mood}
+        gaze={gaze}
+        attentive={inputFocused}
+        reaction={reaction}
+        className="h-full w-full"
+      />
     </div>
   );
   const heroName = (
@@ -1122,7 +1135,13 @@ const clampFabDrag = (x: number, y: number) => {
                 className="block h-full w-full cursor-grab select-none active:cursor-grabbing"
               >
                 <div className="h-full w-full pointer-events-none">
-                  <SieraOrb mood={mood} gaze={gaze} className="h-full w-full" />
+                  <SieraOrb
+                    mood={mood}
+                    gaze={gaze}
+                    attentive={inputFocused}
+                    reaction={reaction}
+                    className="h-full w-full"
+                  />
                 </div>
               </motion.button>
             </div>
